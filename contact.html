@@ -1,118 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Book a Consultation | Clovers Virtual Assistance</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-<style>
-body{
-    margin:0;
-    background:#f6f8f1;
-    font-family:Inter,sans-serif;
-    color:#152318;
-}
-.container{
-    max-width:700px;
-    margin:60px auto;
-    padding:20px;
-}
-h1{
-    font-family:Poppins,sans-serif;
-    color:#054422;
-    text-align:center;
-    margin-bottom:10px;
-}
-p{
-    text-align:center;
-    color:#5c6d61;
-    margin-bottom:35px;
-}
-.form-box{
-    background:#fff;
-    padding:35px;
-    border-radius:18px;
-    box-shadow:0 8px 24px rgba(0,0,0,.08);
-}
-label{
-    display:block;
-    margin:18px 0 8px;
-    font-weight:600;
-}
-input, select, textarea{
-    width:100%;
-    padding:12px;
-    border:1px solid #d9ded4;
-    border-radius:8px;
-    font-size:15px;
-    box-sizing:border-box;
-}
-textarea{
-    min-height:140px;
-    resize:vertical;
-}
-button{
-    margin-top:24px;
-    width:100%;
-    padding:14px;
-    background:#054422;
-    color:#fff;
-    border:none;
-    border-radius:8px;
-    font-size:16px;
-    font-weight:600;
-    cursor:pointer;
-}
-button:hover{
-    background:#0a662d;
-}
-.back{
-    display:inline-block;
-    margin-bottom:20px;
-    color:#054422;
-    text-decoration:none;
-    font-weight:600;
-}
-</style>
-</head>
-<body>
+<form action="https://api.web3forms.com/submit" method="POST">
 
-<div class="container">
-<a class="back" href="index.html">← Back to Home</a>
+    <!-- Web3Forms Access Key -->
+    <input type="hidden" name="access_key" value="00525ad5-2fd6-4acc-b8ba-3902b2ddaba7">
 
-<h1>Book a Consultation</h1>
-<p>Tell us about your business and we'll get back to you as soon as possible.</p>
+    <!-- Email Subject -->
+    <input type="hidden" name="subject" value="New Consultation Request - Clovers Virtual Assistance">
 
-<div class="form-box">
-<form action="mailto:support@cloversva.org" method="post" enctype="text/plain">
+    <!-- Redirect after successful submission -->
+    <input type="hidden" name="redirect" value="https://cloversva.org/">
 
-<label>Name</label>
-<input type="text" name="Name" required>
+    <!-- Spam Protection -->
+    <input type="checkbox" name="botcheck" style="display:none;">
 
-<label>Email</label>
-<input type="email" name="Email" required>
+    <label>Name</label>
+    <input type="text" name="name" required>
 
-<label>Company (Optional)</label>
-<input type="text" name="Company">
+    <label>Email</label>
+    <input type="email" name="email" required>
 
-<label>What do you need help with?</label>
-<select name="Service" required>
-<option value="">Choose one</option>
-<option>Administrative Support</option>
-<option>Customer Service</option>
-<option>Social Media Management</option>
-<option>Executive Assistance</option>
-<option>Healthcare Support</option>
-</select>
+    <label>Company (Optional)</label>
+    <input type="text" name="company">
 
-<label>Anything else we should know?</label>
-<textarea name="Message"></textarea>
+    <label>What do you need help with?</label>
+    <select name="service" required>
+        <option value="">Choose one</option>
+        <option>Administrative Support</option>
+        <option>Customer Service</option>
+        <option>Social Media Management</option>
+        <option>Executive Assistance</option>
+        <option>Healthcare Support</option>
+    </select>
 
-<button type="submit">Send Message</button>
+    <label>Anything else we should know?</label>
+    <textarea name="message"></textarea>
+
+    <button type="submit">Send Message</button>
 
 </form>
-</div>
-</div>
-
-</body>
-</html>
