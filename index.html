@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clovers Virtual Assistance | Your Partner in Productivity</title>
+<meta name="description" content="Clovers Virtual Assistance — reliable virtual support that helps businesses grow. Administrative support, customer service, social media management, executive assistance, and business operations support.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest-900:#054422;
+    --forest-800:#0a5a2e;
+    --forest-700:#0a662d;
+    --forest-600:#0e7a37;
+    --leaf-500:#81be39;
+    --leaf-400:#98cf4f;
+    --leaf-300:#bfe38c;
+    --leaf-100:#eef6e2;
+    --cream:#f6f8f1;
+    --cream-deep:#eef2e6;
+    --white:#ffffff;
+    --ink-900:#152318;
+    --ink-700:#33453a;
+    --ink-500:#5c6d61;
+    --ink-300:#93a498;
+    --line:#e2e8dd;
+    --shadow-sm: 0 2px 10px rgba(5,68,34,0.06);
+    --shadow-md: 0 12px 32px rgba(5,68,34,0.10);
+    --shadow-lg: 0 24px 60px rgba(5,68,34,0.16);
+    --radius-sm: 10px;
+    --radius-md: 18px;
+    --radius-lg: 28px;
+    --ease: cubic-bezier(.22,.9,.32,1);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Inter', system-ui, sans-serif;
+    color:var(--ink-900);
+    background:var(--cream);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,h4{
+    font-family:'Poppins', sans-serif;
+    line-height:1.15;
+    letter-spacing:-0.01em;
+    color:var(--ink-900);
+  }
+  a{color:inherit; text-decoration:none;}
+  img{max-width:100%; display:block;}
+  ul{list-style:none;}
+  button{font-family:inherit; cursor:pointer; border:none;}
+  .container{
+    width:100%;
+    max-width:1240px;
+    margin:0 auto;
+    padding:0 32px;
+  }
+  section{position:relative;}
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:'Poppins', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--forest-600);
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:15px 26px;
+    border-radius:10px;
+    font-family:'Poppins', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease), background .35s var(--ease);
+    white-space:nowrap;
+  }
+  .btn-primary{
+    background: linear-gradient(135deg, var(--forest-700), var(--forest-900));
+    color:var(--white);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-primary:hover{ transform:translateY(-3px); box-shadow: var(--shadow-lg); }
+  .btn-primary svg{ transition: transform .35s var(--ease); }
+  .btn-primary:hover svg{ transform:translateX(4px); }
+  .btn-ghost{
+    background:transparent;
+    color:var(--forest-900);
+    border:1.5px solid var(--line);
+  }
+  .btn-ghost:hover{ border-color: var(--forest-700); background:var(--leaf-100); }
+
+  /* clover mark used as recurring signature motif */
+  .clover-mark{ display:inline-block; }
+  .clover-icon{ display:inline-block; object-fit:contain; vertical-align:middle; }
+  .clover-divider{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    margin-bottom:18px;
+  }
+  .clover-divider .line{
+    width:64px; height:1px;
+    background: linear-gradient(90deg, transparent, var(--leaf-500));
+  }
+  .clover-divider .line.right{ background: linear-gradient(90deg, var(--leaf-500), transparent); }
+
+  /* ===== HEADER ===== */
+  header.site{
+    position:sticky; top:0; z-index:100;
+    background:rgba(255,255,255,0.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom:1px solid transparent;
+    transition: border-color .3s var(--ease), box-shadow .3s var(--ease);
+  }
+  header.site.scrolled{
+    border-bottom:1px solid var(--line);
+    box-shadow: 0 4px 24px rgba(5,68,34,0.06);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 40px;
+    max-width:1400px; margin:0 auto;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand img{ height:58px; width:auto; }
+  .nav-links{
+    display:flex; align-items:center; gap:40px;
+    font-family:'Poppins', sans-serif; font-weight:500; font-size:15px;
+  }
+  .nav-links a{
+    position:relative; color:var(--ink-700); padding:6px 0;
+    transition:color .25s;
+  }
+  .nav-links a::after{
+    content:''; position:absolute; left:0; bottom:0; height:2px; width:0;
+    background:var(--leaf-500); transition:width .3s var(--ease);
+  }
+  .nav-links a:hover{ color:var(--forest-900); }
+  .nav-links a:hover::after{ width:100%; }
+  .nav-cta{ display:flex; align-items:center; gap:18px; }
+  .burger{ display:none; flex-direction:column; gap:5px; padding:8px; background:none; }
+  .burger span{ width:24px; height:2px; background:var(--forest-900); border-radius:2px; transition:.3s; }
+  .mobile-menu{
+    display:none; flex-direction:column; gap:2px; background:var(--white);
+    border-top:1px solid var(--line); padding:12px 32px 24px;
+  }
+  .mobile-menu a{
+    padding:14px 0; font-family:'Poppins',sans-serif; font-weight:500; font-size:16px;
+    border-bottom:1px solid var(--line); color:var(--ink-700);
+  }
+  .mobile-menu.open{ display:flex; }
+
+  /* ===== HERO ===== */
+  .hero{
+    position:relative;
+    background: linear-gradient(115deg, var(--cream) 0%, var(--cream-deep) 55%);
+    overflow:hidden;
+    min-height:640px;
+    display:flex;
+    align-items:stretch;
+  }
+  .hero-copy{
+    position:relative; z-index:3;
+    max-width:600px;
+    padding: 90px 0 90px 40px;
+    display:flex; flex-direction:column; justify-content:center;
+  }
+  .hero-copy .eyebrow{ margin-bottom:20px; }
+  .hero-copy h1{
+    font-size:clamp(2.3rem, 4vw, 3.35rem);
+    font-weight:700;
+    margin-bottom:20px;
+  }
+  .hero-copy h1 .accent{
+    color:var(--leaf-500);
+    position:relative;
+  }
+  .hero-copy p.lead{
+    font-size:17px;
+    color:var(--ink-500);
+    max-width:460px;
+    margin-bottom:32px;
+  }
+
+  .hero-visual{
+    position:absolute;
+    top:0; right:0; bottom:0;
+    width:56%;
+    overflow:hidden;
+  }
+  .hero-visual img{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+  .hero-visual .swoosh{
+    position:absolute; z-index:2;
+    left:-22%; top:-15%;
+    width:64%; height:135%;
+    background: var(--cream);
+    border-radius:48%;
+    pointer-events:none;
+  }
+  @media (min-width:901px){
+    .hero-grid{ display:contents; }
+    .hero .container{ display:flex; align-items:center; min-height:640px; }
+  }
+
+  /* ===== MISSION & VISION ===== */
+  .mv-section{ padding:110px 0 120px; background:var(--cream); }
+  .section-head{ text-align:center; max-width:640px; margin:0 auto 56px; }
+  .section-head h2{ font-size:clamp(1.9rem, 3vw, 2.6rem); font-weight:700; margin-bottom:12px; }
+  .section-head p{ color:var(--ink-500); font-size:16px; }
+
+  .mv-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:28px;
+  }
+  .mv-card{
+    background:var(--white);
+    border-radius: var(--radius-lg);
+    padding:44px 40px;
+    box-shadow: var(--shadow-sm);
+    border:1px solid var(--line);
+    transition: transform .4s var(--ease), box-shadow .4s var(--ease);
+    position:relative;
+    overflow:hidden;
+  }
+  .mv-card::before{
+    content:''; position:absolute; top:-40px; right:-40px; width:140px; height:140px;
+    background: radial-gradient(circle, var(--leaf-100), transparent 70%);
+    border-radius:50%;
+  }
+  .mv-card:hover{ transform:translateY(-8px); box-shadow: var(--shadow-lg); }
+  .mv-icon{
+    width:64px; height:64px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:26px;
+    background: var(--leaf-100);
+    position:relative; z-index:1;
+  }
+  .mv-card h3{
+    font-size:22px; font-weight:700; margin-bottom:6px; color:var(--forest-900);
+  }
+  .mv-card .rule{ width:36px; height:3px; background:var(--leaf-500); border-radius:2px; margin-bottom:18px; }
+  .mv-card p{ color:var(--ink-700); font-size:15.5px; position:relative; z-index:1; }
+
+  /* ===== SERVICES ===== */
+  .services-section{
+    padding:110px 0 120px;
+    background: var(--white);
+  }
+  .services-grid{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:22px;
+  }
+  .service-card{
+    background:var(--cream);
+    border-radius:var(--radius-md);
+    padding:32px 24px;
+    text-align:left;
+    border:1px solid var(--line);
+    transition: transform .4s var(--ease), box-shadow .4s var(--ease), background .4s var(--ease);
+  }
+  .service-card:hover{
+    transform:translateY(-6px);
+    box-shadow:var(--shadow-md);
+    background:var(--white);
+  }
+  .service-icon{
+    width:52px; height:52px; border-radius:14px;
+    background: linear-gradient(135deg, var(--forest-700), var(--forest-900));
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:20px;
+  }
+  .service-card h4{ font-size:16.5px; font-weight:600; margin-bottom:8px; }
+  .service-card p{ font-size:13.5px; color:var(--ink-500); }
+
+  /* ===== WHY / STATS BANNER ===== */
+  .why-section{
+    background: radial-gradient(120% 140% at 10% 0%, var(--forest-800) 0%, var(--forest-900) 55%, #032c17 100%);
+    color:var(--white);
+    padding:100px 0;
+    position:relative;
+    overflow:hidden;
+  }
+  .why-section::before{
+    content:'';
+    position:absolute; inset:0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 26px 26px;
+    opacity:.5;
+  }
+  .why-inner{ position:relative; z-index:2; display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; }
+  .why-copy .eyebrow{ color:var(--leaf-400); }
+  .why-copy h2{ color:var(--white); font-size:clamp(1.9rem,3vw,2.5rem); margin:14px 0 20px; font-weight:700;}
+  .why-copy p{ color:rgba(255,255,255,0.78); font-size:16px; max-width:460px; margin-bottom:30px;}
+  .why-list{ display:flex; flex-direction:column; gap:16px; }
+  .why-list li{ display:flex; align-items:flex-start; gap:12px; color:rgba(255,255,255,0.9); font-size:15px;}
+  .why-list .check{
+    width:22px; height:22px; border-radius:50%; background:var(--leaf-500); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; margin-top:2px;
+  }
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .stat-card{
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.14);
+    border-radius:var(--radius-md);
+    padding:30px 26px;
+    backdrop-filter: blur(6px);
+  }
+  .stat-card strong{ display:block; font-family:'Poppins',sans-serif; font-size:32px; font-weight:700; color:var(--leaf-400); margin-bottom:6px;}
+  .stat-card span{ font-size:13.5px; color:rgba(255,255,255,0.75);}
+
+  /* ===== CTA ===== */
+  .cta-section{ padding:110px 0; background:var(--cream); }
+  .cta-box{
+    background: linear-gradient(120deg, var(--leaf-500), var(--forest-700) 70%);
+    border-radius: var(--radius-lg);
+    padding:64px 60px;
+    display:flex; align-items:center; justify-content:space-between; gap:40px;
+    box-shadow: var(--shadow-lg);
+    position:relative; overflow:hidden;
+  }
+  .cta-box::after{
+    content:'';
+    position:absolute; right:-60px; top:-60px; width:240px; height:240px;
+    border-radius:50%; background:rgba(255,255,255,0.10);
+  }
+  .cta-box h2{ color:var(--white); font-size:clamp(1.6rem,2.6vw,2.1rem); max-width:480px; position:relative; z-index:1; font-weight:700;}
+  .cta-box .btn-primary{ background:var(--white); color:var(--forest-900); position:relative; z-index:1; }
+  .cta-box .btn-primary:hover{ background:var(--forest-900); color:var(--white); }
+
+  /* ===== FOOTER ===== */
+  footer{
+    background:var(--forest-900);
+    color:rgba(255,255,255,0.75);
+    padding:80px 0 0;
+  }
+  .footer-grid{
+    display:grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+    gap:40px;
+    padding-bottom:60px;
+    border-bottom:1px solid rgba(255,255,255,0.12);
+  }
+  .footer-brand img{ width:280px ;height:auto; display:block; margin-bottom:20px; }
+  .footer-brand p{ font-size:14px; color:rgba(255,255,255,0.65); max-width:280px; margin-bottom:20px;}
+  .socials{ display:flex; gap:10px; }
+  .socials a{
+    width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.08);
+    display:flex; align-items:center; justify-content:center;
+    transition: background .3s, transform .3s;
+  }
+  .socials a:hover{ background:var(--leaf-500); transform:translateY(-3px); }
+  .footer-col h5{
+    font-family:'Poppins',sans-serif; color:var(--white); font-size:14px; letter-spacing:.06em; text-transform:uppercase;
+    margin-bottom:20px; font-weight:600;
+  }
+  .footer-col ul li{ margin-bottom:12px; }
+  .footer-col a{ font-size:14.5px; color:rgba(255,255,255,0.68); transition:color .25s; }
+  .footer-col a:hover{ color:var(--leaf-400); }
+  .footer-col .contact-item{ display:flex; gap:10px; align-items:flex-start; font-size:14.5px; margin-bottom:16px; color:rgba(255,255,255,0.68);}
+  .footer-bottom{
+    padding:24px 0 30px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; color:rgba(255,255,255,0.5);
+    flex-wrap:wrap; gap:12px;
+  }
+  .footer-bottom a{ color:rgba(255,255,255,0.5); }
+  .footer-bottom a:hover{ color:var(--leaf-400); }
+
+  /* ===== reveal on scroll ===== */
+  .reveal{ opacity:0; transform:translateY(28px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ opacity:1; transform:none; transition:none; }
+    html{ scroll-behavior:auto; }
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1080px){
+    .services-grid{ grid-template-columns:repeat(3,1fr); }
+    .why-inner{ grid-template-columns:1fr; }
+    .stat-grid{ max-width:520px; }
+  }
+  @media (max-width: 900px){
+    .nav-links{ display:none; }
+    .burger{ display:flex; }
+    .hero{ min-height:auto; display:block; }
+    .hero-grid{ display:block; }
+    .hero-copy{ padding:36px 0 28px 0; max-width:100%; }
+    .hero-visual{
+      position:relative; inset:auto; width:100%; height:300px;
+      order:-1; border-radius:0 0 40px 90px; overflow:hidden;
+    }
+    .hero-visual .swoosh{ display:none; }
+    .mv-grid{ grid-template-columns:1fr; }
+    .services-grid{ grid-template-columns:repeat(2,1fr); }
+    .cta-box{ flex-direction:column; text-align:center; padding:48px 32px; }
+    .footer-grid{ grid-template-columns:1fr 1fr; }
+  }
+  @media (max-width: 560px){
+    .container{ padding:0 20px; }
+    .nav-inner{ padding:14px 20px; }
+    .brand img{ height:44px; }
+    .hero-copy .eyebrow{ font-size:12px; }
+    .hero-visual{ height:240px; border-radius:0 0 28px 60px; }
+    .services-grid{ grid-template-columns:1fr; }
+    .footer-grid{ grid-template-columns:1fr; gap:32px; }
+    .why-list li{ font-size:14px; }
+    .stat-grid{ grid-template-columns:1fr 1fr; }
+    .cta-box h2{ font-size:1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site" id="siteHeader">
+  <div class="nav-inner">
+    <a href="#home" class="brand">
+      <img src="images/logo-transparent.png" alt="Clovers Virtual Assistance logo">
+    </a>
+    <nav class="nav-links">
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <a href="#services">Services</a>
+      <a href="#careers">Careers</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="contact.html" class="btn btn-primary" style="padding:12px 22px; font-size:14px;">Book a Consultation</a>
+      <button class="burger" id="burgerBtn" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#home">Home</a>
+    <a href="#about">About</a>
+    <a href="#services">Services</a>
+    <a href="#careers">Careers</a>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" id="home">
+    <div class="hero-visual">
+      <div class="swoosh"></div>
+      <img src="https://images.unsplash.com/photo-1772513168377-185aa30b72ac?fm=jpg&q=80&w=1400&auto=format&fit=crop" alt="Close-up of a lush four-leaf clover with morning dew, symbolizing growth and good fortune">
+    </div>
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-copy reveal">
+          <span class="eyebrow">
+            <img src="images/clover-icon.png" alt="" width="16" height="17" class="clover-icon">
+            Reliable Support. Lasting Impact.
+          </span>
+          <h1>Helping Businesses Grow with <span class="accent">Dependable</span> Virtual Support</h1>
+          <p class="lead">We handle the details so you can focus on what truly matters — growing your business.</p>
+          <a href="contact.html" class="btn btn-primary">
+            Book a Consultation
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION & VISION -->
+  <section class="mv-section" id="about">
+    <div class="container">
+      <div class="section-head reveal">
+        <div class="clover-divider">
+          <span class="line"></span>
+          <img src="images/clover-icon.png" alt="" width="20" height="22" class="clover-icon">
+          <span class="line right"></span>
+        </div>
+        <h2>Our Mission &amp; Vision</h2>
+        <p>Guided by purpose. Driven by impact.</p>
+      </div>
+
+      <div class="mv-grid">
+        <div class="mv-card reveal">
+          <div class="mv-icon">
+            <img src="images/clover-icon-dark.png" alt="" width="30" height="33" class="clover-icon">
+          </div>
+          <h3>Our Mission</h3>
+          <div class="rule"></div>
+          <p>To help businesses focus on what matters most by providing dependable virtual support that simplifies daily operations, strengthens productivity, and drives long-term success. We strive to become an extension of our clients' teams—delivering every task with excellence, integrity, and care.</p>
+        </div>
+
+        <div class="mv-card reveal">
+          <div class="mv-icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 22V13M12 13C12 13 5 12.5 5 6.5C5 4.5 6.5 3 8.5 3C10.5 3 12 5 12 7C12 5 13.5 3 15.5 3C17.5 3 19 4.5 19 6.5C19 12.5 12 13 12 13Z" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Our Vision</h3>
+          <div class="rule"></div>
+          <p>To build a future where every business, regardless of size, has access to trusted virtual professionals who enable growth, inspire confidence, and create opportunities for lasting success.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="services-section" id="services">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">What We Do</span>
+        <h2 style="margin-top:14px;">Support Built Around Your Business</h2>
+        <p>Five core specialties, one dependable team behind them.</p>
+      </div>
+      <div class="services-grid">
+        <div class="service-card reveal">
+          <div class="service-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="white" stroke-width="1.8"/><path d="M3 9H21" stroke="white" stroke-width="1.8"/><path d="M8 14H16" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <h4>Administrative Support</h4>
+          <p>Calendars, inboxes, and daily operations, handled with precision.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 11.5C21 16.194 16.97 20 12 20C10.86 20 9.77 19.8 8.77 19.44L4 20L5.28 16.4C4.47 15.24 4 13.92 4 12.5C4 7.806 8.03 4 13 4C17.97 4 21 7.806 21 11.5Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </div>
+          <h4>Customer Service</h4>
+          <p>Friendly, responsive support that keeps your customers coming back.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 13L11 6L14 9L20 3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 3H20V8" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17V19M9 15V19M14 13V19M19 11V19" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </div>
+          <h4>Social Media Management</h4>
+          <p>Consistent, on-brand content that grows your audience.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="12" rx="2" stroke="white" stroke-width="1.8"/><path d="M8 7V5.5C8 4.67 8.67 4 9.5 4H14.5C15.33 4 16 4.67 16 5.5V7" stroke="white" stroke-width="1.8"/></svg>
+          </div>
+          <h4>Executive Assistance</h4>
+          <p>A trusted right hand for scheduling, travel, and priorities.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20V13M22 20H2" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h4>Healthcare</h4>
+          <p>End-to-end healthcare support, including appointment scheduling, patient follow-up, medical billing, denial management, and administrative services.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY / STATS -->
+  <section class="why-section" id="careers">
+    <div class="container">
+      <div class="why-inner">
+        <div class="why-copy reveal">
+          <span class="eyebrow">Why Clovers</span>
+          <h2>An Extension of Your Team, Not Just a Task List</h2>
+          <p>We're selective about who joins Clovers, so you always work with virtual associates who bring skill, discipline, and genuine care to every task.</p>
+          <ul class="why-list">
+            <li><span class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Carefully vetted, trained virtual professionals</li>
+            <li><span class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Clear communication and consistent follow-through</li>
+            <li><span class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Flexible support that scales with your business</li>
+          </ul>
+        </div>
+        <div class="stat-grid reveal">
+          <div class="stat-card"><strong>5</strong><span>Core service specialties</span></div>
+          <div class="stat-card"><strong>1:1</strong><span>Dedicated associate matching</span></div>
+          <div class="stat-card"><strong>100%</strong><span>Remote &amp; flexible delivery</span></div>
+          <div class="stat-card"><strong>&lt;24h</strong><span>Typical response time</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="contact">
+    <div class="container">
+      <div class="cta-box reveal">
+        <h2>Ready for support that feels like part of your team?</h2>
+        <a href="contact.html" class="btn btn-primary">
+          Book a Consultation
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="#0a662d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="images/logo-white.png" alt="Clovers Virtual Assistance logo">
+        <div class="socials">
+          <a href="https://www.facebook.com/profile.php?id=61591165033923"
+	     target="_blank"
+	     rel="noopener noreferrer"
+aria-label="Facebook"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 9H17V6H14C12.34 6 11 7.34 11 9V11H9V14H11V21H14V14H16.5L17 11H14V9.5C14 9.22 14.22 9 14 9Z" fill="white"/></svg></a>
+          <a href="#" aria-label="Instagram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" stroke="white" stroke-width="1.6"/><circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.6"/><circle cx="17.2" cy="6.8" r="1" fill="white"/></svg></a>
+          <a href="https://www.linkedin.com/in/clovers-virtual-assistance-services-7b672141a?fbclid=IwY2xjawS-eMZleHRuA2FlbQIxMABicmlkETBpamtrblp0YnNEanVhMmoyc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHriLAtmERBEWBMGPHMzkvRDn1NBayx2sqdTYlasZ9elzIJYV7_3pK93NikDZ_aem_pmr0AO6JSr7WKBQ4LnllIw"
+	     target="_blank"
+	     rel="noopener noreferrer"
+aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="white" stroke-width="1.6"/><path d="M7 10V17M7 7V7.01M11 17V10M11 13C11 11.34 12.34 10 14 10C15.66 10 17 11.34 17 13V17" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="#home">Home</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#services">Services</a></li>
+          <li><a href="#careers">Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="#services">Administrative Support</a></li>
+          <li><a href="#services">Customer Service</a></li>
+          <li><a href="#services">Social Media Management</a></li>
+          <li><a href="#services">Executive Assistance</a></li>
+          <li><a href="#services">Healthcare Support</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Get in Touch</h5>
+        <div class="contact-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-top:2px; flex-shrink:0;"><path d="M22 6L12 13L2 6" stroke="#81be39" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="4" width="20" height="16" rx="2" stroke="#81be39" stroke-width="1.7"/></svg>
+    <span>
+        <a href="mailto:support@cloversva.org">support@cloversva.org</a></span>
+  </div>
+	  <span>Careers: <a href="mailto:support.cloverva@gmail.com">support.cloverva@gmail.com</a></span>
+        <div class="contact-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-top:2px; flex-shrink:0;"><path d="M22 16.92V19.92C22 20.47 21.55 20.92 21 20.92C10.4 20.92 2 12.52 2 1.92C2 1.37 2.45 0.92 3 0.92H6C6.55 0.92 7 1.37 7 1.92C7 3.42 7.25 4.87 7.72 6.22C7.86 6.62 7.76 7.07 7.45 7.38L5.9 8.93C7.28 11.72 9.28 13.72 12.07 15.1L13.62 13.55C13.93 13.24 14.38 13.14 14.78 13.28C16.13 13.75 17.58 14 19.08 14C19.63 14 20.08 14.45 20.08 15V16.92H22Z" fill="#81be39"/></svg>
+          <span>+63 920 156 8952</span>
+        </div>
+        <a href="#contact" class="btn btn-primary" style="margin-top:8px; padding:12px 22px; font-size:13.5px;">Book a Consultation</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> Clovers Virtual Assistance. All rights reserved.</span>
+      <span>Your Partner in Productivity</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // sticky header shadow
+  const header = document.getElementById('siteHeader');
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 12);
+  });
+
+  // mobile menu toggle
+  const burger = document.getElementById('burgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  burger.addEventListener('click', () => {
+    mobileMenu.classList.toggle('open');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileMenu.classList.remove('open')));
+
+  // scroll reveal
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting){
+        entry.target.classList.add('in');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  revealEls.forEach(el => io.observe(el));
+</script>
+</body>
+</html>
