@@ -269,35 +269,18 @@
   }
 
   .form-error{
-    display:flex; gap:14px; align-items:flex-start;
-    background: linear-gradient(180deg, #fdf3f3, #fcecec);
-    border:1px solid #f5d3d3;
-    box-shadow: 0 8px 22px rgba(194,59,59,0.08);
-    color:#8f2b2b;
-    border-radius:16px; padding:18px 20px; font-size:14.5px; line-height:1.55;
-    margin-bottom:24px;
-    animation: error-in .35s var(--ease);
+    display:flex; align-items:flex-start; gap:8px;
+    color:var(--red-600); font-size:14px; line-height:1.55;
+    margin-top:14px;
+    animation: error-in .3s var(--ease);
   }
   .form-error[hidden]{ display:none !important; }
   @keyframes error-in{
-    0%{ opacity:0; transform:translateY(-6px); }
+    0%{ opacity:0; transform:translateY(-4px); }
     100%{ opacity:1; transform:translateY(0); }
   }
-  .form-error .error-icon{
-    flex-shrink:0; width:26px; height:26px; border-radius:50%;
-    background:#f7d9d9; display:flex; align-items:center; justify-content:center;
-    margin-top:1px;
-  }
-  .form-error .error-body{ flex-grow:1; padding-top:3px; }
-  .form-error strong{ display:block; font-family:'Poppins',sans-serif; font-weight:700; font-size:14.5px; color:var(--red-600); margin-bottom:2px; }
+  .form-error svg{ flex-shrink:0; margin-top:2px; }
   .form-error a{ color:var(--red-600); font-weight:600; text-decoration:underline; }
-  .form-error .error-dismiss{
-    flex-shrink:0; width:26px; height:26px; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    color:#8f2b2b; opacity:.6; transition: opacity .2s, background .2s;
-    margin:-2px -2px 0 0;
-  }
-  .form-error .error-dismiss:hover{ opacity:1; background:rgba(194,59,59,0.1); }
 
   .honeypot{ position:absolute; left:-9999px; opacity:0; pointer-events:none; height:0; width:0; }
 
@@ -477,17 +460,6 @@
               <p>Tell us about your business and we'll follow up with a plan tailored to you.</p>
             </div>
 
-            <div class="form-error" id="partnerError" role="alert" hidden>
-              <span class="error-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#c23b3b" stroke-width="1.8"/><path d="M12 8V13" stroke="#c23b3b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#c23b3b"/></svg></span>
-              <div class="error-body">
-                <strong>We couldn't send your request</strong>
-                <span data-error-text>Please try again, or email us at <a href="mailto:support@cloversva.org">support@cloversva.org</a>.</span>
-              </div>
-              <button type="button" class="error-dismiss" aria-label="Dismiss">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              </button>
-            </div>
-
             <form id="partnerForm" novalidate>
               <input type="hidden" name="access_key" value="00525ad5-2fd6-4acc-b8ba-3902b2ddaba7">
               <input type="hidden" name="subject" value="New Partner Consultation">
@@ -553,6 +525,11 @@
                 Request a Partner Consultation
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
+
+              <p class="form-error" id="partnerError" role="alert" hidden>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#c23b3b" stroke-width="1.8"/><path d="M12 8V13" stroke="#c23b3b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#c23b3b"/></svg>
+                <span data-error-text>We couldn't send your request. Please try again, or email us at <a href="mailto:support@cloversva.org">support@cloversva.org</a>.</span>
+              </p>
             </form>
           </div>
         </div>
@@ -570,17 +547,6 @@
             <div class="form-card-head">
               <h2>Apply to Join Our Team</h2>
               <p>Share a few details about your experience and we'll be in touch.</p>
-            </div>
-
-            <div class="form-error" id="careerError" role="alert" hidden>
-              <span class="error-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#c23b3b" stroke-width="1.8"/><path d="M12 8V13" stroke="#c23b3b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#c23b3b"/></svg></span>
-              <div class="error-body">
-                <strong>We couldn't send your application</strong>
-                <span data-error-text>Please try again, or email us at <a href="mailto:support.cloversva@gmail.com">support.cloversva@gmail.com</a>.</span>
-              </div>
-              <button type="button" class="error-dismiss" aria-label="Dismiss">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              </button>
             </div>
 
             <form id="careerForm" novalidate>
@@ -647,6 +613,11 @@
                 Submit Application
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
+
+              <p class="form-error" id="careerError" role="alert" hidden>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#c23b3b" stroke-width="1.8"/><path d="M12 8V13" stroke="#c23b3b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#c23b3b"/></svg>
+                <span data-error-text>We couldn't send your application. Please try again, or email us at <a href="mailto:support.cloversva@gmail.com">support.cloversva@gmail.com</a>.</span>
+              </p>
             </form>
           </div>
         </div>
@@ -847,10 +818,6 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
 
   document.getElementById('partnerForm').addEventListener('submit', handleSubmit);
   document.getElementById('careerForm').addEventListener('submit', handleSubmit);
-
-  document.querySelectorAll('.form-error .error-dismiss').forEach(btn => {
-    btn.addEventListener('click', () => { btn.closest('.form-error').hidden = true; });
-  });
 
   // clear the invalid state as soon as the person fixes a field
   document.querySelectorAll('.field input, .field select, .field textarea').forEach(control => {
