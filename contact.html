@@ -159,6 +159,23 @@
     max-width:600px; margin:0 auto;
     animation: rise .9s var(--ease) .18s both;
   }
+	.brochure-link{
+    display:inline-flex; align-items:center; gap:9px;
+    margin-top:26px; padding:12px 22px;
+    border:1.5px solid var(--line); border-radius:999px;
+    background:var(--white);
+    font-family:'Poppins',sans-serif; font-weight:600; font-size:14px;
+    color:var(--forest-700);
+    box-shadow: var(--shadow-sm);
+    transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s var(--ease), background .3s var(--ease);
+    animation: rise .9s var(--ease) .24s both;
+  }
+  .brochure-link:hover{
+    transform:translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color:var(--leaf-300);
+    background:var(--leaf-100);
+  }
   .scroll-cue{
     margin:46px auto 0;
     width:34px; height:34px;
