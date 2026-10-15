@@ -20,6 +20,27 @@
     <section id="signin" class="card center" hidden>
       <p>Sign in with the Google account your manager approved.</p>
       <button id="signInBtn" class="primary">Sign in with Google</button>
+      <p class="muted divider">or use your email and a password</p>
+      <form id="pwForm" class="stack">
+        <label>Email <input type="email" id="pwEmail" autocomplete="username" required></label>
+        <label>Password <input type="password" id="pwPassword" autocomplete="current-password" minlength="8" required></label>
+        <div class="row center-row">
+          <button class="primary" value="signin">Sign in</button>
+          <button type="button" id="pwCreate">Create account</button>
+        </div>
+        <button type="button" id="pwForgot" class="link">Forgot password?</button>
+        <p id="pwNote" class="muted" role="status"></p>
+      </form>
+    </section>
+
+    <section id="verify" class="card center" hidden>
+      <p>We sent a verification link to <strong id="verifyEmail"></strong>.</p>
+      <p>Open that email, click the link, then come back and press the button below. Check your spam folder if you don't see it.</p>
+      <div class="row center-row">
+        <button id="verifyDone" class="primary">I've verified, continue</button>
+        <button id="verifyResend">Resend email</button>
+      </div>
+      <p id="verifyNote" class="muted" role="status"></p>
     </section>
 
     <section id="pending" class="card center" hidden>

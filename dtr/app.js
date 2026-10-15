@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
 import {
-  GoogleAuthProvider, connectAuthEmulator, getAuth, onAuthStateChanged, signInWithPopup, signOut,
+  GoogleAuthProvider, connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged,
+  sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 import {
   Timestamp, collection, connectFirestoreEmulator, doc, getDoc, getDocs, getFirestore, limit, onSnapshot,
@@ -65,14 +66,72 @@ $('signInBtn').onclick = () => {
 };
 $('signOut').onclick = () => signOut(auth);
 
+// ---------- Email + password ----------
+
+const AUTH_MESSAGES = {
+  'auth/invalid-credential': 'Wrong email or password.',
+  'auth/wrong-password': 'Wrong email or password.',
+  'auth/user-not-found': 'Wrong email or password.',
+  'auth/email-already-in-use': 'That email already has an account. Sign in instead, or use "Forgot password?".',
+  'auth/weak-password': 'Use a password of at least 8 characters.',
+  'auth/invalid-email': 'That email address does not look right.',
+  'auth/missing-email': 'Type your email first.',
+  'auth/too-many-requests': 'Too many tries. Wait a few minutes and try again.',
+  'auth/operation-not-allowed': 'Email sign-in is not switched on yet. Use Google, or ask your manager.',
+};
+const authNote = (id, err) => { $(id).textContent = AUTH_MESSAGES[err?.code] ?? `Something went wrong: ${err?.message ?? err}`; };
+const pwEmail = () => $('pwEmail').value.trim().toLowerCase();
+
+$('pwForm').onsubmit = (e) => {
+  e.preventDefault();
+  $('pwNote').textContent = '';
+  signInWithEmailAndPassword(auth, pwEmail(), $('pwPassword').value).catch((err) => authNote('pwNote', err));
+};
+
+$('pwCreate').onclick = async () => {
+  $('pwNote').textContent = '';
+  if (!$('pwForm').reportValidity()) return;
+  try {
+    const { user } = await createUserWithEmailAndPassword(auth, pwEmail(), $('pwPassword').value);
+    await sendEmailVerification(user);
+  } catch (err) { authNote('pwNote', err); }
+};
+
+$('pwForgot').onclick = async () => {
+  try {
+    await sendPasswordResetEmail(auth, pwEmail());
+    $('pwNote').textContent = 'If that email has an account, a reset link is on its way. Check your spam folder too.';
+  } catch (err) { authNote('pwNote', err); }
+};
+
+$('verifyResend').onclick = async () => {
+  try {
+    await sendEmailVerification(auth.currentUser);
+    $('verifyNote').textContent = 'Sent again.';
+  } catch (err) { authNote('verifyNote', err); }
+};
+
+// The verified flag only reaches the database rules through a fresh sign-in token.
+$('verifyDone').onclick = async () => {
+  await auth.currentUser.reload();
+  if (!auth.currentUser.emailVerified) { $('verifyNote').textContent = 'Not verified yet. Click the link in the email first.'; return; }
+  await auth.currentUser.getIdToken(true);
+  location.reload();
+};
+
 onAuthStateChanged(auth, async (user) => {
   stopListening();
-  for (const id of ['signin', 'pending', 'clock', 'mine', 'admin', 'who', 'error']) show(id, false);
+  for (const id of ['signin', 'verify', 'pending', 'clock', 'mine', 'admin', 'who', 'error']) show(id, false);
   show('loading', false);
   if (!user) { show('signin'); return; }
 
   const email = user.email.toLowerCase();
   show('who'); $('whoName').textContent = email;
+  if (!user.emailVerified) {
+    $('verifyEmail').textContent = email;
+    show('verify');
+    return;
+  }
   try {
     const snap = await getDoc(doc(db, 'allowed', email));
     if (!snap.exists() || !snap.data().active) {

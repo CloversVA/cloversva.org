@@ -34,3 +34,7 @@ th { color: var(--muted); font-weight: 600; }
 .error { color: var(--danger); font-weight: 600; }
 dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); width: min(480px, calc(100vw - 32px)); }
 dialog label { display: flex; margin-bottom: 12px; }
+#signin { max-width: 420px; margin-left: auto; margin-right: auto; }
+.divider { margin: 20px 0 12px; }
+.stack label { display: flex; margin-bottom: 12px; text-align: left; }
+.center-row { justify-content: center; }
