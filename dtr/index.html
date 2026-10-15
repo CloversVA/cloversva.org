@@ -45,7 +45,7 @@
 
     <section id="pending" class="card center" hidden>
       <p><strong id="pendingEmail"></strong> is not approved yet.</p>
-      <p>Ask your manager to add this exact email, then reload this page.</p>
+      <p id="requestNote">Your request has been sent to the admin. Once they approve it, reload this page.</p>
     </section>
 
     <section id="clock" class="card center" hidden>
@@ -63,7 +63,7 @@
       <nav class="tabs" role="tablist">
         <button role="tab" data-tab="now" aria-selected="true">On the clock</button>
         <button role="tab" data-tab="report" aria-selected="false">Hours report</button>
-        <button role="tab" data-tab="vas" aria-selected="false">VAs</button>
+        <button role="tab" data-tab="vas" aria-selected="false">VAs<span id="waitingCount"></span></button>
       </nav>
 
       <div class="card" data-panel="now">
@@ -94,6 +94,11 @@
 
       <div class="card" data-panel="vas" hidden>
         <h2>VAs</h2>
+        <div id="requestsBox" hidden>
+          <h3>Waiting for approval</h3>
+          <table><thead><tr><th>Name</th><th>Email</th><th>Asked</th><th></th></tr></thead><tbody id="requestRows"></tbody></table>
+          <h3>Add someone directly</h3>
+        </div>
         <form id="addForm" class="row">
           <label>Email <input type="email" id="newEmail" required></label>
           <label>Name <input id="newName" required maxlength="100"></label>

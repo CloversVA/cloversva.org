@@ -4,7 +4,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 import {
-  Timestamp, collection, connectFirestoreEmulator, doc, getDoc, getDocs, getFirestore, limit, onSnapshot,
+  Timestamp, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot,
   orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
@@ -137,6 +137,11 @@ onAuthStateChanged(auth, async (user) => {
     if (!snap.exists() || !snap.data().active) {
       $('pendingEmail').textContent = email;
       show('pending');
+      const name = (user.displayName || email.split('@')[0]).slice(0, 100);
+      setDoc(doc(db, 'requests', email), { name, at: serverTimestamp() }).catch((err) => {
+        console.error(err);
+        $('requestNote').textContent = 'We could not send your request automatically. Ask your manager to add this exact email, then reload this page.';
+      });
       return;
     }
     me = { email, ...snap.data() };
@@ -202,6 +207,34 @@ function startAdmin() {
       return el('tr', {}, cell(d.data().name), cell(fmt(since)), cell(timer));
     }));
     show('nowEmpty', snap.empty);
+  }, showError));
+
+  unsubs.push(onSnapshot(collection(db, 'requests'), (snap) => {
+    const waiting = snap.docs
+      .map((d) => ({ email: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))
+      .sort((a, b) => b.at.toMillis() - a.at.toMillis());
+    $('waitingCount').textContent = waiting.length ? ` (${waiting.length} waiting)` : '';
+    show('requestsBox', waiting.length > 0);
+    $('requestRows').replaceChildren(...waiting.map((r) => {
+      const name = el('input', { value: r.name, maxLength: 100, required: true, ariaLabel: `Name for ${r.email}` });
+      const approve = el('button', { className: 'primary', textContent: 'Approve' });
+      const deny = el('button', { textContent: 'Deny' });
+      approve.onclick = async () => {
+        if (!name.value.trim()) { name.focus(); return; }
+        approve.disabled = true;
+        const b = writeBatch(db);
+        b.set(doc(db, 'allowed', r.email), { name: name.value.trim(), role: 'va', active: true });
+        b.delete(doc(db, 'requests', r.email));
+        await b.commit().catch(showError);
+        approve.disabled = false;
+      };
+      deny.onclick = () => {
+        if (confirm(`Deny access for ${r.email}? They will see "not approved" and can ask again by signing in.`)) {
+          deleteDoc(doc(db, 'requests', r.email)).catch(showError);
+        }
+      };
+      return el('tr', {}, cell(name), cell(r.email), cell(fmt(r.at.toDate())), cell(approve, ' ', deny));
+    }));
   }, showError));
 
   unsubs.push(onSnapshot(collection(db, 'allowed'), (snap) => {
