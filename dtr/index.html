@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VA Time Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>VA Time Tracker</h1>
+    <div id="who" hidden><span id="whoName"></span> <button id="signOut" class="link">Sign out</button></div>
+  </header>
+
+  <main>
+    <p id="loading">Loading...</p>
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section id="signin" class="card center" hidden>
+      <p>Sign in with the Google account your manager approved.</p>
+      <button id="signInBtn" class="primary">Sign in with Google</button>
+    </section>
+
+    <section id="pending" class="card center" hidden>
+      <p><strong id="pendingEmail"></strong> is not approved yet.</p>
+      <p>Ask your manager to add this exact email, then reload this page.</p>
+    </section>
+
+    <section id="clock" class="card center" hidden>
+      <p id="clockState"></p>
+      <p id="clockTimer" class="timer" aria-live="off"></p>
+      <button id="clockBtn" class="primary big"></button>
+    </section>
+
+    <section id="mine" class="card" hidden>
+      <h2>My recent shifts</h2>
+      <table><thead><tr><th>Clock in</th><th>Clock out</th><th>Length</th></tr></thead><tbody id="mineRows"></tbody></table>
+    </section>
+
+    <section id="admin" hidden>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="now" aria-selected="true">On the clock</button>
+        <button role="tab" data-tab="report" aria-selected="false">Hours report</button>
+        <button role="tab" data-tab="vas" aria-selected="false">VAs</button>
+      </nav>
+
+      <div class="card" data-panel="now">
+        <h2>On the clock now</h2>
+        <table><thead><tr><th>VA</th><th>Since</th><th>So far</th></tr></thead><tbody id="nowRows"></tbody></table>
+        <p id="nowEmpty" class="muted">Nobody is clocked in.</p>
+      </div>
+
+      <div class="card" data-panel="report" hidden>
+        <h2>Hours report</h2>
+        <div class="row" role="group" aria-label="Pay period">
+          <button type="button" data-period="thisWeek">This week</button>
+          <button type="button" data-period="lastWeek">Last week</button>
+          <button type="button" data-period="thisMonth">This month</button>
+          <button type="button" data-period="lastMonth">Last month</button>
+        </div>
+        <form id="reportForm" class="row">
+          <label>From <input type="date" id="from" required></label>
+          <label>To <input type="date" id="to" required></label>
+          <button class="primary">Show</button>
+          <button type="button" id="csvBtn" disabled>Download CSV</button>
+        </form>
+        <h3>Totals</h3>
+        <table><thead><tr><th>VA</th><th>Shifts</th><th>Hours</th><th>Still open</th></tr></thead><tbody id="totalRows"></tbody></table>
+        <h3>Shifts</h3>
+        <table><thead><tr><th>VA</th><th>Clock in</th><th>Clock out</th><th>Length</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table>
+      </div>
+
+      <div class="card" data-panel="vas" hidden>
+        <h2>VAs</h2>
+        <form id="addForm" class="row">
+          <label>Email <input type="email" id="newEmail" required></label>
+          <label>Name <input id="newName" required maxlength="100"></label>
+          <label>Role <select id="newRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
+          <button class="primary">Add</button>
+        </form>
+        <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="vaRows"></tbody></table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="editDialog">
+    <form id="editForm" method="dialog">
+      <h2>Fix shift for <span id="editName"></span></h2>
+      <label>Clock in <input type="datetime-local" id="editIn" required></label>
+      <label>Clock out <input type="datetime-local" id="editOut" required></label>
+      <label>Reason for the change <input id="editReason" required minlength="3" maxlength="500"></label>
+      <div class="row">
+        <button class="primary" value="save">Save</button>
+        <button type="button" id="editCancel">Cancel</button>
+      </div>
+      <h3>Change history</h3>
+      <ul id="editHistory" class="muted"></ul>
+    </form>
+  </dialog>
+</body>
+</html>
