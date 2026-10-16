@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3">
-  <script type="module" src="app.js?v=4"></script>
+  <link rel="stylesheet" href="style.css?v=4">
+  <script type="module" src="app.js?v=5"></script>
 </head>
 <body>
   <header class="topbar">
@@ -173,10 +173,18 @@
               <button type="button" id="csvBtn" disabled>Download CSV</button>
               <button type="button" id="tsPrintBtn" disabled>Timesheet PDF</button>
             </form>
+            <div class="row"><label>Filter by VA <input id="tsFilter" type="search" placeholder="Type part of a name"></label></div>
             <h3>Totals</h3>
             <div class="scroll"><table><thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours</th><th class="num">Still open</th></tr></thead><tbody id="totalRows"></tbody></table></div>
             <h3>Shifts</h3>
-            <div class="scroll"><table><thead><tr><th>VA</th><th>Clock in</th><th>Clock out</th><th>Length</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div>
+            <p class="muted">Click a column name to sort; click again to reverse.</p>
+            <div class="scroll"><table><thead><tr>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="name">VA</button></th>
+              <th aria-sort="ascending"><button type="button" class="sort" data-sort="clockIn">Clock in</button></th>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="clockOut">Clock out</button></th>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="length">Length</button></th>
+              <th></th></tr></thead><tbody id="shiftRows"></tbody></table></div>
+            <p id="tsEmpty" class="muted" hidden>No shifts match.</p>
           </div>
         </section>
 

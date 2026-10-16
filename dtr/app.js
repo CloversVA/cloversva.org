@@ -5,7 +5,7 @@ import {
 import {
   collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=4';
+import { startAdmin } from './admin.js?v=5';
 import { coeHtml, payslipHtml } from './docs.js?v=2';
 import { auth, db } from './firebase.js?v=2';
 import { dayKey, formatDuration, formatPhp } from './report.js?v=2';

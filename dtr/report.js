@@ -103,3 +103,23 @@ export const formatUsd = (n) => usd.format(n);
 export function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
+
+// Sorts shifts for the timesheet table. key: name | clockIn | clockOut | length; dir: 1 or -1.
+// Open shifts (no clock-out) always sort last on clockOut and length, whichever the direction.
+export function sortShifts(shifts, key, dir = 1) {
+  const value = {
+    name: (s) => s.name.toLowerCase(),
+    clockIn: (s) => s.clockIn.getTime(),
+    clockOut: (s) => (s.clockOut ? s.clockOut.getTime() : null),
+    length: (s) => (s.clockOut ? s.clockOut - s.clockIn : null),
+  }[key];
+  if (!value) throw new Error(`Unknown sort "${key}"; expected name, clockIn, clockOut or length`);
+  return [...shifts].sort((a, b) => {
+    const x = value(a); const y = value(b);
+    if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
+    const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+    return c * dir || a.clockIn - b.clockIn;
+  });
+}
+
+export const matchesName = (shift, text) => shift.name.toLowerCase().includes(text.trim().toLowerCase());

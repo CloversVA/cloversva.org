@@ -5,8 +5,8 @@ import {
 import { invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=2';
 import { db } from './firebase.js?v=2';
 import {
-  formatDuration, formatPhp, invoiceLines, payFor, periodRange, round2, summarize, toCsv, totalsToCsv,
-} from './report.js?v=2';
+  formatDuration, formatPhp, invoiceLines, matchesName, payFor, periodRange, round2, sortShifts, summarize, toCsv, totalsToCsv,
+} from './report.js?v=5';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, numCell, openDocument, show, showError, toDateInput, toDateTimeInput,
 } from './ui.js?v=2';
@@ -76,7 +76,7 @@ async function fetchShifts(fromDay, toDay) {
     const s = d.data();
     return {
       id: d.id, email: s.email, name: s.name, client: s.client || vas.get(s.email)?.clientName || '',
-      clockIn: asDate(s.clockIn), clockOut: asDate(s.clockOut), edited: !!s.lastEditId,
+      clockIn: asDate(s.clockIn), clockOut: asDate(s.clockOut), edited: !!s.lastEditId, raw: s,
     };
   });
 }
@@ -191,32 +191,72 @@ $('vaForm').onsubmit = async (e) => {
 // ---------- Timesheets ----------
 
 let tsShifts = [];
+let tsSort = { key: 'clockIn', dir: 1 };
+
+// The filtered, sorted shifts currently on screen; the CSV and PDF use exactly these.
+const shownShifts = () => sortShifts(tsShifts.filter((s) => matchesName(s, $('tsFilter').value)), tsSort.key, tsSort.dir);
+const totalsOf = (shifts) => summarize(shifts).map((r) => ({ ...r, clientName: vas.get(r.email)?.clientName || '' }));
 
 async function runTimesheet() {
   tsShifts = await fetchShifts($('tsFrom').value, $('tsTo').value);
-  const totals = summarize(tsShifts).map((r) => ({ ...r, clientName: vas.get(r.email)?.clientName || '' }));
-  $('totalRows').replaceChildren(...totals.map((r) =>
+  renderTimesheet();
+}
+
+function renderTimesheet() {
+  const shown = shownShifts();
+  $('totalRows').replaceChildren(...totalsOf(shown).map((r) =>
     el('tr', {}, cell(r.name), cell(r.clientName), numCell(String(r.shifts)), numCell(r.hours.toFixed(2)), numCell(r.open ? String(r.open) : ''))));
-  $('shiftRows').replaceChildren(...tsShifts.map((s) => {
+  $('shiftRows').replaceChildren(...shown.map((s) => {
     const edit = el('button', { textContent: s.clockOut ? 'Fix' : 'Close shift' });
     edit.onclick = () => openShiftEditor(s);
+    const del = el('button', { className: 'danger', textContent: 'Delete' });
+    del.onclick = () => deleteShift(s);
     return el('tr', {}, cell(s.name), cell(fmt(s.clockIn)),
       cell(s.clockOut ? fmt(s.clockOut) : 'Open'), cell(s.clockOut ? formatDuration(s.clockOut - s.clockIn) : ''),
-      cell(edit, s.edited ? el('span', { className: 'muted', textContent: ' edited' }) : null));
+      cell(edit, ' ', del, s.edited ? el('span', { className: 'muted', textContent: ' edited' }) : null));
   }));
-  $('csvBtn').disabled = $('tsPrintBtn').disabled = tsShifts.length === 0;
+  for (const b of document.querySelectorAll('button.sort')) {
+    b.closest('th').setAttribute('aria-sort', b.dataset.sort !== tsSort.key ? 'none' : tsSort.dir === 1 ? 'ascending' : 'descending');
+  }
+  show('tsEmpty', tsShifts.length > 0 && shown.length === 0);
+  $('csvBtn').disabled = $('tsPrintBtn').disabled = shown.length === 0;
+}
+
+for (const b of document.querySelectorAll('button.sort')) {
+  b.onclick = () => {
+    tsSort = { key: b.dataset.sort, dir: tsSort.key === b.dataset.sort ? -tsSort.dir : 1 };
+    renderTimesheet();
+  };
+}
+$('tsFilter').oninput = () => renderTimesheet();
+
+async function deleteShift(shift) {
+  const when = `${shift.name}, ${fmt(shift.clockIn)}`;
+  const reason = prompt(`Delete this shift?\n${when}\n\nWhy? (for example "duplicate login"). The shift is archived with your reason.`);
+  if (reason === null) return;
+  if (reason.trim().length < 3) { alert('Please give a reason of at least 3 characters.'); return; }
+  const b = writeBatch(db);
+  b.set(doc(db, 'deletedShifts', shift.id), { shift: shift.raw, by: me.email, at: serverTimestamp(), reason: reason.trim() });
+  b.delete(doc(db, 'entries', shift.id));
+  if (!shift.clockOut) b.delete(doc(db, 'status', shift.email)); // an open shift also takes the VA off the clock
+  try {
+    await b.commit();
+    tsShifts = tsShifts.filter((s) => s.id !== shift.id);
+    renderTimesheet();
+  } catch (err) { showError(err); }
 }
 
 $('tsForm').onsubmit = (e) => { e.preventDefault(); runTimesheet().catch(showError); };
 
 $('csvBtn').onclick = () => {
-  const csv = `${totalsToCsv(summarize(tsShifts))}\r\n\r\n${toCsv(tsShifts, (d) => toDateTimeInput(d).replace('T', ' '))}`;
+  const shown = shownShifts();
+  const csv = `${totalsToCsv(summarize(shown))}\r\n\r\n${toCsv(shown, (d) => toDateTimeInput(d).replace('T', ' '))}`;
   downloadText(`cloversva-hours_${$('tsFrom').value}_to_${$('tsTo').value}.csv`, csv);
 };
 
 $('tsPrintBtn').onclick = () => {
-  const totals = summarize(tsShifts).map((r) => ({ ...r, clientName: vas.get(r.email)?.clientName || '' }));
-  openDocument(timesheetHtml({ from: $('tsFrom').value, to: $('tsTo').value, totals, shifts: tsShifts }));
+  const shown = shownShifts();
+  openDocument(timesheetHtml({ from: $('tsFrom').value, to: $('tsTo').value, totals: totalsOf(shown), shifts: shown }));
 };
 
 // ---------- Fix a shift ----------
