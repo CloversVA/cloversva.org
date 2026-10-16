@@ -5,7 +5,7 @@ import {
 import {
   collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=3';
+import { startAdmin } from './admin.js?v=4';
 import { coeHtml, payslipHtml } from './docs.js?v=2';
 import { auth, db } from './firebase.js?v=2';
 import { dayKey, formatDuration, formatPhp } from './report.js?v=2';
@@ -200,6 +200,7 @@ function startVa() {
   getDoc(doc(db, 'profiles', me.email)).then((snap) => {
     myProfile = snap.exists() ? snap.data() : null;
     $('pfName').value = myProfile?.fullName ?? me.name;
+    lockFullName(!!myProfile?.fullName);
     $('pfBirth').value = myProfile?.birthDate ?? '';
     $('pfAddress').value = myProfile?.address ?? '';
     $('pfPhone').value = myProfile?.phone ?? '';
@@ -231,6 +232,12 @@ $('clockBtn').onclick = async () => {
   } catch (err) { showError(err); } finally { btn.disabled = false; }
 };
 
+// Once saved, only an admin may change the full name (the database rules enforce this too).
+function lockFullName(locked) {
+  $('pfName').readOnly = locked;
+  show('pfNameNote', locked);
+}
+
 $('profileForm').onsubmit = async (e) => {
   e.preventDefault();
   const profile = {
@@ -242,6 +249,7 @@ $('profileForm').onsubmit = async (e) => {
   try {
     await setDoc(doc(db, 'profiles', me.email), profile);
     myProfile = profile;
+    lockFullName(true);
     $('profileNote').textContent = 'Saved.';
   } catch (err) { showError(err); }
 };

@@ -1,5 +1,6 @@
 import {
-  Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
+  Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+  writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=2';
 import { db } from './firebase.js?v=2';
@@ -136,6 +137,7 @@ $('addForm').onsubmit = async (e) => {
 };
 
 let editingVa = null;
+let editingProfile = null;
 
 function openVaEditor(va) {
   editingVa = va;
@@ -148,11 +150,16 @@ function openVaEditor(va) {
   $('vaStart').value = va.startDate ?? '';
   $('vaRole').value = va.role;
   $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
+  editingProfile = null;
+  show('vaFullNameLabel', false);
   $('vaDialog').showModal();
   getDoc(doc(db, 'profiles', va.email)).then((snap) => {
     const p = snap.exists() ? snap.data() : null;
+    editingProfile = p;
     if (!p) { $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Not filled in yet.' })); return; }
-    const rows = [['Full name', p.fullName], ['Date of birth', p.birthDate ? fmtDay(p.birthDate) : ''], ['Address', p.address], ['Phone', p.phone]];
+    $('vaFullName').value = p.fullName;
+    show('vaFullNameLabel');
+    const rows = [['Date of birth', p.birthDate ? fmtDay(p.birthDate) : ''], ['Address', p.address], ['Phone', p.phone]];
     $('vaProfile').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v || '-' })]));
   }).catch(showError);
 }
@@ -173,6 +180,10 @@ $('vaForm').onsubmit = async (e) => {
   };
   try {
     await setDoc(doc(db, 'allowed', editingVa.email), record);
+    const fullName = $('vaFullName').value.trim();
+    if (editingProfile && fullName && fullName !== editingProfile.fullName) {
+      await updateDoc(doc(db, 'profiles', editingVa.email), { fullName });
+    }
     $('vaDialog').close();
   } catch (err) { showError(err); }
 };

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=3">
-  <script type="module" src="app.js?v=3"></script>
+  <script type="module" src="app.js?v=4"></script>
 </head>
 <body>
   <header class="topbar">
@@ -114,7 +114,8 @@
           <div class="card">
             <h2>Personal information</h2>
             <form id="profileForm" class="stack narrow-form">
-              <label>Full name <input id="pfName" maxlength="100" required autocomplete="name"></label>
+              <label>Full name <input id="pfName" maxlength="100" required autocomplete="name">
+                <span id="pfNameNote" class="muted" hidden>Locked once saved. Ask a CloversVA admin to change it.</span></label>
               <label>Date of birth <input id="pfBirth" type="date" autocomplete="bday"></label>
               <label>Address <input id="pfAddress" maxlength="300" autocomplete="street-address"></label>
               <label>Phone number <input id="pfPhone" type="tel" maxlength="30" autocomplete="tel"></label>
@@ -286,6 +287,7 @@
       <label>Start date <input id="vaStart" type="date"></label>
       <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
       <h3>Personal information (entered by the VA)</h3>
+      <label id="vaFullNameLabel" hidden>Full name (only admins can change it) <input id="vaFullName" maxlength="100"></label>
       <dl class="details" id="vaProfile"></dl>
       <div class="row">
         <button class="primary" value="save">Save</button>
