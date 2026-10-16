@@ -1,51 +1,22 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
 import {
-  GoogleAuthProvider, connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged,
+  GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged,
   sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 import {
-  Timestamp, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot,
-  orderBy, query, serverTimestamp, setDoc, where, writeBatch,
+  collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { firebaseConfig } from './firebase-config.js';
-import { formatDuration, periodRange, summarize, toCsv, totalsToCsv } from './report.js';
+import { startAdmin } from './admin.js?v=2';
+import { coeHtml, payslipHtml } from './docs.js?v=2';
+import { auth, db } from './firebase.js?v=2';
+import { dayKey, formatDuration, formatPhp } from './report.js?v=2';
+import { $, asDate, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from './ui.js?v=2';
 
-const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
 const MY_SHIFTS_SHOWN = 14;
 
-const fbApp = initializeApp(LOCAL
-  ? { apiKey: 'demo-key', projectId: 'demo-vatime', authDomain: location.host }
-  : firebaseConfig);
-const auth = getAuth(fbApp);
-const db = getFirestore(fbApp);
-if (LOCAL) {
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
-}
-
-const $ = (id) => document.getElementById(id);
-const show = (id, on = true) => { $(id).hidden = !on; };
-const fmt = (d) => d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-const asDate = (ts) => (ts ? ts.toDate() : null);
-
-// Builds elements with textContent only, so names typed by admins can never inject HTML.
-function el(tag, props = {}, ...kids) {
-  const node = Object.assign(document.createElement(tag), props);
-  node.append(...kids.filter((k) => k != null));
-  return node;
-}
-const cell = (...kids) => el('td', {}, ...kids);
-
-function showError(err) {
-  console.error(err);
-  $('error').textContent = err?.code === 'permission-denied'
-    ? 'That action is not allowed. Reload the page and try again.'
-    : `Something went wrong: ${err?.message ?? err}`;
-  show('error');
-}
-
-let me = null; // { email, name, role }
+let me = null; // the signed-in person's allowed/{email} record, kept live
+let myBank = null;
 let unsubs = [];
+const track = (unsub) => unsubs.push(unsub);
 function stopListening() { unsubs.forEach((u) => u()); unsubs = []; }
 
 // One ticker keeps every running timer on the page current.
@@ -55,9 +26,20 @@ setInterval(() => {
   }
 }, 1000);
 
+// ---------- Side menu ----------
+
+function setView(name) {
+  for (const b of document.querySelectorAll('[data-view]')) {
+    if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  }
+  for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== name;
+}
+for (const b of document.querySelectorAll('[data-view]')) b.onclick = () => setView(b.dataset.view);
+
+// ---------- Google sign-in ----------
+
 $('signInBtn').onclick = () => {
-  const provider = new GoogleAuthProvider();
-  signInWithPopup(auth, provider).catch((err) => {
+  signInWithPopup(auth, new GoogleAuthProvider()).catch((err) => {
     if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
     if (err.code === 'auth/popup-blocked') {
       showError({ message: 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.' });
@@ -119,14 +101,16 @@ $('verifyDone').onclick = async () => {
   location.reload();
 };
 
+// ---------- Who is signed in ----------
+
 onAuthStateChanged(auth, async (user) => {
   stopListening();
-  for (const id of ['signin', 'verify', 'pending', 'clock', 'mine', 'admin', 'who', 'error']) show(id, false);
+  for (const id of ['signin', 'verify', 'pending', 'shell', 'who', 'error']) show(id, false);
   show('loading', false);
   if (!user) { show('signin'); return; }
 
   const email = user.email.toLowerCase();
-  show('who'); $('whoName').textContent = email;
+  show('who'); $('whoName').textContent = email; $('whoClient').textContent = '';
   if (!user.emailVerified) {
     $('verifyEmail').textContent = email;
     show('verify');
@@ -145,36 +129,79 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
     me = { email, ...snap.data() };
-    $('whoName').textContent = me.name;
-    startClock();
-    if (me.role === 'admin') startAdmin();
+    show('shell');
+    setView('clock');
+    startVa();
+    const admin = me.role === 'admin';
+    for (const n of document.querySelectorAll('[data-admin]')) n.hidden = !admin;
+    if (admin) startAdmin(me, track);
   } catch (err) { showError(err); }
 });
 
-// ---------- VA: clock in / out ----------
+// ---------- VA screens ----------
 
 let openShift = null; // { entryId, since: Date } while on the clock
 
-function startClock() {
-  show('clock'); show('mine');
-  unsubs.push(onSnapshot(doc(db, 'status', me.email), (snap) => {
+function renderMe() {
+  $('whoName').textContent = me.name;
+  $('whoClient').textContent = me.clientName || '';
+  $('pClient').textContent = me.clientName || 'Not assigned yet';
+  $('pPosition').textContent = me.position || 'Not set';
+  $('pRate').textContent = me.phpRate ? `${formatPhp(me.phpRate)} per hour` : 'Not set';
+  $('pStart').textContent = me.startDate ? fmtDay(me.startDate) : 'Not set';
+  $('myRate').textContent = me.phpRate ? formatPhp(me.phpRate) : 'not set yet';
+}
+
+function startVa() {
+  renderMe();
+
+  // Keep my record live so a rate or client change by an admin shows up without a reload.
+  track(onSnapshot(doc(db, 'allowed', me.email), (snap) => {
+    if (!snap.exists() || !snap.data().active) { location.reload(); return; }
+    me = { email: me.email, ...snap.data() };
+    renderMe();
+  }, showError));
+
+  track(onSnapshot(doc(db, 'status', me.email), (snap) => {
     const data = snap.data({ serverTimestamps: 'estimate' });
     openShift = data ? { entryId: data.entryId, since: data.clockIn.toDate() } : null;
     $('clockState').textContent = openShift ? `On the clock since ${fmt(openShift.since)}` : 'You are clocked out.';
-    $('clockBtn').textContent = openShift ? 'Clock out' : 'Clock in';
+    $('clockLabel').textContent = openShift ? 'Clock out' : 'Clock in';
+    $('clockBtn').classList.toggle('on', !!openShift);
     const timer = $('clockTimer');
     if (openShift) timer.dataset.since = openShift.since.getTime(); else delete timer.dataset.since;
     timer.textContent = openShift ? formatDuration(Date.now() - openShift.since) : '';
   }, showError));
 
   const mine = query(collection(db, 'entries'), where('email', '==', me.email), orderBy('clockIn', 'desc'), limit(MY_SHIFTS_SHOWN));
-  unsubs.push(onSnapshot(mine, (snap) => {
+  track(onSnapshot(mine, (snap) => {
     $('mineRows').replaceChildren(...snap.docs.map((d) => {
       const s = d.data({ serverTimestamps: 'estimate' });
       const start = asDate(s.clockIn); const end = asDate(s.clockOut);
       return el('tr', {}, cell(fmt(start)), cell(end ? fmt(end) : 'Open'), cell(end ? formatDuration(end - start) : ''));
     }));
   }, showError));
+
+  track(onSnapshot(query(collection(db, 'payslips'), where('email', '==', me.email)), (snap) => {
+    const slips = snap.docs.map((d) => d.data()).sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+    show('myPayslipsEmpty', slips.length === 0);
+    $('myPayslipRows').replaceChildren(...slips.map((s) => {
+      const btn = el('button', { textContent: 'Payslip PDF' });
+      btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank));
+      const status = s.status === 'paid'
+        ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate())) : ''}` })
+        : el('span', { className: 'pill pending', textContent: 'Pending' });
+      return el('tr', {}, cell(`${fmtDay(s.periodStart)} to ${fmtDay(s.periodEnd)}`), numCell(s.hours.toFixed(2)),
+        numCell(formatPhp(s.phpRate)), numCell(formatPhp(s.amount)), cell(status), cell(btn));
+    }));
+  }, showError));
+
+  getDoc(doc(db, 'bank', me.email)).then((snap) => {
+    myBank = snap.exists() ? snap.data() : null;
+    $('bankName').value = myBank?.bankName ?? '';
+    $('bankAccountName').value = myBank?.accountName ?? '';
+    $('bankAccountNumber').value = myBank?.accountNumber ?? '';
+  }).catch(showError);
 }
 
 $('clockBtn').onclick = async () => {
@@ -188,183 +215,28 @@ $('clockBtn').onclick = async () => {
       b.delete(statusRef);
     } else {
       const entryRef = doc(collection(db, 'entries'));
-      b.set(entryRef, { email: me.email, name: me.name, clockIn: serverTimestamp(), clockOut: null });
+      b.set(entryRef, { email: me.email, name: me.name, clockIn: serverTimestamp(), clockOut: null, client: me.clientName ?? '' });
       b.set(statusRef, { entryId: entryRef.id, clockIn: serverTimestamp(), name: me.name });
     }
     await b.commit();
   } catch (err) { showError(err); } finally { btn.disabled = false; }
 };
 
-// ---------- Admin ----------
-
-function startAdmin() {
-  show('admin');
-  unsubs.push(onSnapshot(collection(db, 'status'), (snap) => {
-    $('nowRows').replaceChildren(...snap.docs.map((d) => {
-      const since = d.data({ serverTimestamps: 'estimate' }).clockIn.toDate();
-      const timer = el('span', { textContent: formatDuration(Date.now() - since) });
-      timer.dataset.since = since.getTime();
-      return el('tr', {}, cell(d.data().name), cell(fmt(since)), cell(timer));
-    }));
-    show('nowEmpty', snap.empty);
-  }, showError));
-
-  unsubs.push(onSnapshot(collection(db, 'requests'), (snap) => {
-    const waiting = snap.docs
-      .map((d) => ({ email: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))
-      .sort((a, b) => b.at.toMillis() - a.at.toMillis());
-    $('waitingCount').textContent = waiting.length ? ` (${waiting.length} waiting)` : '';
-    show('requestsBox', waiting.length > 0);
-    $('requestRows').replaceChildren(...waiting.map((r) => {
-      const name = el('input', { value: r.name, maxLength: 100, required: true, ariaLabel: `Name for ${r.email}` });
-      const approve = el('button', { className: 'primary', textContent: 'Approve' });
-      const deny = el('button', { textContent: 'Deny' });
-      approve.onclick = async () => {
-        if (!name.value.trim()) { name.focus(); return; }
-        approve.disabled = true;
-        const b = writeBatch(db);
-        b.set(doc(db, 'allowed', r.email), { name: name.value.trim(), role: 'va', active: true });
-        b.delete(doc(db, 'requests', r.email));
-        await b.commit().catch(showError);
-        approve.disabled = false;
-      };
-      deny.onclick = () => {
-        if (confirm(`Deny access for ${r.email}? They will see "not approved" and can ask again by signing in.`)) {
-          deleteDoc(doc(db, 'requests', r.email)).catch(showError);
-        }
-      };
-      return el('tr', {}, cell(name), cell(r.email), cell(fmt(r.at.toDate())), cell(approve, ' ', deny));
-    }));
-  }, showError));
-
-  unsubs.push(onSnapshot(collection(db, 'allowed'), (snap) => {
-    const rows = snap.docs.map((d) => ({ email: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
-    $('vaRows').replaceChildren(...rows.map((va) => {
-      const toggle = el('button', { textContent: va.active ? 'Deactivate' : 'Reactivate', disabled: va.email === me.email });
-      toggle.onclick = () => setDoc(doc(db, 'allowed', va.email), { name: va.name, role: va.role, active: !va.active }).catch(showError);
-      return el('tr', {}, cell(va.name), cell(va.email), cell(va.role === 'admin' ? 'Admin' : 'VA'),
-        cell(va.active ? 'Active' : 'Deactivated'), cell(toggle));
-    }));
-  }, showError));
-
-  setPeriod('thisWeek');
-}
-
-function setPeriod(kind) {
-  const [from, to] = periodRange(kind);
-  $('from').value = toDateInput(from);
-  $('to').value = toDateInput(to);
-}
-
-for (const btn of document.querySelectorAll('[data-period]')) {
-  btn.onclick = () => { setPeriod(btn.dataset.period); runReport().catch(showError); };
-}
-
-for (const tab of document.querySelectorAll('[data-tab]')) {
-  tab.onclick = () => {
-    for (const t of document.querySelectorAll('[data-tab]')) t.setAttribute('aria-selected', String(t === tab));
-    for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== tab.dataset.tab;
+$('bankForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const bank = {
+    bankName: $('bankName').value.trim(),
+    accountName: $('bankAccountName').value.trim(),
+    accountNumber: $('bankAccountNumber').value.trim(),
   };
-}
-
-$('addForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const email = $('newEmail').value.trim().toLowerCase();
   try {
-    await setDoc(doc(db, 'allowed', email), { name: $('newName').value.trim(), role: $('newRole').value, active: true });
-    e.target.reset();
+    await setDoc(doc(db, 'bank', me.email), bank);
+    myBank = bank;
+    $('bankNote').textContent = 'Saved.';
   } catch (err) { showError(err); }
 };
 
-// ---------- Admin: report ----------
-
-const pad = (n) => String(n).padStart(2, '0');
-const toDateInput = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const toDateTimeInput = (d) => `${toDateInput(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-let reportShifts = [];
-
-async function runReport() {
-  const from = new Date(`${$('from').value}T00:00`);
-  const to = new Date(`${$('to').value}T00:00`); to.setDate(to.getDate() + 1);
-  const q = query(collection(db, 'entries'),
-    where('clockIn', '>=', Timestamp.fromDate(from)), where('clockIn', '<', Timestamp.fromDate(to)), orderBy('clockIn'));
-  const snap = await getDocs(q);
-  reportShifts = snap.docs.map((d) => {
-    const s = d.data();
-    return { id: d.id, email: s.email, name: s.name, clockIn: asDate(s.clockIn), clockOut: asDate(s.clockOut), edited: !!s.lastEditId };
-  });
-
-  $('totalRows').replaceChildren(...summarize(reportShifts).map((r) =>
-    el('tr', {}, cell(r.name), cell(String(r.shifts)), cell(r.hours.toFixed(2)), cell(r.open ? String(r.open) : ''))));
-  $('shiftRows').replaceChildren(...reportShifts.map((s) => {
-    const edit = el('button', { textContent: s.clockOut ? 'Fix' : 'Close shift' });
-    edit.onclick = () => openEditor(s);
-    return el('tr', {}, cell(s.name), cell(fmt(s.clockIn)),
-      cell(s.clockOut ? fmt(s.clockOut) : 'Open'), cell(s.clockOut ? formatDuration(s.clockOut - s.clockIn) : ''),
-      cell(edit, s.edited ? el('span', { className: 'muted', textContent: ' edited' }) : null));
-  }));
-  $('csvBtn').disabled = reportShifts.length === 0;
-}
-
-$('reportForm').onsubmit = (e) => { e.preventDefault(); runReport().catch(showError); };
-
-$('csvBtn').onclick = () => {
-  const csv = `${totalsToCsv(summarize(reportShifts))}\r\n\r\n${toCsv(reportShifts, (d) => toDateTimeInput(d).replace('T', ' '))}`;
-  const a = el('a', {
-    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
-    download: `va-hours_${$('from').value}_to_${$('to').value}.csv`,
-  });
-  a.click();
-  URL.revokeObjectURL(a.href);
-};
-
-// ---------- Admin: fix a shift ----------
-
-let editing = null;
-
-async function openEditor(shift) {
-  editing = shift;
-  $('editName').textContent = shift.name;
-  $('editIn').value = toDateTimeInput(shift.clockIn);
-  $('editOut').value = shift.clockOut ? toDateTimeInput(shift.clockOut) : '';
-  $('editReason').value = '';
-  $('editHistory').replaceChildren(el('li', { textContent: 'Loading...' }));
-  $('editDialog').showModal();
-  try {
-    const edits = await getDocs(query(collection(db, 'entries', shift.id, 'edits'), orderBy('at')));
-    $('editHistory').replaceChildren(...(edits.empty
-      ? [el('li', { textContent: 'No changes yet.' })]
-      : edits.docs.map((d) => {
-        const e = d.data();
-        return el('li', { textContent: `${fmt(e.at.toDate())} by ${e.by}: ${e.reason}` });
-      })));
-  } catch (err) { showError(err); }
-}
-
-$('editCancel').onclick = () => $('editDialog').close();
-
-$('editForm').onsubmit = async (e) => {
+$('coeForm').onsubmit = (e) => {
   e.preventDefault();
-  const clockIn = new Date($('editIn').value);
-  const clockOut = new Date($('editOut').value);
-  if (!(clockOut > clockIn)) { alert('Clock out must be after clock in.'); return; }
-
-  const entryRef = doc(db, 'entries', editing.id);
-  const editRef = doc(collection(db, 'entries', editing.id, 'edits'));
-  const b = writeBatch(db);
-  b.update(entryRef, { clockIn: Timestamp.fromDate(clockIn), clockOut: Timestamp.fromDate(clockOut), lastEditId: editRef.id });
-  b.set(editRef, {
-    by: me.email,
-    at: serverTimestamp(),
-    reason: $('editReason').value.trim(),
-    before: { clockIn: Timestamp.fromDate(editing.clockIn), clockOut: editing.clockOut ? Timestamp.fromDate(editing.clockOut) : null },
-    after: { clockIn: Timestamp.fromDate(clockIn), clockOut: Timestamp.fromDate(clockOut) },
-  });
-  if (!editing.clockOut) b.delete(doc(db, 'status', editing.email)); // closing a forgotten shift
-  try {
-    await b.commit();
-    $('editDialog').close();
-    await runReport();
-  } catch (err) { showError(err); }
+  openDocument(coeHtml({ name: me.name, position: me.position, startDate: me.startDate, purpose: $('coePurpose').value.trim() }));
 };

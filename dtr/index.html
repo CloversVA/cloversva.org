@@ -3,22 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VA Time Tracker</title>
-  <link rel="stylesheet" href="style.css">
-  <script type="module" src="app.js"></script>
+  <title>CloversVA Time Tracker</title>
+  <link rel="icon" href="../images/clover-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2">
+  <script type="module" src="app.js?v=2"></script>
 </head>
 <body>
-  <header>
-    <h1>VA Time Tracker</h1>
-    <div id="who" hidden><span id="whoName"></span> <button id="signOut" class="link">Sign out</button></div>
+  <header class="topbar">
+    <a class="brand" href="../"><img src="../images/clover-icon.png" alt=""><span>CloversVA</span></a>
+    <div id="who" class="who" hidden>
+      <div class="who-text"><strong id="whoName"></strong><span id="whoClient"></span></div>
+      <button id="signOut" class="link">Sign out</button>
+    </div>
   </header>
 
   <main>
-    <p id="loading">Loading...</p>
+    <p id="loading" class="center muted">Loading...</p>
     <p id="error" class="error" role="alert" hidden></p>
 
-    <section id="signin" class="card center" hidden>
-      <p>Sign in with the Google account your manager approved.</p>
+    <section id="signin" class="card center narrow" hidden>
+      <img class="hero-logo" src="../images/logo-transparent.png" alt="Clovers Virtual Assistance">
+      <h1>Time Tracker</h1>
+      <p>Sign in with the account your manager approved.</p>
       <button id="signInBtn" class="primary">Sign in with Google</button>
       <p class="muted divider">or use your email and a password</p>
       <form id="pwForm" class="stack">
@@ -33,7 +41,7 @@
       </form>
     </section>
 
-    <section id="verify" class="card center" hidden>
+    <section id="verify" class="card center narrow" hidden>
       <p>We sent a verification link to <strong id="verifyEmail"></strong>.</p>
       <p>Open that email, click the link, then come back and press the button below. Check your spam folder if you don't see it.</p>
       <div class="row center-row">
@@ -43,71 +51,201 @@
       <p id="verifyNote" class="muted" role="status"></p>
     </section>
 
-    <section id="pending" class="card center" hidden>
+    <section id="pending" class="card center narrow" hidden>
       <p><strong id="pendingEmail"></strong> is not approved yet.</p>
       <p id="requestNote">Your request has been sent to the admin. Once they approve it, reload this page.</p>
     </section>
 
-    <section id="clock" class="card center" hidden>
-      <p id="clockState"></p>
-      <p id="clockTimer" class="timer" aria-live="off"></p>
-      <button id="clockBtn" class="primary big"></button>
-    </section>
-
-    <section id="mine" class="card" hidden>
-      <h2>My recent shifts</h2>
-      <table><thead><tr><th>Clock in</th><th>Clock out</th><th>Length</th></tr></thead><tbody id="mineRows"></tbody></table>
-    </section>
-
-    <section id="admin" hidden>
-      <nav class="tabs" role="tablist">
-        <button role="tab" data-tab="now" aria-selected="true">On the clock</button>
-        <button role="tab" data-tab="report" aria-selected="false">Hours report</button>
-        <button role="tab" data-tab="vas" aria-selected="false">VAs<span id="waitingCount"></span></button>
+    <div id="shell" class="shell" hidden>
+      <nav class="sidenav" aria-label="Sections">
+        <div class="nav-title">Information</div>
+        <button data-view="clock" aria-current="page">Time clock</button>
+        <button data-view="payslips">My payslips</button>
+        <button data-view="profile">My details &amp; bank</button>
+        <button data-view="documents">Documents</button>
+        <div class="nav-title" data-admin hidden>Admin</div>
+        <button data-view="now" data-admin hidden>On the clock</button>
+        <button data-view="timesheets" data-admin hidden>Timesheets</button>
+        <button data-view="payroll" data-admin hidden>Payroll</button>
+        <button data-view="invoices" data-admin hidden>Client invoices</button>
+        <button data-view="vas" data-admin hidden>VAs<span id="waitingCount" class="badge" hidden></span></button>
+        <button data-view="company" data-admin hidden>Company details</button>
       </nav>
 
-      <div class="card" data-panel="now">
-        <h2>On the clock now</h2>
-        <table><thead><tr><th>VA</th><th>Since</th><th>So far</th></tr></thead><tbody id="nowRows"></tbody></table>
-        <p id="nowEmpty" class="muted">Nobody is clocked in.</p>
-      </div>
+      <div class="views">
+        <!-- VA views -->
+        <section data-panel="clock">
+          <div class="card center">
+            <p id="clockState"></p>
+            <p id="clockTimer" class="timer" aria-live="off"></p>
+            <button id="clockBtn" class="clover-btn">
+              <img src="../images/clover-icon.png" alt=""><span id="clockLabel">Clock in</span>
+            </button>
+          </div>
+          <div class="card">
+            <h2>My recent shifts</h2>
+            <div class="scroll"><table><thead><tr><th>Clock in</th><th>Clock out</th><th>Length</th></tr></thead><tbody id="mineRows"></tbody></table></div>
+          </div>
+        </section>
 
-      <div class="card" data-panel="report" hidden>
-        <h2>Hours report</h2>
-        <div class="row" role="group" aria-label="Pay period">
-          <button type="button" data-period="thisWeek">This week</button>
-          <button type="button" data-period="lastWeek">Last week</button>
-          <button type="button" data-period="thisMonth">This month</button>
-          <button type="button" data-period="lastMonth">Last month</button>
-        </div>
-        <form id="reportForm" class="row">
-          <label>From <input type="date" id="from" required></label>
-          <label>To <input type="date" id="to" required></label>
-          <button class="primary">Show</button>
-          <button type="button" id="csvBtn" disabled>Download CSV</button>
-        </form>
-        <h3>Totals</h3>
-        <table><thead><tr><th>VA</th><th>Shifts</th><th>Hours</th><th>Still open</th></tr></thead><tbody id="totalRows"></tbody></table>
-        <h3>Shifts</h3>
-        <table><thead><tr><th>VA</th><th>Clock in</th><th>Clock out</th><th>Length</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table>
-      </div>
+        <section data-panel="payslips" hidden>
+          <div class="card">
+            <h2>My payslips</h2>
+            <p class="muted">Your rate: <strong id="myRate"></strong> per hour. Payouts are for the 1st to 15th and the 16th to end of month.</p>
+            <div class="scroll"><table>
+              <thead><tr><th>Pay period</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Amount</th><th>Payout</th><th></th></tr></thead>
+              <tbody id="myPayslipRows"></tbody>
+            </table></div>
+            <p id="myPayslipsEmpty" class="muted">No payslips yet. They appear here once your admin prepares payroll.</p>
+          </div>
+        </section>
 
-      <div class="card" data-panel="vas" hidden>
-        <h2>VAs</h2>
-        <div id="requestsBox" hidden>
-          <h3>Waiting for approval</h3>
-          <table><thead><tr><th>Name</th><th>Email</th><th>Asked</th><th></th></tr></thead><tbody id="requestRows"></tbody></table>
-          <h3>Add someone directly</h3>
-        </div>
-        <form id="addForm" class="row">
-          <label>Email <input type="email" id="newEmail" required></label>
-          <label>Name <input id="newName" required maxlength="100"></label>
-          <label>Role <select id="newRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
-          <button class="primary">Add</button>
-        </form>
-        <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="vaRows"></tbody></table>
+        <section data-panel="profile" hidden>
+          <div class="card">
+            <h2>My details</h2>
+            <dl class="details">
+              <dt>Client / clinic / company</dt><dd id="pClient"></dd>
+              <dt>Position</dt><dd id="pPosition"></dd>
+              <dt>Hourly rate</dt><dd id="pRate"></dd>
+              <dt>Start date</dt><dd id="pStart"></dd>
+            </dl>
+            <p class="muted">Ask your admin if any of these are wrong.</p>
+          </div>
+          <div class="card">
+            <h2>Bank details for payouts</h2>
+            <form id="bankForm" class="stack narrow-form">
+              <label>Bank or e-wallet <input id="bankName" maxlength="100" required placeholder="e.g. BDO, BPI, GCash"></label>
+              <label>Account name <input id="bankAccountName" maxlength="100" required></label>
+              <label>Account number <input id="bankAccountNumber" maxlength="40" required inputmode="numeric" autocomplete="off"></label>
+              <div class="row"><button class="primary">Save bank details</button><span id="bankNote" class="muted" role="status"></span></div>
+            </form>
+            <p class="muted">Only you and CloversVA admins can see these.</p>
+          </div>
+        </section>
+
+        <section data-panel="documents" hidden>
+          <div class="card">
+            <h2>Certificate of Employment</h2>
+            <form id="coeForm" class="stack narrow-form">
+              <label>What is it for? <input id="coePurpose" maxlength="120" required placeholder="e.g. bank loan application"></label>
+              <div class="row"><button class="primary">Download certificate</button></div>
+            </form>
+            <p class="muted">Opens in a new tab. Choose "Save as PDF" in the print window. Get it signed by CloversVA before using it.</p>
+          </div>
+        </section>
+
+        <!-- Admin views -->
+        <section data-panel="now" hidden>
+          <div class="card">
+            <h2>On the clock now</h2>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Since</th><th>So far</th></tr></thead><tbody id="nowRows"></tbody></table></div>
+            <p id="nowEmpty" class="muted">Nobody is clocked in.</p>
+          </div>
+        </section>
+
+        <section data-panel="timesheets" hidden>
+          <div class="card">
+            <h2>Timesheets</h2>
+            <div class="row" role="group" aria-label="Period">
+              <button type="button" data-period="thisHalf" data-for="ts">This pay period</button>
+              <button type="button" data-period="lastHalf" data-for="ts">Last pay period</button>
+              <button type="button" data-period="thisWeek" data-for="ts">This week</button>
+              <button type="button" data-period="lastWeek" data-for="ts">Last week</button>
+              <button type="button" data-period="thisMonth" data-for="ts">This month</button>
+              <button type="button" data-period="lastMonth" data-for="ts">Last month</button>
+            </div>
+            <form id="tsForm" class="row">
+              <label>From <input type="date" id="tsFrom" required></label>
+              <label>To <input type="date" id="tsTo" required></label>
+              <button class="primary">Show</button>
+              <button type="button" id="csvBtn" disabled>Download CSV</button>
+              <button type="button" id="tsPrintBtn" disabled>Timesheet PDF</button>
+            </form>
+            <h3>Totals</h3>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours</th><th class="num">Still open</th></tr></thead><tbody id="totalRows"></tbody></table></div>
+            <h3>Shifts</h3>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Clock in</th><th>Clock out</th><th>Length</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div>
+          </div>
+        </section>
+
+        <section data-panel="payroll" hidden>
+          <div class="card">
+            <h2>Payroll</h2>
+            <div class="row" role="group" aria-label="Pay period">
+              <button type="button" data-period="thisHalf" data-for="pay">This pay period</button>
+              <button type="button" data-period="lastHalf" data-for="pay">Last pay period</button>
+            </div>
+            <form id="payForm" class="row">
+              <label>From <input type="date" id="payFrom" required></label>
+              <label>To <input type="date" id="payTo" required></label>
+              <button class="primary">Show</button>
+              <button type="button" id="payCreateBtn">Create payslips from hours</button>
+            </form>
+            <p class="muted">"Create payslips" adds one for every active VA with hours in the period, at their current rate. You can change a rate before marking it paid. Paid payslips are locked.</p>
+            <div class="scroll"><table>
+              <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th>Bank</th><th></th></tr></thead>
+              <tbody id="payRows"></tbody>
+            </table></div>
+            <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
+            <p id="payTotal" class="total"></p>
+          </div>
+        </section>
+
+        <section data-panel="invoices" hidden>
+          <div class="card">
+            <h2>Client invoices (USD)</h2>
+            <div class="row" role="group" aria-label="Period">
+              <button type="button" data-period="thisHalf" data-for="inv">This pay period</button>
+              <button type="button" data-period="lastHalf" data-for="inv">Last pay period</button>
+              <button type="button" data-period="thisMonth" data-for="inv">This month</button>
+              <button type="button" data-period="lastMonth" data-for="inv">Last month</button>
+            </div>
+            <form id="invForm" class="row">
+              <label>Client <select id="invClient" required></select></label>
+              <label>From <input type="date" id="invFrom" required></label>
+              <label>To <input type="date" id="invTo" required></label>
+              <label>Due date <input type="date" id="invDue" required></label>
+              <button class="primary">Download invoice</button>
+            </form>
+            <p class="muted">Uses each VA's USD rate and the bank details under Company details.</p>
+          </div>
+        </section>
+
+        <section data-panel="vas" hidden>
+          <div class="card">
+            <h2>VAs</h2>
+            <div id="requestsBox" hidden>
+              <h3>Waiting for approval</h3>
+              <div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Asked</th><th></th></tr></thead><tbody id="requestRows"></tbody></table></div>
+              <h3>Add someone directly</h3>
+            </div>
+            <form id="addForm" class="row">
+              <label>Email <input type="email" id="newEmail" required></label>
+              <label>Name <input id="newName" required maxlength="100"></label>
+              <label>Role <select id="newRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
+              <button class="primary">Add</button>
+            </form>
+            <div class="scroll"><table>
+              <thead><tr><th>Name</th><th>Client</th><th>Position</th><th class="num">PHP/hr</th><th class="num">USD/hr</th><th>Role</th><th>Status</th><th></th></tr></thead>
+              <tbody id="vaRows"></tbody>
+            </table></div>
+          </div>
+        </section>
+
+        <section data-panel="company" hidden>
+          <div class="card">
+            <h2>Company details</h2>
+            <p class="muted">Printed as the payment method on client invoices.</p>
+            <form id="companyForm" class="stack narrow-form">
+              <label>Bank <input id="coBank" maxlength="100"></label>
+              <label>Account name <input id="coAccountName" maxlength="100"></label>
+              <label>Account number <input id="coAccountNumber" maxlength="40" autocomplete="off"></label>
+              <div class="row"><button class="primary">Save</button><span id="companyNote" class="muted" role="status"></span></div>
+            </form>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </main>
 
   <dialog id="editDialog">
@@ -122,6 +260,24 @@
       </div>
       <h3>Change history</h3>
       <ul id="editHistory" class="muted"></ul>
+    </form>
+  </dialog>
+
+  <dialog id="vaDialog">
+    <form id="vaForm" method="dialog">
+      <h2>Edit <span id="vaDialogEmail"></span></h2>
+      <label>Name <input id="vaName" required maxlength="100"></label>
+      <label>Client / clinic / company <input id="vaClient" maxlength="100" list="clientList"></label>
+      <datalist id="clientList"></datalist>
+      <label>Position <input id="vaPosition" maxlength="100"></label>
+      <label>Hourly rate, PHP (paid to the VA) <input id="vaPhp" type="number" min="0" max="100000" step="0.01"></label>
+      <label>Hourly rate, USD (billed to the client) <input id="vaUsd" type="number" min="0" max="1000" step="0.01"></label>
+      <label>Start date <input id="vaStart" type="date"></label>
+      <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
+      <div class="row">
+        <button class="primary" value="save">Save</button>
+        <button type="button" id="vaCancel">Cancel</button>
+      </div>
     </form>
   </dialog>
 </body>

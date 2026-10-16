@@ -58,6 +58,48 @@ export function periodRange(kind, today = new Date()) {
     case 'lastWeek': return [new Date(y, m, monday - 7), new Date(y, m, monday - 1)];
     case 'thisMonth': return [new Date(y, m, 1), new Date(y, m + 1, 0)];
     case 'lastMonth': return [new Date(y, m - 1, 1), new Date(y, m, 0)];
-    default: throw new Error(`Unknown period "${kind}"; expected thisWeek, lastWeek, thisMonth or lastMonth`);
+    // Pay periods: the 1st to the 15th, and the 16th to the end of the month.
+    case 'thisHalf': return d <= 15 ? [new Date(y, m, 1), new Date(y, m, 15)] : [new Date(y, m, 16), new Date(y, m + 1, 0)];
+    case 'lastHalf': return d <= 15 ? [new Date(y, m - 1, 16), new Date(y, m, 0)] : [new Date(y, m, 1), new Date(y, m, 15)];
+    default: throw new Error(`Unknown period "${kind}"; expected thisWeek, lastWeek, thisMonth, lastMonth, thisHalf or lastHalf`);
   }
+}
+
+export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+// Local calendar day as YYYY-MM-DD (the form date inputs and payslip ids use).
+export function dayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Hours are rounded to 2 decimals first so the pay a VA sees is exactly hours x rate.
+export function payFor(shifts, rate) {
+  const ms = shifts.filter((s) => s.clockOut).reduce((sum, s) => sum + (s.clockOut - s.clockIn), 0);
+  const hours = round2(ms / MS_PER_HOUR);
+  return { hours, amount: round2(hours * rate) };
+}
+
+// One invoice line per VA per day, in date order.
+export function invoiceLines(shifts) {
+  const lines = new Map();
+  for (const s of shifts) {
+    if (!s.clockOut) continue;
+    const key = `${dayKey(s.clockIn)}|${s.email}`;
+    const line = lines.get(key) ?? { day: dayKey(s.clockIn), email: s.email, ms: 0 };
+    line.ms += s.clockOut - s.clockIn;
+    lines.set(key, line);
+  }
+  return [...lines.values()]
+    .map(({ ms, ...l }) => ({ ...l, hours: round2(ms / MS_PER_HOUR) }))
+    .sort((a, b) => a.day.localeCompare(b.day) || a.email.localeCompare(b.email));
+}
+
+const php = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+export const formatPhp = (n) => php.format(n);
+export const formatUsd = (n) => usd.format(n);
+
+// For the printable documents, which are built as HTML text.
+export function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
