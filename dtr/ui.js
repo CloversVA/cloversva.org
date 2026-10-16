@@ -1,5 +1,5 @@
 // Small DOM helpers shared by the VA and admin screens.
-import { BUSINESS_TZ, zonedInputValue, zonedToDate } from './report.js?v=7';
+import { BUSINESS_TZ, zonedInputValue, zonedToDate } from './report.js?v=8';
 
 export const $ = (id) => document.getElementById(id);
 export const show = (id, on = true) => { $(id).hidden = !on; };

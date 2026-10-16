@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=7">
-  <script type="module" src="app.js?v=7"></script>
+  <link rel="stylesheet" href="style.css?v=8">
+  <script type="module" src="app.js?v=8"></script>
 </head>
 <body>
   <header class="topbar">
@@ -71,7 +71,8 @@
         <button data-view="vas" data-admin hidden>VAs<span id="waitingCount" class="badge" hidden></span></button>
         <button data-view="coe" data-admin hidden>COE requests<span id="coeCount" class="badge" hidden></span></button>
         <button data-view="company" data-admin hidden>Company details</button>
-        <label class="tz-pick">Show times in <select id="tzSelect"></select></label>
+        <label class="tz-pick">Time zone <select id="tzSelect"></select>
+          <span id="tzNote" class="muted">Saved to your account</span></label>
       </nav>
 
       <div class="views">
@@ -92,8 +93,18 @@
 
         <section data-panel="payslips" hidden>
           <div class="card">
+            <h2>This pay period</h2>
+            <p id="curPeriod" class="muted"></p>
+            <dl class="details">
+              <dt>Hours so far</dt><dd id="curHours"></dd>
+              <dt>Your rate</dt><dd id="myRate"></dd>
+              <dt>Estimated pay</dt><dd id="curPay"></dd>
+            </dl>
+            <p class="muted">You are paid every two weeks, after the period ends. A shift still in progress counts once you clock out. Your day-by-day shifts are on the Time clock page.</p>
+          </div>
+          <div class="card">
             <h2>My payslips</h2>
-            <p class="muted">Your rate: <strong id="myRate"></strong> per hour. You are paid every two weeks; each payslip lists your hours day by day (Eastern Time).</p>
+            <p class="muted">One payslip per finished pay period. The PDF lists your hours day by day (Eastern Time).</p>
             <div class="scroll"><table>
               <thead><tr><th>Pay period</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Amount</th><th>Payout</th><th></th></tr></thead>
               <tbody id="myPayslipRows"></tbody>
@@ -199,17 +210,17 @@
         <section data-panel="payroll" hidden>
           <div class="card">
             <h2>Payroll</h2>
-            <div class="row" role="group" aria-label="Pay period">
-              <button type="button" data-period="thisBiweek" data-for="pay">This pay period</button>
-              <button type="button" data-period="lastBiweek" data-for="pay">Last pay period</button>
-            </div>
+            <ol class="steps muted">
+              <li>Pick a pay period. The list starts with the one still running; the second is the one that just ended.</li>
+              <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate.</li>
+              <li>Check each row (<b>Daily hours</b> shows the breakdown), fix a rate if needed, then pay the VA using the bank details shown.</li>
+              <li>Click <b>Mark paid</b>. The payslip locks and the VA sees it as paid.</li>
+            </ol>
             <form id="payForm" class="row">
-              <label>From <input type="date" id="payFrom" required></label>
-              <label>To <input type="date" id="payTo" required></label>
-              <button class="primary">Show</button>
-              <button type="button" id="payCreateBtn">Create payslips from hours</button>
+              <label>Pay period <select id="payPeriod"></select></label>
+              <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
             </form>
-            <p class="muted">Pay periods are two weeks long, counted in Eastern Time from the start date under Company details. "Create payslips" adds one for every VA with hours in the period, at their current rate. You can change a rate before marking it paid. Paid payslips are locked. Use "Daily hours" to see the day-by-day breakdown.</p>
+            <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
             <div class="scroll"><table>
               <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th>Bank</th><th></th></tr></thead>
               <tbody id="payRows"></tbody>

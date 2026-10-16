@@ -2,16 +2,16 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=7';
+import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=8';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, hmFromHours, invoiceLines, matchesName, payFor,
-  periodRange, round2, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows, zonedToDate,
-} from './report.js?v=7';
+  payPeriods, periodRange, periodsOverlap, round2, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows, zonedToDate,
+} from './report.js?v=8';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
-} from './ui.js?v=7';
+} from './ui.js?v=8';
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
@@ -53,7 +53,7 @@ export function startAdmin(signedIn, track) {
   // Pay periods depend on the saved pay-cycle start date, so set them once it has loaded.
   loadCompany().finally(() => {
     setPeriod('ts', 'thisBiweek');
-    setPeriod('pay', 'lastBiweek');
+    fillPayPeriods();
     setPeriod('inv', 'lastBiweek');
   });
   loadSignature();
@@ -62,12 +62,12 @@ export function startAdmin(signedIn, track) {
 // ---------- Periods ----------
 
 function setPeriod(prefix, kind) {
-  const [from, to] = periodRange(kind, calendarToday(BUSINESS_TZ), company.payAnchor || DEFAULT_PAY_ANCHOR);
+  const [from, to] = periodRange(kind, calendarToday(BUSINESS_TZ), payAnchor);
   $(`${prefix}From`).value = toDateInput(from);
   $(`${prefix}To`).value = toDateInput(to);
 }
 
-const AFTER_PERIOD = { ts: () => runTimesheet(), pay: () => loadPayroll(), inv: () => {} };
+const AFTER_PERIOD = { ts: () => runTimesheet(), inv: () => {} };
 for (const btn of document.querySelectorAll('[data-period]')) {
   btn.onclick = () => {
     setPeriod(btn.dataset.for, btn.dataset.period);
@@ -381,6 +381,11 @@ function payrollRow(slip, bank) {
     if (!pending && !confirm(`Mark ${slip.name}'s payslip as not paid?`)) return;
     saveSlip(pending ? { ...slip, status: 'paid', paidAt: Timestamp.now() } : { ...slip, status: 'pending', paidAt: null });
   };
+  const remove = el('button', { className: 'danger', textContent: 'Delete', hidden: !pending });
+  remove.onclick = async () => {
+    if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
+    try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
+  };
   const pdf = el('button', { textContent: 'Payslip PDF' });
   pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank));
 
@@ -395,7 +400,7 @@ function payrollRow(slip, bank) {
   daily.onclick = () => { daysRow.hidden = !daysRow.hidden; };
 
   const row = el('tr', {}, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)), cell(rate), amount,
-    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })), cell(daily, ' ', save, ' ', recalc, ' ', paid, ' ', pdf));
+    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })), cell(daily, ' ', save, ' ', recalc, ' ', paid, ' ', pdf, ' ', remove));
   return [row, daysRow];
 }
 
@@ -406,14 +411,36 @@ async function saveSlip(slip) {
   } catch (err) { showError(err); }
 }
 
-$('payForm').onsubmit = (e) => { e.preventDefault(); loadPayroll().catch(showError); };
+// Payroll only works in whole pay periods, picked from a list, so payslips can't overlap.
+function fillPayPeriods() {
+  const periods = payPeriods(payAnchor, calendarToday(BUSINESS_TZ));
+  $('payPeriod').replaceChildren(...periods.map((p, i) => el('option', {
+    value: `${p.start}|${p.end}`,
+    textContent: `${fmtDay(p.start)} to ${fmtDay(p.end)}${i === 0 ? ' (still running)' : i === 1 ? ' (just ended)' : ''}`,
+  })));
+  $('payPeriod').selectedIndex = 1;
+  choosePayPeriod();
+}
+
+function choosePayPeriod() {
+  [$('payFrom').value, $('payTo').value] = $('payPeriod').value.split('|');
+  loadPayroll().catch(showError);
+}
+
+$('payPeriod').onchange = choosePayPeriod;
+$('payForm').onsubmit = (e) => e.preventDefault();
 
 $('payCreateBtn').onclick = async () => {
   const from = $('payFrom').value; const to = $('payTo').value;
+  if (to >= dayKey(new Date(), BUSINESS_TZ)
+    && !confirm('This pay period has not ended yet, so later shifts would be missing. Create payslips anyway? (You can use "Recount hours" later.)')) return;
   try {
     const shifts = await fetchShifts(from, to);
-    const existing = await getDocs(query(collection(db, 'payslips'), where('periodStart', '==', from)));
-    const have = new Set(existing.docs.map((d) => d.data().email));
+    // One payslip per VA per period: skip anyone who already has a payslip covering any of these days.
+    const all = (await getDocs(collection(db, 'payslips'))).docs.map((d) => d.data());
+    const period = { start: from, end: to };
+    const have = new Set(all.filter((x) => x.periodStart === from).map((x) => x.email));
+    const overlapping = new Set(all.filter((x) => x.periodStart !== from && periodsOverlap(period, { start: x.periodStart, end: x.periodEnd })).map((x) => x.email));
     const byEmail = new Map();
     for (const s of shifts) byEmail.set(s.email, [...(byEmail.get(s.email) ?? []), s]);
     const openCount = shifts.filter((s) => !s.clockOut).length;
@@ -421,7 +448,7 @@ $('payCreateBtn').onclick = async () => {
     let made = 0;
     for (const [email, theirs] of byEmail) {
       const va = vas.get(email);
-      if (!va || have.has(email)) continue;
+      if (!va || have.has(email) || overlapping.has(email)) continue;
       const { hours, amount, days } = payFor(theirs, va.phpRate || 0);
       if (hours === 0) continue;
       b.set(doc(db, 'payslips', slipId(from, email)), {
@@ -432,30 +459,39 @@ $('payCreateBtn').onclick = async () => {
     }
     if (made) await b.commit();
     await loadPayroll();
-    alert(`${made} payslip${made === 1 ? '' : 's'} created.${openCount ? ` ${openCount} shift(s) in this period are still open and were not counted; close them, then use "Recount hours".` : ''}`);
+    const skipped = [...overlapping].map((e) => vas.get(e)?.name ?? e);
+    alert(`${made} payslip${made === 1 ? '' : 's'} created.`
+      + (skipped.length ? ` Skipped ${skipped.join(', ')}: they already have a payslip covering some of these days.` : '')
+      + (openCount ? ` ${openCount} shift(s) in this period are still open and were not counted; close them, then use "Recount hours".` : ''));
   } catch (err) { showError(err); }
 };
 
 // ---------- Client invoices ----------
 
 let company = {};
+let payAnchor = DEFAULT_PAY_ANCHOR;
 
 async function loadCompany() {
-  const snap = await getDoc(doc(db, 'settings', 'company')).catch(showError);
+  const [snap, cycle] = await Promise.all([
+    getDoc(doc(db, 'settings', 'company')).catch(showError),
+    getDoc(doc(db, 'settings', 'payCycle')).catch(showError),
+  ]);
   company = snap?.exists() ? snap.data() : {};
+  payAnchor = (cycle?.exists() && cycle.data().anchor) || company.payAnchor || DEFAULT_PAY_ANCHOR;
   $('coBank').value = company.bankName ?? '';
   $('coAccountName').value = company.accountName ?? '';
   $('coAccountNumber').value = company.accountNumber ?? '';
-  $('coPayAnchor').value = company.payAnchor || DEFAULT_PAY_ANCHOR;
+  $('coPayAnchor').value = payAnchor;
 }
 
+// Saved where VAs can read it too, so their "This pay period" box uses the same dates.
 $('payCycleForm').onsubmit = async (e) => {
   e.preventDefault();
-  const next = { ...company, payAnchor: $('coPayAnchor').value };
   try {
-    await setDoc(doc(db, 'settings', 'company'), next);
-    company = next;
-    $('payCycleNote').textContent = 'Saved. Period buttons now use this date.';
+    await setDoc(doc(db, 'settings', 'payCycle'), { anchor: $('coPayAnchor').value });
+    payAnchor = $('coPayAnchor').value;
+    fillPayPeriods();
+    $('payCycleNote').textContent = 'Saved. Pay periods now start from this date.';
   } catch (err) { showError(err); }
 };
 

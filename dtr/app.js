@@ -3,15 +3,17 @@ import {
   sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 import {
-  collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
+  Timestamp, collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=7';
-import { coeHtml, payslipHtml } from './docs.js?v=7';
+import { startAdmin } from './admin.js?v=8';
+import { coeHtml, payslipHtml } from './docs.js?v=8';
 import { auth, db } from './firebase.js?v=2';
-import { BUSINESS_TZ, dayKey, formatDuration, formatPhp } from './report.js?v=7';
+import {
+  BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatPhp, hmFromHours, payFor, periodRange, zonedToDate,
+} from './report.js?v=8';
 import {
   $, TIME_ZONES, asDate, cell, displayTz, el, fmt, fmtDay, numCell, openDocument, setDisplayTz, show, showError,
-} from './ui.js?v=7';
+} from './ui.js?v=8';
 
 const MY_SHIFTS_SHOWN = 14;
 
@@ -39,9 +41,24 @@ function setView(name) {
 }
 for (const b of document.querySelectorAll('[data-view]')) b.onclick = () => setView(b.dataset.view);
 
-// Times show in Eastern Time unless the viewer picks another zone; the page reloads to redraw everything.
-$('tzSelect').replaceChildren(...TIME_ZONES.map(([id, label]) => el('option', { value: id, textContent: label, selected: id === displayTz })));
-$('tzSelect').onchange = () => { setDisplayTz($('tzSelect').value); location.reload(); };
+// Times show in Eastern Time unless the person picks another zone. The choice is saved to their account
+// (so it follows them to other devices) and the page reloads to redraw every time.
+function fillTzSelect() {
+  $('tzSelect').replaceChildren(...TIME_ZONES.map(([id, label]) => el('option', { value: id, textContent: label, selected: id === displayTz })));
+}
+fillTzSelect();
+$('tzSelect').onchange = async () => {
+  setDisplayTz($('tzSelect').value);
+  $('tzNote').textContent = 'Saving...';
+  if (me) await setDoc(doc(db, 'prefs', me.email), { timeZone: displayTz }).catch(showError);
+  location.reload();
+};
+
+async function loadSavedTz(email) {
+  const snap = await getDoc(doc(db, 'prefs', email)).catch(() => null);
+  const tz = snap?.exists() ? snap.data().timeZone : null;
+  if (tz && tz !== displayTz) { setDisplayTz(tz); fillTzSelect(); }
+}
 
 // ---------- Google sign-in ----------
 
@@ -136,6 +153,7 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
     me = { email, ...snap.data() };
+    await loadSavedTz(email);
     show('shell');
     setView('clock');
     startVa();
@@ -156,11 +174,43 @@ function renderMe() {
   $('pPosition').textContent = me.position || 'Not set';
   $('pRate').textContent = me.phpRate ? `${formatPhp(me.phpRate)} per hour` : 'Not set';
   $('pStart').textContent = me.startDate ? fmtDay(me.startDate) : 'Not set';
-  $('myRate').textContent = me.phpRate ? formatPhp(me.phpRate) : 'not set yet';
+  $('myRate').textContent = me.phpRate ? `${formatPhp(me.phpRate)} per hour` : 'Not set yet';
+  renderCurrentPeriod();
+}
+
+// ---------- This pay period (an estimate until payroll makes the payslip) ----------
+
+let payAnchor = '2026-10-11';
+let periodShifts = [];
+let periodUnsub = null;
+
+function renderCurrentPeriod() {
+  const [from, to] = periodRange('thisBiweek', calendarToday(BUSINESS_TZ), payAnchor).map((d) => dayKey(d));
+  $('curPeriod').textContent = `${fmtDay(from)} to ${fmtDay(to)}`;
+  const { hours, amount } = payFor(periodShifts, me.phpRate || 0);
+  $('curHours').textContent = `${hmFromHours(hours)} (${hours.toFixed(2)} h)`;
+  $('curPay').textContent = me.phpRate ? formatPhp(amount) : 'Shown once your rate is set';
+}
+
+async function watchCurrentPeriod() {
+  const cycle = await getDoc(doc(db, 'settings', 'payCycle')).catch(() => null);
+  if (cycle?.exists()) payAnchor = cycle.data().anchor;
+  const [first, last] = periodRange('thisBiweek', calendarToday(BUSINESS_TZ), payAnchor);
+  const dayAfter = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+  periodUnsub?.();
+  periodUnsub = onSnapshot(query(collection(db, 'entries'), where('email', '==', me.email),
+    where('clockIn', '>=', Timestamp.fromDate(zonedToDate(dayKey(first), '00:00', BUSINESS_TZ))),
+    where('clockIn', '<', Timestamp.fromDate(zonedToDate(dayKey(dayAfter), '00:00', BUSINESS_TZ))), orderBy('clockIn', 'desc')), (snap) => {
+    periodShifts = snap.docs.map((d) => d.data({ serverTimestamps: 'estimate' }))
+      .map((x) => ({ clockIn: x.clockIn.toDate(), clockOut: asDate(x.clockOut) }));
+    renderCurrentPeriod();
+  }, showError);
+  track(() => periodUnsub?.());
 }
 
 function startVa() {
   renderMe();
+  watchCurrentPeriod();
 
   // Keep my record live so a rate or client change by an admin shows up without a reload.
   track(onSnapshot(doc(db, 'allowed', me.email), (snap) => {

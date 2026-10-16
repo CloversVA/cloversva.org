@@ -90,6 +90,19 @@ export function periodRange(kind, today = new Date(), anchorDay = '2026-10-11') 
   }
 }
 
+// The current pay period and the `back` before it, newest first: [{start, end}] as YYYY-MM-DD.
+export function payPeriods(anchorDay, today, back = 8) {
+  const [first] = periodRange('thisBiweek', today, anchorDay);
+  return Array.from({ length: back + 1 }, (_, i) => {
+    const start = new Date(first.getFullYear(), first.getMonth(), first.getDate() - 14 * i);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 13);
+    return { start: dayKey(start), end: dayKey(end) };
+  });
+}
+
+// True when two YYYY-MM-DD ranges share at least one day.
+export const periodsOverlap = (a, b) => a.start <= b.end && b.start <= a.end;
+
 // ---------- Totals and pay ----------
 
 export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;

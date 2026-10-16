@@ -59,6 +59,9 @@ main { max-width: 1160px; margin: 0 auto; padding: 16px; }
 .sidenav button[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 .tz-pick { margin-top: 12px; }
 .tz-pick select { width: 100%; }
+.tz-pick span { font-size: .8rem; }
+.steps { margin: 0 0 14px; padding-left: 20px; }
+.steps li { margin-bottom: 4px; }
 .sig-preview { display: block; max-height: 90px; margin: 4px 0 12px; mix-blend-mode: multiply; background: #fff; }
 .day-list td { white-space: normal; background: var(--leaf-soft); }
 .day-list ul { margin: 0; padding-left: 18px; columns: 16em; max-width: 60em; }

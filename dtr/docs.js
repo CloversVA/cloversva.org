@@ -1,6 +1,6 @@
 // Printable documents (payslip, invoice, certificate, timesheet), opened in a new tab where
 // the browser's "Save as PDF" turns them into files. Every value goes through esc().
-import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2 } from './report.js?v=7';
+import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2 } from './report.js?v=8';
 
 export const COMPANY = {
   legalName: 'Clovers Virtual Assistance Services',
