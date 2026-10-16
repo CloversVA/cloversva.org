@@ -1,6 +1,6 @@
 // Printable documents (payslip, invoice, certificate, timesheet), opened in a new tab where
 // the browser's "Save as PDF" turns them into files. Every value goes through esc().
-import { dayKey, esc, formatPhp, formatUsd, round2 } from './report.js?v=2';
+import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2 } from './report.js?v=7';
 
 export const COMPANY = {
   legalName: 'Clovers Virtual Assistance Services',
@@ -17,6 +17,9 @@ const longDate = (d) => d.toLocaleDateString('en-US', { year: 'numeric', month: 
 const fromDay = (day) => new Date(`${day}T00:00`);
 const periodText = (start, end) => `${longDate(fromDay(start))} to ${longDate(fromDay(end))}`;
 const masked = (acct) => (acct ? `•••• ${String(acct).slice(-4)}` : '');
+
+// The signature image (a data: URL) sits on the signing line; its white background blends into the page.
+const signature = (dataUrl) => (dataUrl ? `<img class="sig" src="${esc(dataUrl)}" alt="Signature">` : '');
 
 function ordinal(n) {
   const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] ?? 'th';
@@ -50,6 +53,7 @@ function page(title, body, extraCss = '') {
   .footer .contact { color: #0a5a2e; }
   .sign { margin-top: 48px; }
   .sign .line { width: 240px; border-bottom: 1px solid #152318; height: 36px; }
+  .sign .sig { display: block; height: 80px; margin: 0 0 -46px 10px; mix-blend-mode: multiply; position: relative; }
   .toolbar { text-align: center; padding: 12px; background: #eef6e2; }
   .toolbar button { font: 600 14px Poppins, sans-serif; padding: 8px 18px; border-radius: 8px; border: 0; background: #0a5a2e; color: #fff; cursor: pointer; }
   @media print { .toolbar { display: none; } }
@@ -81,6 +85,11 @@ export function payslipHtml(slip, bank) {
     <td class="num">${slip.hours.toFixed(2)}</td><td class="num">${esc(formatPhp(slip.phpRate))}</td><td class="num">${esc(formatPhp(slip.amount))}</td></tr></tbody>
   <tfoot><tr><td>TOTAL</td><td class="num">${slip.hours.toFixed(2)}</td><td></td><td class="num">${esc(formatPhp(slip.amount))}</td></tr></tfoot>
 </table>
+${slip.days?.length ? `<p class="label">Daily hours (Eastern Time)</p>
+<table class="grid">
+  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th class="num">Hours (decimal)</th></tr></thead>
+  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td><td class="num">${x.hours.toFixed(2)}</td></tr>`).join('')}</tbody>
+</table>` : ''}
 <p class="label">Paid to</p>
 ${bank ? `<table class="meta">
   <tr><td>Bank</td><td>: ${esc(bank.bankName)}</td></tr>
@@ -91,7 +100,7 @@ ${footer}`);
 }
 
 // lines: [{day, name, position, usdRate, hours}]; company: settings/company or {}.
-export function invoiceHtml({ clientName, invoiceDate, dueDate, lines, company }) {
+export function invoiceHtml({ clientName, invoiceDate, dueDate, lines, company, signatureUrl }) {
   const rows = lines.map((l) => {
     const total = round2(l.hours * l.usdRate);
     return `<tr><td>${esc(l.name)}</td><td>${esc(l.position || '')}</td><td class="num">${esc(formatUsd(l.usdRate))}</td>
@@ -115,14 +124,16 @@ export function invoiceHtml({ clientName, invoiceDate, dueDate, lines, company }
     <tr><td>Bank</td><td>: ${esc(company.bankName || '')}</td></tr>
     <tr><td>Account name</td><td>: ${esc(company.accountName || '')}</td></tr>
     <tr><td>Account number</td><td>: ${esc(company.accountNumber || '')}</td></tr></table></div>
-  <div class="sign"><div class="line"></div><div>${esc(COMPANY.signatory)}</div></div>
+  <div class="sign">${signature(signatureUrl)}<div class="line"></div><div>${esc(COMPANY.signatory)}</div></div>
 </div>
 <p class="label" style="margin-top:24px">Terms and conditions</p>
 <p>Please make the payment by the due date to the account above. We accept cloud-based financial operations platforms such as Wise Transfer and Bill.com.</p>
 ${footer}`);
 }
 
-export function coeHtml({ name, position, startDate, purpose, today = new Date() }) {
+// issuedOn: the YYYY-MM-DD day an admin approved it; signatureUrl: the signature frozen into that approval.
+export function coeHtml({ name, position, startDate, purpose, issuedOn, signatureUrl }) {
+  const today = issuedOn ? fromDay(issuedOn) : new Date();
   const since = startDate ? longDate(fromDay(startDate)) : '____________';
   const month = today.toLocaleDateString('en-US', { month: 'long' });
   return page(`Certificate of Employment ${name}`, `
@@ -132,7 +143,7 @@ export function coeHtml({ name, position, startDate, purpose, today = new Date()
 holding the position of <u>${esc(position || '____________')}</u>. He/She has been with us since <u>${esc(since)}</u> until <u>present</u>.</p>
 <p class="body">This certification is issued upon request of the person concerned for <u>${esc(purpose)}</u>.</p>
 <p class="body">Done on this ${ordinal(today.getDate())} day of ${esc(month)}, ${today.getFullYear()} in ${esc(COMPANY.place)}.</p>
-<div class="sign"><div class="line"></div>
+<div class="sign">${signature(signatureUrl)}<div class="line"></div>
   <div>${esc(COMPANY.signatory.toUpperCase())}</div><div>${esc(COMPANY.signatoryTitle)}</div><div>${esc(COMPANY.legalName)}</div></div>
 ${footer}`, `
   .sheet { min-height: 1000px; }
@@ -143,22 +154,21 @@ ${footer}`, `
   .footer { text-align: left; }`);
 }
 
-// totals: summarize() rows plus clientName; shifts: [{name, clockIn, clockOut}].
-export function timesheetHtml({ from, to, totals, shifts }) {
-  const fmt = (d) => d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+// totals: summarize() rows plus clientName; shifts: [{name, clockIn, clockOut}]; fmt shows a time in the viewer's chosen zone.
+export function timesheetHtml({ from, to, totals, shifts, fmt }) {
   return page(`Timesheet ${from} to ${to}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
 <h1>TIMESHEET</h1>
 <p style="text-align:center">${esc(periodText(from, to))}</p>
 <table class="grid">
-  <thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours</th><th class="num">Still open</th></tr></thead>
+  <thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours (H:MM)</th><th class="num">Still open</th></tr></thead>
   <tbody>${totals.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.clientName || '')}</td><td class="num">${r.shifts}</td>
-    <td class="num">${r.hours.toFixed(2)}</td><td class="num">${r.open || ''}</td></tr>`).join('') || '<tr><td colspan="5">No shifts.</td></tr>'}</tbody>
+    <td class="num">${esc(hmFromHours(r.hours))}</td><td class="num">${r.open || ''}</td></tr>`).join('') || '<tr><td colspan="5">No shifts.</td></tr>'}</tbody>
 </table>
 <table class="grid">
-  <thead><tr><th>VA</th><th>Clock in</th><th>Clock out</th><th class="num">Hours</th></tr></thead>
+  <thead><tr><th>VA</th><th>Clock in</th><th>Clock out</th><th class="num">Hours (H:MM)</th></tr></thead>
   <tbody>${shifts.map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(fmt(s.clockIn))}</td><td>${s.clockOut ? esc(fmt(s.clockOut)) : 'Open'}</td>
-    <td class="num">${s.clockOut ? ((s.clockOut - s.clockIn) / 3_600_000).toFixed(2) : ''}</td></tr>`).join('')}</tbody>
+    <td class="num">${s.clockOut ? esc(formatHM(s.clockOut - s.clockIn)) : ''}</td></tr>`).join('')}</tbody>
 </table>
 ${footer}`);
 }

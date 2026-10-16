@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
-  <script type="module" src="app.js?v=5"></script>
+  <link rel="stylesheet" href="style.css?v=7">
+  <script type="module" src="app.js?v=7"></script>
 </head>
 <body>
   <header class="topbar">
@@ -69,7 +69,9 @@
         <button data-view="payroll" data-admin hidden>Payroll</button>
         <button data-view="invoices" data-admin hidden>Client invoices</button>
         <button data-view="vas" data-admin hidden>VAs<span id="waitingCount" class="badge" hidden></span></button>
+        <button data-view="coe" data-admin hidden>COE requests<span id="coeCount" class="badge" hidden></span></button>
         <button data-view="company" data-admin hidden>Company details</button>
+        <label class="tz-pick">Show times in <select id="tzSelect"></select></label>
       </nav>
 
       <div class="views">
@@ -91,7 +93,7 @@
         <section data-panel="payslips" hidden>
           <div class="card">
             <h2>My payslips</h2>
-            <p class="muted">Your rate: <strong id="myRate"></strong> per hour. Payouts are for the 1st to 15th and the 16th to end of month.</p>
+            <p class="muted">Your rate: <strong id="myRate"></strong> per hour. You are paid every two weeks; each payslip lists your hours day by day (Eastern Time).</p>
             <div class="scroll"><table>
               <thead><tr><th>Pay period</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Amount</th><th>Payout</th><th></th></tr></thead>
               <tbody id="myPayslipRows"></tbody>
@@ -137,12 +139,17 @@
 
         <section data-panel="documents" hidden>
           <div class="card">
-            <h2>Certificate of Employment</h2>
+            <h2>Request a Certificate of Employment</h2>
             <form id="coeForm" class="stack narrow-form">
-              <label>What is it for? <input id="coePurpose" maxlength="120" required placeholder="e.g. bank loan application"></label>
-              <div class="row"><button class="primary">Download certificate</button></div>
+              <label>Reason for the request <input id="coePurpose" minlength="3" maxlength="200" required placeholder="e.g. bank loan application"></label>
+              <div class="row"><button class="primary">Send request</button><span id="coeNote" class="muted" role="status"></span></div>
             </form>
-            <p class="muted">Opens in a new tab. Choose "Save as PDF" in the print window. Get it signed by CloversVA before using it.</p>
+            <p class="muted">CloversVA reviews your request. Once approved, the signed certificate appears below to view and download.</p>
+          </div>
+          <div class="card">
+            <h2>My certificate requests</h2>
+            <div class="scroll"><table><thead><tr><th>Requested</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="myCoeRows"></tbody></table></div>
+            <p id="myCoeEmpty" class="muted">No requests yet.</p>
           </div>
         </section>
 
@@ -159,8 +166,8 @@
           <div class="card">
             <h2>Timesheets</h2>
             <div class="row" role="group" aria-label="Period">
-              <button type="button" data-period="thisHalf" data-for="ts">This pay period</button>
-              <button type="button" data-period="lastHalf" data-for="ts">Last pay period</button>
+              <button type="button" data-period="thisBiweek" data-for="ts">This pay period</button>
+              <button type="button" data-period="lastBiweek" data-for="ts">Last pay period</button>
               <button type="button" data-period="thisWeek" data-for="ts">This week</button>
               <button type="button" data-period="lastWeek" data-for="ts">Last week</button>
               <button type="button" data-period="thisMonth" data-for="ts">This month</button>
@@ -170,19 +177,20 @@
               <label>From <input type="date" id="tsFrom" required></label>
               <label>To <input type="date" id="tsTo" required></label>
               <button class="primary">Show</button>
+              <button type="button" id="xlsxBtn" disabled>Download Excel</button>
               <button type="button" id="csvBtn" disabled>Download CSV</button>
               <button type="button" id="tsPrintBtn" disabled>Timesheet PDF</button>
             </form>
             <div class="row"><label>Filter by VA <input id="tsFilter" type="search" placeholder="Type part of a name"></label></div>
             <h3>Totals</h3>
-            <div class="scroll"><table><thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours</th><th class="num">Still open</th></tr></thead><tbody id="totalRows"></tbody></table></div>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours (H:MM)</th><th class="num">Still open</th></tr></thead><tbody id="totalRows"></tbody></table></div>
             <h3>Shifts</h3>
             <p class="muted">Click a column name to sort; click again to reverse.</p>
             <div class="scroll"><table><thead><tr>
               <th aria-sort="none"><button type="button" class="sort" data-sort="name">VA</button></th>
               <th aria-sort="ascending"><button type="button" class="sort" data-sort="clockIn">Clock in</button></th>
               <th aria-sort="none"><button type="button" class="sort" data-sort="clockOut">Clock out</button></th>
-              <th aria-sort="none"><button type="button" class="sort" data-sort="length">Length</button></th>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="length">Hours (H:MM)</button></th>
               <th></th></tr></thead><tbody id="shiftRows"></tbody></table></div>
             <p id="tsEmpty" class="muted" hidden>No shifts match.</p>
           </div>
@@ -192,8 +200,8 @@
           <div class="card">
             <h2>Payroll</h2>
             <div class="row" role="group" aria-label="Pay period">
-              <button type="button" data-period="thisHalf" data-for="pay">This pay period</button>
-              <button type="button" data-period="lastHalf" data-for="pay">Last pay period</button>
+              <button type="button" data-period="thisBiweek" data-for="pay">This pay period</button>
+              <button type="button" data-period="lastBiweek" data-for="pay">Last pay period</button>
             </div>
             <form id="payForm" class="row">
               <label>From <input type="date" id="payFrom" required></label>
@@ -201,7 +209,7 @@
               <button class="primary">Show</button>
               <button type="button" id="payCreateBtn">Create payslips from hours</button>
             </form>
-            <p class="muted">"Create payslips" adds one for every active VA with hours in the period, at their current rate. You can change a rate before marking it paid. Paid payslips are locked.</p>
+            <p class="muted">Pay periods are two weeks long, counted in Eastern Time from the start date under Company details. "Create payslips" adds one for every VA with hours in the period, at their current rate. You can change a rate before marking it paid. Paid payslips are locked. Use "Daily hours" to see the day-by-day breakdown.</p>
             <div class="scroll"><table>
               <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th>Bank</th><th></th></tr></thead>
               <tbody id="payRows"></tbody>
@@ -215,8 +223,8 @@
           <div class="card">
             <h2>Client invoices (USD)</h2>
             <div class="row" role="group" aria-label="Period">
-              <button type="button" data-period="thisHalf" data-for="inv">This pay period</button>
-              <button type="button" data-period="lastHalf" data-for="inv">Last pay period</button>
+              <button type="button" data-period="thisBiweek" data-for="inv">This pay period</button>
+              <button type="button" data-period="lastBiweek" data-for="inv">Last pay period</button>
               <button type="button" data-period="thisMonth" data-for="inv">This month</button>
               <button type="button" data-period="lastMonth" data-for="inv">Last month</button>
             </div>
@@ -252,7 +260,34 @@
           </div>
         </section>
 
+        <section data-panel="coe" hidden>
+          <div class="card">
+            <h2>COE requests</h2>
+            <p class="muted">Approving signs the certificate with the signature under Company details and lets the VA view and download it.</p>
+            <div class="scroll"><table>
+              <thead><tr><th>VA</th><th>Reason</th><th>Requested</th><th>Status</th><th></th></tr></thead>
+              <tbody id="coeRows"></tbody>
+            </table></div>
+            <p id="coeEmpty" class="muted">No requests yet.</p>
+          </div>
+        </section>
+
         <section data-panel="company" hidden>
+          <div class="card">
+            <h2>Pay cycle</h2>
+            <form id="payCycleForm" class="stack narrow-form">
+              <label>First day of a bi-weekly pay period <input id="coPayAnchor" type="date" required></label>
+              <div class="row"><button class="primary">Save</button><span id="payCycleNote" class="muted" role="status"></span></div>
+            </form>
+            <p class="muted">Periods repeat every 14 days from this date, in Eastern Time. Changing it does not alter payslips already made.</p>
+          </div>
+          <div class="card">
+            <h2>Signature</h2>
+            <p class="muted">Printed on client invoices and approved certificates. Only admins can see it here.</p>
+            <img id="sigPreview" class="sig-preview" alt="Current signature" hidden>
+            <p id="sigNone" class="muted">No signature uploaded yet.</p>
+            <div class="row"><label>Upload a new signature (PNG or JPG) <input id="sigFile" type="file" accept="image/png,image/jpeg"></label><span id="sigNote" class="muted" role="status"></span></div>
+          </div>
           <div class="card">
             <h2>Company details</h2>
             <p class="muted">Printed as the payment method on client invoices.</p>

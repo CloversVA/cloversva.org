@@ -57,12 +57,17 @@ main { max-width: 1160px; margin: 0 auto; padding: 16px; }
 .sidenav button { text-align: left; background: var(--leaf-soft); border: 1px solid var(--leaf-mid); border-radius: 8px; padding: 7px 12px; color: var(--text); }
 .sidenav button:hover { border-color: var(--leaf); }
 .sidenav button[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.tz-pick { margin-top: 12px; }
+.tz-pick select { width: 100%; }
+.sig-preview { display: block; max-height: 90px; margin: 4px 0 12px; mix-blend-mode: multiply; background: #fff; }
+.day-list td { white-space: normal; background: var(--leaf-soft); }
+.day-list ul { margin: 0; padding-left: 18px; columns: 16em; max-width: 60em; }
 .badge { margin-left: 6px; background: var(--leaf); color: #0b1a0f; border-radius: 999px; padding: 0 8px; font-size: .8rem; font-weight: 700; }
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .sidenav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
-  .sidenav button, .nav-title { white-space: nowrap; flex: none; margin-top: 0; }
+  .sidenav button, .nav-title, .tz-pick { white-space: nowrap; flex: none; margin-top: 0; }
   .who-text span { display: none; }
 }
 

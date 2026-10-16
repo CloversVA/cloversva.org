@@ -5,11 +5,13 @@ import {
 import {
   collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=5';
-import { coeHtml, payslipHtml } from './docs.js?v=2';
+import { startAdmin } from './admin.js?v=7';
+import { coeHtml, payslipHtml } from './docs.js?v=7';
 import { auth, db } from './firebase.js?v=2';
-import { dayKey, formatDuration, formatPhp } from './report.js?v=2';
-import { $, asDate, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from './ui.js?v=2';
+import { BUSINESS_TZ, dayKey, formatDuration, formatPhp } from './report.js?v=7';
+import {
+  $, TIME_ZONES, asDate, cell, displayTz, el, fmt, fmtDay, numCell, openDocument, setDisplayTz, show, showError,
+} from './ui.js?v=7';
 
 const MY_SHIFTS_SHOWN = 14;
 
@@ -36,6 +38,10 @@ function setView(name) {
   for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== name;
 }
 for (const b of document.querySelectorAll('[data-view]')) b.onclick = () => setView(b.dataset.view);
+
+// Times show in Eastern Time unless the viewer picks another zone; the page reloads to redraw everything.
+$('tzSelect').replaceChildren(...TIME_ZONES.map(([id, label]) => el('option', { value: id, textContent: label, selected: id === displayTz })));
+$('tzSelect').onchange = () => { setDisplayTz($('tzSelect').value); location.reload(); };
 
 // ---------- Google sign-in ----------
 
@@ -190,10 +196,28 @@ function startVa() {
       const btn = el('button', { textContent: 'Payslip PDF' });
       btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank));
       const status = s.status === 'paid'
-        ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate())) : ''}` })
+        ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate(), BUSINESS_TZ)) : ''}` })
         : el('span', { className: 'pill pending', textContent: 'Pending' });
       return el('tr', {}, cell(`${fmtDay(s.periodStart)} to ${fmtDay(s.periodEnd)}`), numCell(s.hours.toFixed(2)),
         numCell(formatPhp(s.phpRate)), numCell(formatPhp(s.amount)), cell(status), cell(btn));
+    }));
+  }, showError));
+
+  track(onSnapshot(query(collection(db, 'coeRequests'), where('email', '==', me.email)), (snap) => {
+    const requests = snap.docs.map((d) => d.data({ serverTimestamps: 'estimate' }))
+      .sort((a, b) => b.requestedAt.toMillis() - a.requestedAt.toMillis());
+    show('myCoeEmpty', requests.length === 0);
+    $('myCoeRows').replaceChildren(...requests.map((r) => {
+      const label = { pending: 'Waiting for approval', approved: `Approved ${r.issuedOn ? fmtDay(r.issuedOn) : ''}`, denied: 'Not approved' }[r.status];
+      const status = el('span', { className: `pill ${r.status === 'approved' ? 'paid' : 'pending'}`, textContent: label });
+      let action = null;
+      if (r.status === 'approved') {
+        action = el('button', { className: 'primary', textContent: 'View / Download' });
+        action.onclick = () => openDocument(coeHtml({
+          name: r.fullName, position: r.position, startDate: r.startDate, purpose: r.purpose, issuedOn: r.issuedOn, signatureUrl: r.signature,
+        }));
+      }
+      return el('tr', {}, cell(fmt(r.requestedAt.toDate())), cell(r.purpose), cell(status), cell(action));
     }));
   }, showError));
 
@@ -268,7 +292,13 @@ $('bankForm').onsubmit = async (e) => {
   } catch (err) { showError(err); }
 };
 
-$('coeForm').onsubmit = (e) => {
+$('coeForm').onsubmit = async (e) => {
   e.preventDefault();
-  openDocument(coeHtml({ name: myProfile?.fullName || me.name, position: me.position, startDate: me.startDate, purpose: $('coePurpose').value.trim() }));
+  const purpose = $('coePurpose').value.trim();
+  if (purpose.length < 3) { $('coeNote').textContent = 'Please write a reason (at least 3 characters).'; return; }
+  try {
+    await setDoc(doc(collection(db, 'coeRequests')), { email: me.email, name: me.name, purpose, status: 'pending', requestedAt: serverTimestamp() });
+    e.target.reset();
+    $('coeNote').textContent = 'Request sent. You will see it below once approved.';
+  } catch (err) { showError(err); }
 };

@@ -2,14 +2,18 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=2';
+import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=7';
 import { db } from './firebase.js?v=2';
 import {
-  formatDuration, formatPhp, invoiceLines, matchesName, payFor, periodRange, round2, sortShifts, summarize, toCsv, totalsToCsv,
-} from './report.js?v=5';
+  BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, hmFromHours, invoiceLines, matchesName, payFor,
+  periodRange, round2, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows, zonedToDate,
+} from './report.js?v=7';
 import {
-  $, asDate, cell, downloadText, el, fmt, fmtDay, numCell, openDocument, show, showError, toDateInput, toDateTimeInput,
-} from './ui.js?v=2';
+  $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
+  toDateInput, toDateTimeInput,
+} from './ui.js?v=7';
+
+const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
 const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'usdRate', 'startDate'];
 const pick = (o) => Object.fromEntries(VA_FIELDS.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
@@ -42,18 +46,23 @@ export function startAdmin(signedIn, track) {
     if (clients.includes(current)) $('invClient').value = current;
   }, showError));
 
-  setPeriod('ts', 'thisHalf');
-  setPeriod('pay', 'lastHalf');
-  setPeriod('inv', 'lastHalf');
-  const due = new Date(); due.setDate(due.getDate() + 7);
+  track(onSnapshot(collection(db, 'coeRequests'), renderCoeRequests, showError));
+
+  const due = calendarToday(BUSINESS_TZ); due.setDate(due.getDate() + 7);
   $('invDue').value = toDateInput(due);
-  loadCompany();
+  // Pay periods depend on the saved pay-cycle start date, so set them once it has loaded.
+  loadCompany().finally(() => {
+    setPeriod('ts', 'thisBiweek');
+    setPeriod('pay', 'lastBiweek');
+    setPeriod('inv', 'lastBiweek');
+  });
+  loadSignature();
 }
 
 // ---------- Periods ----------
 
 function setPeriod(prefix, kind) {
-  const [from, to] = periodRange(kind);
+  const [from, to] = periodRange(kind, calendarToday(BUSINESS_TZ), company.payAnchor || DEFAULT_PAY_ANCHOR);
   $(`${prefix}From`).value = toDateInput(from);
   $(`${prefix}To`).value = toDateInput(to);
 }
@@ -66,10 +75,12 @@ for (const btn of document.querySelectorAll('[data-period]')) {
   };
 }
 
-// Shifts that started between two YYYY-MM-DD days, inclusive.
+const nextDay = (day) => new Date(Date.UTC(...day.split('-').map((n, i) => Number(n) - (i === 1 ? 1 : 0))) + 86_400_000).toISOString().slice(0, 10);
+
+// Shifts that started between two YYYY-MM-DD days (Eastern Time), inclusive.
 async function fetchShifts(fromDay, toDay) {
-  const from = new Date(`${fromDay}T00:00`);
-  const to = new Date(`${toDay}T00:00`); to.setDate(to.getDate() + 1);
+  const from = zonedToDate(fromDay, '00:00', BUSINESS_TZ);
+  const to = zonedToDate(nextDay(toDay), '00:00', BUSINESS_TZ);
   const snap = await getDocs(query(collection(db, 'entries'),
     where('clockIn', '>=', Timestamp.fromDate(from)), where('clockIn', '<', Timestamp.fromDate(to)), orderBy('clockIn')));
   return snap.docs.map((d) => {
@@ -168,6 +179,13 @@ $('vaCancel').onclick = () => $('vaDialog').close();
 
 $('vaForm').onsubmit = async (e) => {
   e.preventDefault();
+  // A rate typed with a comma or currency sign used to be saved silently as 0.
+  if ($('vaPhp').validity.badInput || $('vaUsd').validity.badInput) {
+    alert('Type each rate as a plain number, like 400 or 1000.50, without commas or ₱/$ signs.');
+    return;
+  }
+  if (!(Number($('vaPhp').value) > 0) && $('vaRole').value === 'va'
+    && !confirm(`${$('vaName').value} has no PHP hourly rate, so their payslips will show ₱0.00. Save anyway?`)) return;
   const record = {
     name: $('vaName').value.trim(),
     role: $('vaRole').value,
@@ -205,21 +223,21 @@ async function runTimesheet() {
 function renderTimesheet() {
   const shown = shownShifts();
   $('totalRows').replaceChildren(...totalsOf(shown).map((r) =>
-    el('tr', {}, cell(r.name), cell(r.clientName), numCell(String(r.shifts)), numCell(r.hours.toFixed(2)), numCell(r.open ? String(r.open) : ''))));
+    el('tr', {}, cell(r.name), cell(r.clientName), numCell(String(r.shifts)), numCell(hmFromHours(r.hours)), numCell(r.open ? String(r.open) : ''))));
   $('shiftRows').replaceChildren(...shown.map((s) => {
     const edit = el('button', { textContent: s.clockOut ? 'Fix' : 'Close shift' });
     edit.onclick = () => openShiftEditor(s);
     const del = el('button', { className: 'danger', textContent: 'Delete' });
     del.onclick = () => deleteShift(s);
     return el('tr', {}, cell(s.name), cell(fmt(s.clockIn)),
-      cell(s.clockOut ? fmt(s.clockOut) : 'Open'), cell(s.clockOut ? formatDuration(s.clockOut - s.clockIn) : ''),
+      cell(s.clockOut ? fmt(s.clockOut) : 'Open'), cell(s.clockOut ? formatHM(s.clockOut - s.clockIn) : ''),
       cell(edit, ' ', del, s.edited ? el('span', { className: 'muted', textContent: ' edited' }) : null));
   }));
   for (const b of document.querySelectorAll('button.sort')) {
     b.closest('th').setAttribute('aria-sort', b.dataset.sort !== tsSort.key ? 'none' : tsSort.dir === 1 ? 'ascending' : 'descending');
   }
   show('tsEmpty', tsShifts.length > 0 && shown.length === 0);
-  $('csvBtn').disabled = $('tsPrintBtn').disabled = shown.length === 0;
+  $('csvBtn').disabled = $('tsPrintBtn').disabled = $('xlsxBtn').disabled = shown.length === 0;
 }
 
 for (const b of document.querySelectorAll('button.sort')) {
@@ -248,15 +266,31 @@ async function deleteShift(shift) {
 
 $('tsForm').onsubmit = (e) => { e.preventDefault(); runTimesheet().catch(showError); };
 
+// Downloads cover exactly the filtered, sorted rows on screen (e.g. one VA when filtered by name).
+const exportName = (ext) => {
+  const who = $('tsFilter').value.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  return `cloversva-hours_${$('tsFrom').value}_to_${$('tsTo').value}${who ? `_${who}` : ''}.${ext}`;
+};
+
 $('csvBtn').onclick = () => {
   const shown = shownShifts();
-  const csv = `${totalsToCsv(summarize(shown))}\r\n\r\n${toCsv(shown, (d) => toDateTimeInput(d).replace('T', ' '))}`;
-  downloadText(`cloversva-hours_${$('tsFrom').value}_to_${$('tsTo').value}.csv`, csv);
+  downloadText(exportName('csv'), `${rowsToCsv(totalsRows(summarize(shown)))}\r\n\r\n${rowsToCsv(shiftRows(shown, fmt))}`);
+};
+
+$('xlsxBtn').onclick = async () => {
+  const shown = shownShifts();
+  try {
+    const XLSX = await loadXlsx();
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(totalsRows(summarize(shown))), 'Totals');
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(shiftRows(shown, fmt)), 'Shifts');
+    XLSX.writeFile(book, exportName('xlsx'));
+  } catch (err) { showError(err); }
 };
 
 $('tsPrintBtn').onclick = () => {
   const shown = shownShifts();
-  openDocument(timesheetHtml({ from: $('tsFrom').value, to: $('tsTo').value, totals: totalsOf(shown), shifts: shown }));
+  openDocument(timesheetHtml({ from: $('tsFrom').value, to: $('tsTo').value, totals: totalsOf(shown), shifts: shown, fmt }));
 };
 
 // ---------- Fix a shift ----------
@@ -286,8 +320,8 @@ $('editCancel').onclick = () => $('editDialog').close();
 
 $('editForm').onsubmit = async (e) => {
   e.preventDefault();
-  const clockIn = new Date($('editIn').value);
-  const clockOut = new Date($('editOut').value);
+  const clockIn = fromDateTimeInput($('editIn').value);
+  const clockOut = fromDateTimeInput($('editOut').value);
   if (!(clockOut > clockIn)) { alert('Clock out must be after clock in.'); return; }
 
   const entryRef = doc(db, 'entries', editingShift.id);
@@ -325,7 +359,7 @@ async function loadPayroll() {
   show('payEmpty', slips.length === 0);
   const total = round2(slips.reduce((sum, s) => sum + s.amount, 0));
   $('payTotal').textContent = slips.length ? `Total: ${formatPhp(total)}` : '';
-  $('payRows').replaceChildren(...slips.map((s) => payrollRow(s, banks.get(s.email))));
+  $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, banks.get(s.email))));
 }
 
 function payrollRow(slip, bank) {
@@ -339,8 +373,8 @@ function payrollRow(slip, bank) {
   const recalc = el('button', { textContent: 'Recount hours', hidden: !pending, title: 'Use the latest clock-in records, for example after fixing a shift' });
   recalc.onclick = async () => {
     const shifts = (await fetchShifts(slip.periodStart, slip.periodEnd)).filter((x) => x.email === slip.email);
-    const { hours, amount: amt } = payFor(shifts, Number(rate.value) || 0);
-    await saveSlip({ ...slip, hours, phpRate: round2(Number(rate.value) || 0), amount: amt });
+    const { hours, amount: amt, days } = payFor(shifts, Number(rate.value) || 0);
+    await saveSlip({ ...slip, hours, phpRate: round2(Number(rate.value) || 0), amount: amt, days });
   };
   const paid = el('button', { className: pending ? 'primary' : '', textContent: pending ? 'Mark paid' : 'Undo paid' });
   paid.onclick = () => {
@@ -350,10 +384,19 @@ function payrollRow(slip, bank) {
   const pdf = el('button', { textContent: 'Payslip PDF' });
   pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank));
 
-  const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(toDateInput(slip.paidAt.toDate()))}` });
+  const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
-  return el('tr', {}, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)), cell(rate), amount,
-    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })), cell(save, ' ', recalc, ' ', paid, ' ', pdf));
+
+  // Day-by-day hours, shown under the row on request.
+  const daysRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 8 }, slip.days?.length
+    ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)} (${x.hours.toFixed(2)} h)` })))
+    : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" to add it.' })));
+  const daily = el('button', { textContent: 'Daily hours' });
+  daily.onclick = () => { daysRow.hidden = !daysRow.hidden; };
+
+  const row = el('tr', {}, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)), cell(rate), amount,
+    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })), cell(daily, ' ', save, ' ', recalc, ' ', paid, ' ', pdf));
+  return [row, daysRow];
 }
 
 async function saveSlip(slip) {
@@ -379,11 +422,11 @@ $('payCreateBtn').onclick = async () => {
     for (const [email, theirs] of byEmail) {
       const va = vas.get(email);
       if (!va || have.has(email)) continue;
-      const { hours, amount } = payFor(theirs, va.phpRate || 0);
+      const { hours, amount, days } = payFor(theirs, va.phpRate || 0);
       if (hours === 0) continue;
       b.set(doc(db, 'payslips', slipId(from, email)), {
         email, name: va.name, clientName: va.clientName || '', position: va.position || '',
-        periodStart: from, periodEnd: to, hours, phpRate: va.phpRate || 0, amount, status: 'pending', ...stamp(),
+        periodStart: from, periodEnd: to, hours, phpRate: va.phpRate || 0, amount, days, status: 'pending', ...stamp(),
       });
       made += 1;
     }
@@ -403,6 +446,115 @@ async function loadCompany() {
   $('coBank').value = company.bankName ?? '';
   $('coAccountName').value = company.accountName ?? '';
   $('coAccountNumber').value = company.accountNumber ?? '';
+  $('coPayAnchor').value = company.payAnchor || DEFAULT_PAY_ANCHOR;
+}
+
+$('payCycleForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const next = { ...company, payAnchor: $('coPayAnchor').value };
+  try {
+    await setDoc(doc(db, 'settings', 'company'), next);
+    company = next;
+    $('payCycleNote').textContent = 'Saved. Period buttons now use this date.';
+  } catch (err) { showError(err); }
+};
+
+// ---------- Signature ----------
+
+let signatureUrl = null;
+const MAX_SIGNATURE_CHARS = 290_000; // the database rule allows 300,000
+
+async function loadSignature() {
+  const snap = await getDoc(doc(db, 'settings', 'signature')).catch(showError);
+  signatureUrl = snap?.exists() ? snap.data().dataUrl : null;
+  $('sigPreview').src = signatureUrl ?? '';
+  show('sigPreview', !!signatureUrl);
+  show('sigNone', !signatureUrl);
+}
+
+// Shrinks an uploaded image to at most 600px wide so it fits in the database.
+function imageToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 600 / img.width);
+      const canvas = el('canvas', { width: Math.round(img.width * scale), height: Math.round(img.height * scale) });
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      const png = canvas.toDataURL('image/png');
+      resolve(png.length <= MAX_SIGNATURE_CHARS ? png : canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('That file could not be read as an image.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+$('sigFile').onchange = async () => {
+  const file = $('sigFile').files[0];
+  if (!file) return;
+  try {
+    const dataUrl = await imageToDataUrl(file);
+    if (dataUrl.length > MAX_SIGNATURE_CHARS) { alert('That image is too detailed. Crop it closer to the signature and try again.'); return; }
+    await setDoc(doc(db, 'settings', 'signature'), { dataUrl });
+    $('sigNote').textContent = 'Saved.';
+    await loadSignature();
+  } catch (err) { showError(err); }
+};
+
+// ---------- COE requests ----------
+
+function renderCoeRequests(snap) {
+  const requests = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))
+    // Waiting requests first, then newest first.
+    .sort((a, b) => (b.status === 'pending') - (a.status === 'pending') || b.requestedAt.toMillis() - a.requestedAt.toMillis());
+  const waiting = requests.filter((r) => r.status === 'pending').length;
+  $('coeCount').textContent = String(waiting);
+  show('coeCount', waiting > 0);
+  show('coeEmpty', requests.length === 0);
+  $('coeRows').replaceChildren(...requests.map((r) => {
+    const who = el('div', {}, el('div', { textContent: r.name }), el('div', { className: 'muted', textContent: r.email }));
+    const label = { pending: 'Waiting', approved: `Approved ${r.issuedOn ? fmtDay(r.issuedOn) : ''}`, denied: 'Denied' }[r.status];
+    const status = el('span', { className: `pill ${r.status === 'approved' ? 'paid' : 'pending'}`, textContent: label });
+    const actions = [];
+    if (r.status === 'pending') {
+      const approve = el('button', { className: 'primary', textContent: 'Approve' });
+      approve.onclick = () => approveCoe(r, approve);
+      const deny = el('button', { textContent: 'Deny' });
+      deny.onclick = () => {
+        if (!confirm(`Deny ${r.name}'s certificate request?`)) return;
+        updateDoc(doc(db, 'coeRequests', r.id), { status: 'denied', decidedBy: me.email, decidedAt: serverTimestamp() }).catch(showError);
+      };
+      actions.push(approve, ' ', deny);
+    } else if (r.status === 'approved') {
+      const view = el('button', { textContent: 'View' });
+      view.onclick = () => openDocument(coeHtml({
+        name: r.fullName, position: r.position, startDate: r.startDate, purpose: r.purpose, issuedOn: r.issuedOn, signatureUrl: r.signature,
+      }));
+      actions.push(view);
+    }
+    return el('tr', {}, cell(who), cell(r.purpose), cell(fmt(r.requestedAt.toDate())), cell(status), cell(...actions));
+  }));
+}
+
+// Approving freezes the certificate's details and the signature into the request, so it reads the same forever.
+async function approveCoe(r, button) {
+  if (!signatureUrl) { alert('Upload the signature under Company details first.'); return; }
+  const va = vas.get(r.email) ?? {};
+  try {
+    const profile = await getDoc(doc(db, 'profiles', r.email));
+    const fullName = (profile.exists() && profile.data().fullName) || va.name || r.name;
+    const summary = `Approve and sign this certificate?\n\nName: ${fullName}\nPosition: ${va.position || '(not set)'}\n`
+      + `Start date: ${va.startDate ? fmtDay(va.startDate) : '(not set)'}\nReason: ${r.purpose}\n\nFix any missing details under VAs > Edit first.`;
+    if (!confirm(summary)) return;
+    button.disabled = true;
+    await updateDoc(doc(db, 'coeRequests', r.id), {
+      status: 'approved', decidedBy: me.email, decidedAt: serverTimestamp(),
+      fullName, position: va.position || '', startDate: va.startDate || '', issuedOn: dayKey(new Date(), BUSINESS_TZ), signature: signatureUrl,
+    });
+  } catch (err) { showError(err); button.disabled = false; }
 }
 
 $('companyForm').onsubmit = async (e) => {
@@ -425,6 +577,8 @@ $('invForm').onsubmit = async (e) => {
       const va = vas.get(l.email) ?? {};
       return { ...l, name: va.name ?? l.email, position: va.position ?? '', usdRate: va.usdRate ?? 0 };
     });
-    openDocument(invoiceHtml({ clientName: client, invoiceDate: new Date(), dueDate: new Date(`${$('invDue').value}T00:00`), lines, company }));
+    openDocument(invoiceHtml({
+      clientName: client, invoiceDate: calendarToday(BUSINESS_TZ), dueDate: new Date(`${$('invDue').value}T00:00`), lines, company, signatureUrl,
+    }));
   } catch (err) { showError(err); }
 };
