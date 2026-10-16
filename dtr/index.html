@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
-  <script type="module" src="app.js?v=2"></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script type="module" src="app.js?v=3"></script>
 </head>
 <body>
   <header class="topbar">
@@ -110,6 +110,17 @@
               <dt>Start date</dt><dd id="pStart"></dd>
             </dl>
             <p class="muted">Ask your admin if any of these are wrong.</p>
+          </div>
+          <div class="card">
+            <h2>Personal information</h2>
+            <form id="profileForm" class="stack narrow-form">
+              <label>Full name <input id="pfName" maxlength="100" required autocomplete="name"></label>
+              <label>Date of birth <input id="pfBirth" type="date" autocomplete="bday"></label>
+              <label>Address <input id="pfAddress" maxlength="300" autocomplete="street-address"></label>
+              <label>Phone number <input id="pfPhone" type="tel" maxlength="30" autocomplete="tel"></label>
+              <div class="row"><button class="primary">Save personal information</button><span id="profileNote" class="muted" role="status"></span></div>
+            </form>
+            <p class="muted">Only you and CloversVA admins can see these. Your full name is used on your Certificate of Employment.</p>
           </div>
           <div class="card">
             <h2>Bank details for payouts</h2>
@@ -274,6 +285,8 @@
       <label>Hourly rate, USD (billed to the client) <input id="vaUsd" type="number" min="0" max="1000" step="0.01"></label>
       <label>Start date <input id="vaStart" type="date"></label>
       <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
+      <h3>Personal information (entered by the VA)</h3>
+      <dl class="details" id="vaProfile"></dl>
       <div class="row">
         <button class="primary" value="save">Save</button>
         <button type="button" id="vaCancel">Cancel</button>

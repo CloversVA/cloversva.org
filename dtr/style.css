@@ -99,9 +99,13 @@ th { color: var(--muted); font-weight: 600; }
 .pill.paid { background: var(--leaf-mid); color: var(--text); }
 .pill.pending { background: var(--leaf-soft); color: var(--muted); border: 1px solid var(--line); }
 .total { font-weight: 600; text-align: right; }
-.details { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 8px; }
+.details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0 0 8px; }
 .details dt { color: var(--muted); }
-.details dd { margin: 0; font-weight: 600; }
+.details dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .details { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .details dd { margin-bottom: 8px; }
+}
 
 .muted { color: var(--muted); }
 .error { color: var(--danger); font-weight: 600; }

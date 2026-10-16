@@ -5,7 +5,7 @@ import {
 import {
   collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=2';
+import { startAdmin } from './admin.js?v=3';
 import { coeHtml, payslipHtml } from './docs.js?v=2';
 import { auth, db } from './firebase.js?v=2';
 import { dayKey, formatDuration, formatPhp } from './report.js?v=2';
@@ -15,6 +15,7 @@ const MY_SHIFTS_SHOWN = 14;
 
 let me = null; // the signed-in person's allowed/{email} record, kept live
 let myBank = null;
+let myProfile = null;
 let unsubs = [];
 const track = (unsub) => unsubs.push(unsub);
 function stopListening() { unsubs.forEach((u) => u()); unsubs = []; }
@@ -196,6 +197,14 @@ function startVa() {
     }));
   }, showError));
 
+  getDoc(doc(db, 'profiles', me.email)).then((snap) => {
+    myProfile = snap.exists() ? snap.data() : null;
+    $('pfName').value = myProfile?.fullName ?? me.name;
+    $('pfBirth').value = myProfile?.birthDate ?? '';
+    $('pfAddress').value = myProfile?.address ?? '';
+    $('pfPhone').value = myProfile?.phone ?? '';
+  }).catch(showError);
+
   getDoc(doc(db, 'bank', me.email)).then((snap) => {
     myBank = snap.exists() ? snap.data() : null;
     $('bankName').value = myBank?.bankName ?? '';
@@ -222,6 +231,21 @@ $('clockBtn').onclick = async () => {
   } catch (err) { showError(err); } finally { btn.disabled = false; }
 };
 
+$('profileForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const profile = {
+    fullName: $('pfName').value.trim(),
+    birthDate: $('pfBirth').value,
+    address: $('pfAddress').value.trim(),
+    phone: $('pfPhone').value.trim(),
+  };
+  try {
+    await setDoc(doc(db, 'profiles', me.email), profile);
+    myProfile = profile;
+    $('profileNote').textContent = 'Saved.';
+  } catch (err) { showError(err); }
+};
+
 $('bankForm').onsubmit = async (e) => {
   e.preventDefault();
   const bank = {
@@ -238,5 +262,5 @@ $('bankForm').onsubmit = async (e) => {
 
 $('coeForm').onsubmit = (e) => {
   e.preventDefault();
-  openDocument(coeHtml({ name: me.name, position: me.position, startDate: me.startDate, purpose: $('coePurpose').value.trim() }));
+  openDocument(coeHtml({ name: myProfile?.fullName || me.name, position: me.position, startDate: me.startDate, purpose: $('coePurpose').value.trim() }));
 };

@@ -147,7 +147,14 @@ function openVaEditor(va) {
   $('vaUsd').value = va.usdRate ?? '';
   $('vaStart').value = va.startDate ?? '';
   $('vaRole').value = va.role;
+  $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
   $('vaDialog').showModal();
+  getDoc(doc(db, 'profiles', va.email)).then((snap) => {
+    const p = snap.exists() ? snap.data() : null;
+    if (!p) { $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Not filled in yet.' })); return; }
+    const rows = [['Full name', p.fullName], ['Date of birth', p.birthDate ? fmtDay(p.birthDate) : ''], ['Address', p.address], ['Phone', p.phone]];
+    $('vaProfile').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v || '-' })]));
+  }).catch(showError);
 }
 
 $('vaCancel').onclick = () => $('vaDialog').close();
