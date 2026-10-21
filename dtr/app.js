@@ -3,19 +3,33 @@ import {
   sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 import {
-  Timestamp, collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
+  Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=8';
-import { coeHtml, payslipHtml } from './docs.js?v=8';
+import { startAdmin } from './admin.js?v=9';
+import { setMyBirthday, startBoard } from './board.js?v=9';
+import { startVaFiles } from './files.js?v=9';
+import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=9';
+import { coeHtml, payslipHtml } from './docs.js?v=9';
 import { auth, db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatPhp, hmFromHours, payFor, periodRange, zonedToDate,
-} from './report.js?v=8';
+} from './report.js?v=9';
 import {
   $, TIME_ZONES, asDate, cell, displayTz, el, fmt, fmtDay, numCell, openDocument, setDisplayTz, show, showError,
-} from './ui.js?v=8';
+} from './ui.js?v=9';
 
 const MY_SHIFTS_SHOWN = 14;
+let mineDocs = [];
+
+// Recent shifts, with an overtime button on any shift over 8 hours.
+function renderMine() {
+  $('mineRows').replaceChildren(...mineDocs.map((d) => {
+    const s = d.data({ serverTimestamps: 'estimate' });
+    const start = asDate(s.clockIn); const end = asDate(s.clockOut);
+    return el('tr', {}, cell(fmt(start)), cell(end ? fmt(end) : 'Open'), cell(end ? formatDuration(end - start) : ''),
+      end ? overtimeCell(d.id, end - start) : cell());
+  }));
+}
 
 let me = null; // the signed-in person's allowed/{email} record, kept live
 let myBank = null;
@@ -187,7 +201,9 @@ let periodUnsub = null;
 function renderCurrentPeriod() {
   const [from, to] = periodRange('thisBiweek', calendarToday(BUSINESS_TZ), payAnchor).map((d) => dayKey(d));
   $('curPeriod').textContent = `${fmtDay(from)} to ${fmtDay(to)}`;
-  const { hours, amount } = payFor(periodShifts, me.phpRate || 0);
+  // Approved overtime lets a shift count past 8 hours, same as in payroll.
+  const withOt = periodShifts.map((x) => ({ ...x, otHours: myOvertime.get(x.id)?.status === 'approved' ? myOvertime.get(x.id).extraHours : 0 }));
+  const { hours, amount } = payFor(withOt, me.phpRate || 0);
   $('curHours').textContent = `${hmFromHours(hours)} (${hours.toFixed(2)} h)`;
   $('curPay').textContent = me.phpRate ? formatPhp(amount) : 'Shown once your rate is set';
 }
@@ -201,8 +217,8 @@ async function watchCurrentPeriod() {
   periodUnsub = onSnapshot(query(collection(db, 'entries'), where('email', '==', me.email),
     where('clockIn', '>=', Timestamp.fromDate(zonedToDate(dayKey(first), '00:00', BUSINESS_TZ))),
     where('clockIn', '<', Timestamp.fromDate(zonedToDate(dayKey(dayAfter), '00:00', BUSINESS_TZ))), orderBy('clockIn', 'desc')), (snap) => {
-    periodShifts = snap.docs.map((d) => d.data({ serverTimestamps: 'estimate' }))
-      .map((x) => ({ clockIn: x.clockIn.toDate(), clockOut: asDate(x.clockOut) }));
+    periodShifts = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))
+      .map((x) => ({ id: x.id, clockIn: x.clockIn.toDate(), clockOut: asDate(x.clockOut) }));
     renderCurrentPeriod();
   }, showError);
   track(() => periodUnsub?.());
@@ -211,6 +227,9 @@ async function watchCurrentPeriod() {
 function startVa() {
   renderMe();
   watchCurrentPeriod();
+  startBoard(me, track, me.role === 'admin');
+  startVaFiles(me, track);
+  startVaRequests(me, track, () => { renderMine(); renderCurrentPeriod(); });
 
   // Keep my record live so a rate or client change by an admin shows up without a reload.
   track(onSnapshot(doc(db, 'allowed', me.email), (snap) => {
@@ -232,11 +251,8 @@ function startVa() {
 
   const mine = query(collection(db, 'entries'), where('email', '==', me.email), orderBy('clockIn', 'desc'), limit(MY_SHIFTS_SHOWN));
   track(onSnapshot(mine, (snap) => {
-    $('mineRows').replaceChildren(...snap.docs.map((d) => {
-      const s = d.data({ serverTimestamps: 'estimate' });
-      const start = asDate(s.clockIn); const end = asDate(s.clockOut);
-      return el('tr', {}, cell(fmt(start)), cell(end ? fmt(end) : 'Open'), cell(end ? formatDuration(end - start) : ''));
-    }));
+    mineDocs = snap.docs;
+    renderMine();
   }, showError));
 
   track(onSnapshot(query(collection(db, 'payslips'), where('email', '==', me.email)), (snap) => {
@@ -278,6 +294,7 @@ function startVa() {
     $('pfBirth').value = myProfile?.birthDate ?? '';
     $('pfAddress').value = myProfile?.address ?? '';
     $('pfPhone').value = myProfile?.phone ?? '';
+    setMyBirthday(myProfile?.birthDate ? myProfile.birthDate.slice(5) : null);
   }).catch(showError);
 
   getDoc(doc(db, 'bank', me.email)).then((snap) => {
@@ -322,6 +339,10 @@ $('profileForm').onsubmit = async (e) => {
   };
   try {
     await setDoc(doc(db, 'profiles', me.email), profile);
+    // Only the month and day go on the shared board, never the year.
+    if (profile.birthDate) await setDoc(doc(db, 'birthdays', me.email), { name: me.name, monthDay: profile.birthDate.slice(5) });
+    else await deleteDoc(doc(db, 'birthdays', me.email)).catch(() => {});
+    setMyBirthday(profile.birthDate ? profile.birthDate.slice(5) : null);
     myProfile = profile;
     lockFullName(true);
     $('profileNote').textContent = 'Saved.';

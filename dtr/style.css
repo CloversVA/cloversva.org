@@ -71,6 +71,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 16px; }
   .shell { grid-template-columns: minmax(0, 1fr); }
   .sidenav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
   .sidenav button, .nav-title, .tz-pick { white-space: nowrap; flex: none; margin-top: 0; }
+  .tz-pick span { display: none; }
   .who-text span { display: none; }
 }
 
@@ -125,3 +126,44 @@ button.danger { color: var(--danger); border-color: var(--danger); background: t
 .error { color: var(--danger); font-weight: 600; }
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); width: min(480px, calc(100vw - 32px)); }
 dialog label { display: flex; margin-bottom: 12px; }
+
+/* Announcement board, greeting banner, leave form */
+.banner { display: flex; gap: 12px; align-items: center; background: var(--leaf-soft); border: 1px solid var(--leaf); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }
+.banner img { width: 40px; height: 40px; flex: none; }
+.banner p { margin: 0; flex: 1; font-weight: 600; }
+.post { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.post:last-child { border-bottom: 0; }
+.post h3 { margin: 0 0 4px; }
+.post p { margin: 4px 0; white-space: pre-line; }
+.plain-list { list-style: none; padding: 0; margin: 0; }
+.plain-list li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.plain-list li.birthday::before { content: "\1F382  "; }
+.plain-list li.holiday::before { content: "\1F4C5  "; }
+textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); width: 100%; }
+fieldset.choice { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 12px; padding: 8px 12px; }
+fieldset.choice legend { color: var(--muted); font-size: .85rem; }
+fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-items: center; color: var(--text); font-size: .95rem; margin-bottom: 6px; }
+
+/* Phones: stack form fields and table buttons instead of squeezing them side by side. */
+@media (max-width: 600px) {
+  body { font-size: 14px; }
+  main { padding: 10px; }
+  .card { padding: 14px; border-radius: 10px; }
+  .topbar { padding: 8px 10px; }
+  .brand { font-size: 1.1rem; }
+  .brand img { width: 26px; height: 26px; }
+  .who { gap: 8px; }
+  .who-text strong { font-size: .9rem; }
+  .timer { font-size: 2rem; }
+  .clover-btn { padding: 14px 28px; font-size: 1.05rem; }
+  .clover-btn img { width: 44px; height: 44px; }
+  .row { gap: 8px; }
+  .row > label { flex: 1 1 100%; }
+  .row > label input, .row > label select { width: 100%; }
+  .row > button { flex: 1 1 auto; }
+  th, td { padding: 6px 4px; font-size: .85rem; }
+  td:last-child { white-space: normal; }
+  td button { margin: 2px 0; padding: 6px 10px; }
+  td input { width: 5.5em; }
+  .details { font-size: .95rem; }
+}

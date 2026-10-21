@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=8">
-  <script type="module" src="app.js?v=8"></script>
+  <link rel="stylesheet" href="style.css?v=9">
+  <script type="module" src="app.js?v=9"></script>
 </head>
 <body>
   <header class="topbar">
@@ -22,6 +22,10 @@
   <main>
     <p id="loading" class="center muted">Loading...</p>
     <p id="error" class="error" role="alert" hidden></p>
+    <div id="banner" class="banner" role="status" hidden>
+      <img src="../images/clover-icon.png" alt=""><p id="bannerText"></p>
+      <button id="bannerClose" class="link" aria-label="Close greeting">Close</button>
+    </div>
 
     <section id="signin" class="card center narrow" hidden>
       <img class="hero-logo" src="../images/logo-transparent.png" alt="Clovers Virtual Assistance">
@@ -59,10 +63,12 @@
     <div id="shell" class="shell" hidden>
       <nav class="sidenav" aria-label="Sections">
         <div class="nav-title">Information</div>
+        <button data-view="board">Announcements</button>
         <button data-view="clock" aria-current="page">Time clock</button>
+        <button data-view="leave">Leave &amp; absence</button>
         <button data-view="payslips">My payslips</button>
         <button data-view="profile">My details &amp; bank</button>
-        <button data-view="documents">Documents</button>
+        <button data-view="documents">Documents &amp; files</button>
         <div class="nav-title" data-admin hidden>Admin</div>
         <button data-view="now" data-admin hidden>On the clock</button>
         <button data-view="timesheets" data-admin hidden>Timesheets</button>
@@ -70,6 +76,9 @@
         <button data-view="invoices" data-admin hidden>Client invoices</button>
         <button data-view="vas" data-admin hidden>VAs<span id="waitingCount" class="badge" hidden></span></button>
         <button data-view="coe" data-admin hidden>COE requests<span id="coeCount" class="badge" hidden></span></button>
+        <button data-view="leaveAdmin" data-admin hidden>Leave requests<span id="leaveCount" class="badge" hidden></span></button>
+        <button data-view="otAdmin" data-admin hidden>Overtime<span id="otCount" class="badge" hidden></span></button>
+        <button data-view="filesAdmin" data-admin hidden>Upload files</button>
         <button data-view="company" data-admin hidden>Company details</button>
         <label class="tz-pick">Time zone <select id="tzSelect"></select>
           <span id="tzNote" class="muted">Saved to your account</span></label>
@@ -87,7 +96,8 @@
           </div>
           <div class="card">
             <h2>My recent shifts</h2>
-            <div class="scroll"><table><thead><tr><th>Clock in</th><th>Clock out</th><th>Length</th></tr></thead><tbody id="mineRows"></tbody></table></div>
+            <p class="muted">Shifts are paid up to 8 hours. If you worked longer, request overtime on that shift; without approval it counts as 8 hours.</p>
+            <div class="scroll"><table><thead><tr><th>Clock in</th><th>Clock out</th><th>Length</th><th>Overtime</th></tr></thead><tbody id="mineRows"></tbody></table></div>
           </div>
         </section>
 
@@ -148,7 +158,69 @@
           </div>
         </section>
 
+        <section data-panel="board" hidden>
+          <div class="card" data-admin hidden>
+            <h2>Post an announcement</h2>
+            <form id="postForm" class="stack narrow-form">
+              <label>Title <input id="postTitle" maxlength="120" required></label>
+              <label>Message <textarea id="postBody" maxlength="2000" rows="3"></textarea></label>
+              <div class="row"><button class="primary">Post</button></div>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Coming up (next 45 days)</h2>
+            <ul id="upcoming" class="plain-list"></ul>
+            <p id="upcomingEmpty" class="muted" hidden>Nothing in the next 45 days.</p>
+          </div>
+          <div class="card">
+            <h2>Announcements</h2>
+            <div id="posts"></div>
+            <p id="postsEmpty" class="muted" hidden>No announcements yet.</p>
+          </div>
+          <div class="card" data-admin hidden>
+            <h2>Holidays</h2>
+            <p class="muted">PH and US holidays shown on the board. Philippine holidays such as Eid are proclaimed each year; add or fix them here.</p>
+            <form id="holidayForm" class="row">
+              <label>Date <input id="holDay" type="date" required></label>
+              <label>Country <select id="holCountry"><option value="PH">Philippines</option><option value="US">United States</option></select></label>
+              <label>Name <input id="holName" maxlength="100" required></label>
+              <button class="primary">Add holiday</button>
+            </form>
+            <div class="scroll"><table><thead><tr><th>Date</th><th>Country</th><th>Holiday</th><th></th></tr></thead><tbody id="holidayRows"></tbody></table></div>
+          </div>
+        </section>
+
+        <section data-panel="leave" hidden>
+          <div class="card">
+            <h2>File leave or an absence</h2>
+            <form id="leaveForm" class="stack narrow-form">
+              <fieldset class="choice">
+                <legend>Type</legend>
+                <label><input type="radio" name="leaveType" value="leave" checked> Leave (unpaid), filed at least 14 days before</label>
+                <label><input type="radio" name="leaveType" value="absence"> Absence (unpaid), any time, including past days</label>
+              </fieldset>
+              <label>First day <input id="leaveStart" type="date" required></label>
+              <label>Last day <input id="leaveEnd" type="date" required></label>
+              <label>Reason <input id="leaveReason" minlength="3" maxlength="300" required></label>
+              <div class="row"><button class="primary">Send request</button></div>
+              <p id="leaveNote" class="muted" role="status"></p>
+            </form>
+            <p class="muted">Paid leave credits are coming later. For now all leave and absences are unpaid.</p>
+          </div>
+          <div class="card">
+            <h2>My leave and absences</h2>
+            <div class="scroll"><table><thead><tr><th>Dates</th><th>Type</th><th>Reason</th><th>Status</th></tr></thead><tbody id="myLeaveRows"></tbody></table></div>
+            <p id="myLeaveEmpty" class="muted">Nothing filed yet.</p>
+          </div>
+        </section>
+
         <section data-panel="documents" hidden>
+          <div class="card">
+            <h2>My files</h2>
+            <p class="muted">Past payroll and other documents CloversVA shared with you.</p>
+            <div class="scroll"><table><thead><tr><th>Title</th><th>Type</th><th>Added</th><th></th></tr></thead><tbody id="myFileRows"></tbody></table></div>
+            <p id="myFilesEmpty" class="muted">No files yet.</p>
+          </div>
           <div class="card">
             <h2>Request a Certificate of Employment</h2>
             <form id="coeForm" class="stack narrow-form">
@@ -194,16 +266,20 @@
             </form>
             <div class="row"><label>Filter by VA <input id="tsFilter" type="search" placeholder="Type part of a name"></label></div>
             <h3>Totals</h3>
-            <div class="scroll"><table><thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Hours (H:MM)</th><th class="num">Still open</th></tr></thead><tbody id="totalRows"></tbody></table></div>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Client</th><th class="num">Shifts</th><th class="num">Worked (H:MM)</th><th class="num">Paid (H:MM)</th><th class="num">Still open</th></tr></thead><tbody id="totalRows"></tbody></table></div>
             <h3>Shifts</h3>
             <p class="muted">Click a column name to sort; click again to reverse.</p>
             <div class="scroll"><table><thead><tr>
               <th aria-sort="none"><button type="button" class="sort" data-sort="name">VA</button></th>
               <th aria-sort="ascending"><button type="button" class="sort" data-sort="clockIn">Clock in</button></th>
               <th aria-sort="none"><button type="button" class="sort" data-sort="clockOut">Clock out</button></th>
-              <th aria-sort="none"><button type="button" class="sort" data-sort="length">Hours (H:MM)</button></th>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="length">Worked (H:MM)</button></th>
+              <th>Paid (H:MM)</th>
               <th></th></tr></thead><tbody id="shiftRows"></tbody></table></div>
             <p id="tsEmpty" class="muted" hidden>No shifts match.</p>
+            <h3>Approved leave and absences in this period</h3>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Dates</th><th>Type</th><th>Reason</th></tr></thead><tbody id="tsLeaveRows"></tbody></table></div>
+            <p id="tsLeaveEmpty" class="muted">None.</p>
           </div>
         </section>
 
@@ -283,6 +359,41 @@
           </div>
         </section>
 
+        <section data-panel="leaveAdmin" hidden>
+          <div class="card">
+            <h2>Leave requests</h2>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Dates</th><th>Type</th><th>Reason</th><th>Filed</th><th>Status</th><th></th></tr></thead><tbody id="leaveRows"></tbody></table></div>
+            <p id="leaveEmpty" class="muted">No requests yet.</p>
+          </div>
+        </section>
+
+        <section data-panel="otAdmin" hidden>
+          <div class="card">
+            <h2>Overtime requests</h2>
+            <p class="muted">Approving pays the shift past 8 hours, at the VA's normal rate, up to the hours requested. Use "Recount hours" in Payroll for payslips already made.</p>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Shift</th><th class="num">Worked</th><th class="num">Extra asked</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="otRows"></tbody></table></div>
+            <p id="otEmpty" class="muted">No requests yet.</p>
+          </div>
+        </section>
+
+        <section data-panel="filesAdmin" hidden>
+          <div class="card">
+            <h2>Upload a file</h2>
+            <form id="fileForm" class="stack narrow-form">
+              <label>Title <input id="fileTitle" maxlength="150" required placeholder="e.g. Payroll Sep 27 to Oct 10"></label>
+              <label>Type <select id="fileKind"><option value="payroll">Payroll</option><option value="invoice">Client invoice</option><option value="other">Other</option></select></label>
+              <label>Who can see it <select id="fileVisible"></select></label>
+              <label>File (PDF, image, Excel or CSV, up to 700 KB) <input id="fileInput" type="file" required accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv"></label>
+              <div class="row"><button class="primary">Upload</button><span id="fileNote" class="muted" role="status"></span></div>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Uploaded files</h2>
+            <div class="scroll"><table><thead><tr><th>Title</th><th>Type</th><th>Visible to</th><th>Added</th><th></th></tr></thead><tbody id="fileRows"></tbody></table></div>
+            <p id="filesEmpty" class="muted">No files yet.</p>
+          </div>
+        </section>
+
         <section data-panel="company" hidden>
           <div class="card">
             <h2>Pay cycle</h2>
@@ -329,6 +440,19 @@
     </form>
   </dialog>
 
+  <dialog id="otDialog">
+    <form id="otForm" method="dialog">
+      <h2>Request overtime</h2>
+      <p id="otShift" class="muted"></p>
+      <label>Extra hours past 8 <input id="otHours" type="number" min="0.25" max="16" step="0.25" required></label>
+      <label>Reason <input id="otReason" minlength="3" maxlength="300" required></label>
+      <div class="row">
+        <button class="primary" value="send">Send request</button>
+        <button type="button" id="otCancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="vaDialog">
     <form id="vaForm" method="dialog">
       <h2>Edit <span id="vaDialogEmail"></span></h2>
@@ -337,7 +461,7 @@
       <datalist id="clientList"></datalist>
       <label>Position <input id="vaPosition" maxlength="100"></label>
       <label>Hourly rate, PHP (paid to the VA) <input id="vaPhp" type="number" min="0" max="100000" step="0.01"></label>
-      <label>Hourly rate, USD (billed to the client) <input id="vaUsd" type="number" min="0" max="1000" step="0.01"></label>
+      <label>Hourly rate, USD (billed to the client) <input id="vaUsd" type="number" min="0" max="1000" step="0.001"></label>
       <label>Start date <input id="vaStart" type="date"></label>
       <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
       <h3>Personal information (entered by the VA)</h3>

@@ -106,15 +106,22 @@ export const periodsOverlap = (a, b) => a.start <= b.end && b.start <= a.end;
 // ---------- Totals and pay ----------
 
 export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+export const round3 = (n) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+
+// A shift pays at most 8 hours, plus any overtime an admin approved for it (shift.otHours).
+export const MAX_SHIFT_HOURS = 8;
+export const shiftMs = (s) => (s.clockOut ? s.clockOut - s.clockIn : 0);
+export const paidMs = (s) => Math.min(shiftMs(s), (MAX_SHIFT_HOURS + (s.otHours || 0)) * MS_PER_HOUR);
 
 // Totals per VA. Open shifts are counted separately, never added to hours.
 export function summarize(shifts) {
   const byEmail = new Map();
   for (const s of shifts) {
-    const row = byEmail.get(s.email) ?? { email: s.email, name: s.name, shifts: 0, hours: 0, open: 0 };
+    const row = byEmail.get(s.email) ?? { email: s.email, name: s.name, shifts: 0, hours: 0, paidHours: 0, open: 0 };
     if (s.clockOut) {
       row.shifts += 1;
-      row.hours += (s.clockOut - s.clockIn) / MS_PER_HOUR;
+      row.hours += shiftMs(s) / MS_PER_HOUR;
+      row.paidHours += paidMs(s) / MS_PER_HOUR;
     } else {
       row.open += 1;
     }
@@ -129,7 +136,7 @@ export function dailyHours(shifts, tz = BUSINESS_TZ) {
   for (const s of shifts) {
     if (!s.clockOut) continue;
     const day = dayKey(s.clockIn, tz);
-    byDay.set(day, (byDay.get(day) ?? 0) + (s.clockOut - s.clockIn));
+    byDay.set(day, (byDay.get(day) ?? 0) + paidMs(s));
   }
   return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, ms]) => ({ day, hours: round2(ms / MS_PER_HOUR) }));
 }
@@ -153,22 +160,20 @@ export function invoiceLines(shifts, tz = BUSINESS_TZ) {
 
 // ---------- Exports (CSV and Excel share the same rows) ----------
 
-const shiftMs = (s) => (s.clockOut ? s.clockOut - s.clockIn : 0);
-
 export function shiftRows(shifts, formatDate = (d) => d.toISOString()) {
   return [
-    ['Name', 'Email', 'Clock in', 'Clock out', 'Hours (H:MM)', 'Hours (decimal)'],
+    ['Name', 'Email', 'Clock in', 'Clock out', 'Hours (H:MM)', 'Hours (decimal)', 'Paid hours (H:MM)'],
     ...shifts.map((s) => [
       s.name, s.email, formatDate(s.clockIn), s.clockOut ? formatDate(s.clockOut) : '',
-      s.clockOut ? formatHM(shiftMs(s)) : '', s.clockOut ? round2(shiftMs(s) / MS_PER_HOUR) : '',
+      s.clockOut ? formatHM(shiftMs(s)) : '', s.clockOut ? round2(shiftMs(s) / MS_PER_HOUR) : '', s.clockOut ? formatHM(paidMs(s)) : '',
     ]),
   ];
 }
 
 export function totalsRows(summary) {
   return [
-    ['Name', 'Email', 'Shifts', 'Total hours (H:MM)', 'Total hours (decimal)', 'Still open'],
-    ...summary.map((r) => [r.name, r.email, r.shifts, hmFromHours(r.hours), round2(r.hours), r.open || '']),
+    ['Name', 'Email', 'Shifts', 'Total hours (H:MM)', 'Total hours (decimal)', 'Paid hours (H:MM)', 'Paid hours (decimal)', 'Still open'],
+    ...summary.map((r) => [r.name, r.email, r.shifts, hmFromHours(r.hours), round2(r.hours), hmFromHours(r.paidHours), round2(r.paidHours), r.open || '']),
   ];
 }
 
@@ -184,7 +189,7 @@ export const rowsToCsv = (rows) => rows.map((cols) => cols.map(csvCell).join(','
 // ---------- Formatting ----------
 
 const php = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 3 });
 export const formatPhp = (n) => php.format(n);
 export const formatUsd = (n) => usd.format(n);
 
@@ -214,3 +219,22 @@ export function sortShifts(shifts, key, dir = 1) {
 }
 
 export const matchesName = (shift, text) => shift.name.toLowerCase().includes(text.trim().toLowerCase());
+
+// ---------- Calendar helpers for leave and the board ----------
+
+export function addDays(day, n) {
+  const [y, m, d] = day.split('-').map(Number);
+  return dayKey(new Date(y, m - 1, d + n));
+}
+
+// Leave must be filed at least 14 days before its first day.
+export const LEAVE_NOTICE_DAYS = 14;
+export const leaveNoticeOk = (startDay, today) => startDay >= addDays(today, LEAVE_NOTICE_DAYS);
+
+// The next date (today or later) a yearly MM-DD falls on. Feb 29 lands on Mar 1 in other years.
+export function nextOccurrence(monthDay, today) {
+  const year = Number(today.slice(0, 4));
+  const [m, d] = monthDay.split('-').map(Number);
+  const thisYear = dayKey(new Date(year, m - 1, d));
+  return thisYear >= today ? thisYear : dayKey(new Date(year + 1, m - 1, d));
+}

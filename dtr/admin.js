@@ -2,16 +2,19 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=8';
+import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=9';
+import { setFileAudience, startAdminFiles } from './files.js?v=9';
 import { db } from './firebase.js?v=2';
 import {
-  BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, hmFromHours, invoiceLines, matchesName, payFor,
-  payPeriods, periodRange, periodsOverlap, round2, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows, zonedToDate,
-} from './report.js?v=8';
+  BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
+  paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
+  zonedToDate,
+} from './report.js?v=9';
+import { startAdminRequests } from './requests.js?v=9';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
-} from './ui.js?v=8';
+} from './ui.js?v=9';
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
@@ -39,6 +42,7 @@ export function startAdmin(signedIn, track) {
   track(onSnapshot(collection(db, 'allowed'), (snap) => {
     vas = new Map(snap.docs.map((d) => [d.id, { email: d.id, ...d.data() }]));
     renderVas();
+    setFileAudience([...vas.values()]);
     const clients = [...new Set([...vas.values()].map((v) => v.clientName).filter(Boolean))].sort();
     $('clientList').replaceChildren(...clients.map((c) => el('option', { value: c })));
     const current = $('invClient').value;
@@ -47,6 +51,11 @@ export function startAdmin(signedIn, track) {
   }, showError));
 
   track(onSnapshot(collection(db, 'coeRequests'), renderCoeRequests, showError));
+  startAdminRequests(me, track, async (ids) => new Map(await Promise.all(ids.map(async (id) => {
+    const snap = await getDoc(doc(db, 'entries', id));
+    return [id, snap.exists() ? { clockIn: asDate(snap.data().clockIn), clockOut: asDate(snap.data().clockOut) } : null];
+  }))));
+  startAdminFiles(me, track);
 
   const due = calendarToday(BUSINESS_TZ); due.setDate(due.getDate() + 7);
   $('invDue').value = toDateInput(due);
@@ -81,13 +90,18 @@ const nextDay = (day) => new Date(Date.UTC(...day.split('-').map((n, i) => Numbe
 async function fetchShifts(fromDay, toDay) {
   const from = zonedToDate(fromDay, '00:00', BUSINESS_TZ);
   const to = zonedToDate(nextDay(toDay), '00:00', BUSINESS_TZ);
-  const snap = await getDocs(query(collection(db, 'entries'),
-    where('clockIn', '>=', Timestamp.fromDate(from)), where('clockIn', '<', Timestamp.fromDate(to)), orderBy('clockIn')));
+  const [snap, overtime] = await Promise.all([
+    getDocs(query(collection(db, 'entries'),
+      where('clockIn', '>=', Timestamp.fromDate(from)), where('clockIn', '<', Timestamp.fromDate(to)), orderBy('clockIn'))),
+    getDocs(query(collection(db, 'overtime'), where('status', '==', 'approved'))),
+  ]);
+  // Approved overtime lets a shift count past 8 hours in timesheets, payroll and invoices.
+  const approvedOt = new Map(overtime.docs.map((d) => [d.id, d.data().extraHours]));
   return snap.docs.map((d) => {
     const s = d.data();
     return {
       id: d.id, email: s.email, name: s.name, client: s.client || vas.get(s.email)?.clientName || '',
-      clockIn: asDate(s.clockIn), clockOut: asDate(s.clockOut), edited: !!s.lastEditId, raw: s,
+      clockIn: asDate(s.clockIn), clockOut: asDate(s.clockOut), edited: !!s.lastEditId, raw: s, otHours: approvedOt.get(d.id) ?? 0,
     };
   });
 }
@@ -133,7 +147,7 @@ function renderVas() {
     toggle.onclick = () => setDoc(doc(db, 'allowed', va.email), pick({ ...va, active: !va.active })).catch(showError);
     const who = el('div', {}, el('div', { textContent: va.name }), el('div', { className: 'muted', textContent: va.email }));
     return el('tr', {}, cell(who), cell(va.clientName || ''), cell(va.position || ''),
-      numCell(va.phpRate ? formatPhp(va.phpRate) : ''), numCell(va.usdRate ? `$${va.usdRate.toFixed(2)}` : ''),
+      numCell(va.phpRate ? formatPhp(va.phpRate) : ''), numCell(va.usdRate ? formatUsd(va.usdRate) : ''),
       cell(va.role === 'admin' ? 'Admin' : 'VA'), cell(va.active ? 'Active' : 'Deactivated'), cell(edit, ' ', toggle));
   }));
 }
@@ -193,7 +207,7 @@ $('vaForm').onsubmit = async (e) => {
     clientName: $('vaClient').value.trim(),
     position: $('vaPosition').value.trim(),
     phpRate: round2(Number($('vaPhp').value) || 0),
-    usdRate: round2(Number($('vaUsd').value) || 0),
+    usdRate: round3(Number($('vaUsd').value) || 0),
     startDate: $('vaStart').value,
   };
   try {
@@ -215,15 +229,25 @@ let tsSort = { key: 'clockIn', dir: 1 };
 const shownShifts = () => sortShifts(tsShifts.filter((s) => matchesName(s, $('tsFilter').value)), tsSort.key, tsSort.dir);
 const totalsOf = (shifts) => summarize(shifts).map((r) => ({ ...r, clientName: vas.get(r.email)?.clientName || '' }));
 
+let tsLeave = [];
+
 async function runTimesheet() {
-  tsShifts = await fetchShifts($('tsFrom').value, $('tsTo').value);
+  const from = $('tsFrom').value; const to = $('tsTo').value;
+  const [shifts, leave] = await Promise.all([
+    fetchShifts(from, to),
+    getDocs(query(collection(db, 'leaveRequests'), where('status', '==', 'approved'))),
+  ]);
+  tsShifts = shifts;
+  tsLeave = leave.docs.map((d) => d.data())
+    .filter((r) => periodsOverlap({ start: from, end: to }, { start: r.startDay, end: r.endDay }))
+    .sort((a, b) => a.startDay.localeCompare(b.startDay));
   renderTimesheet();
 }
 
 function renderTimesheet() {
   const shown = shownShifts();
   $('totalRows').replaceChildren(...totalsOf(shown).map((r) =>
-    el('tr', {}, cell(r.name), cell(r.clientName), numCell(String(r.shifts)), numCell(hmFromHours(r.hours)), numCell(r.open ? String(r.open) : ''))));
+    el('tr', {}, cell(r.name), cell(r.clientName), numCell(String(r.shifts)), numCell(hmFromHours(r.hours)), numCell(hmFromHours(r.paidHours)), numCell(r.open ? String(r.open) : ''))));
   $('shiftRows').replaceChildren(...shown.map((s) => {
     const edit = el('button', { textContent: s.clockOut ? 'Fix' : 'Close shift' });
     edit.onclick = () => openShiftEditor(s);
@@ -231,12 +255,18 @@ function renderTimesheet() {
     del.onclick = () => deleteShift(s);
     return el('tr', {}, cell(s.name), cell(fmt(s.clockIn)),
       cell(s.clockOut ? fmt(s.clockOut) : 'Open'), cell(s.clockOut ? formatHM(s.clockOut - s.clockIn) : ''),
+      cell(s.clockOut ? formatHM(paidMs(s)) : '', s.otHours ? el('span', { className: 'muted', textContent: ` incl. ${s.otHours} h OT` }) : null),
       cell(edit, ' ', del, s.edited ? el('span', { className: 'muted', textContent: ' edited' }) : null));
   }));
   for (const b of document.querySelectorAll('button.sort')) {
     b.closest('th').setAttribute('aria-sort', b.dataset.sort !== tsSort.key ? 'none' : tsSort.dir === 1 ? 'ascending' : 'descending');
   }
   show('tsEmpty', tsShifts.length > 0 && shown.length === 0);
+  const leave = tsLeave.filter((r) => matchesName(r, $('tsFilter').value));
+  show('tsLeaveEmpty', leave.length === 0);
+  $('tsLeaveRows').replaceChildren(...leave.map((r) => el('tr', {}, cell(r.name),
+    cell(r.startDay === r.endDay ? fmtDay(r.startDay) : `${fmtDay(r.startDay)} to ${fmtDay(r.endDay)}`),
+    cell(r.type === 'leave' ? 'Leave (unpaid)' : 'Absence (unpaid)'), cell(r.reason))));
   $('csvBtn').disabled = $('tsPrintBtn').disabled = $('xlsxBtn').disabled = shown.length === 0;
 }
 

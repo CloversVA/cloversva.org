@@ -1,6 +1,6 @@
 // Printable documents (payslip, invoice, certificate, timesheet), opened in a new tab where
 // the browser's "Save as PDF" turns them into files. Every value goes through esc().
-import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2 } from './report.js?v=8';
+import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=9';
 
 export const COMPANY = {
   legalName: 'Clovers Virtual Assistance Services',
@@ -102,12 +102,12 @@ ${footer}`);
 // lines: [{day, name, position, usdRate, hours}]; company: settings/company or {}.
 export function invoiceHtml({ clientName, invoiceDate, dueDate, lines, company, signatureUrl }) {
   const rows = lines.map((l) => {
-    const total = round2(l.hours * l.usdRate);
+    const total = round3(l.hours * l.usdRate);
     return `<tr><td>${esc(l.name)}</td><td>${esc(l.position || '')}</td><td class="num">${esc(formatUsd(l.usdRate))}</td>
       <td>${esc(longDate(fromDay(l.day)))}</td><td class="num">${l.hours.toFixed(2)}</td><td class="num">${esc(formatUsd(total))}</td></tr>`;
   }).join('');
   const hours = round2(lines.reduce((s, l) => s + l.hours, 0));
-  const amount = round2(lines.reduce((s, l) => s + round2(l.hours * l.usdRate), 0));
+  const amount = round3(lines.reduce((s, l) => s + round3(l.hours * l.usdRate), 0));
   return page(`Invoice ${clientName} ${dayKey(invoiceDate)}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
 <table class="meta" style="margin-top:24px;width:100%">
