@@ -2,19 +2,19 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=10';
-import { setFileAudience, startAdminFiles } from './files.js?v=10';
+import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=12';
+import { setFileAudience, startAdminFiles } from './files.js?v=12';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
-} from './report.js?v=10';
-import { refreshLeave, startAdminRequests } from './requests.js?v=10';
+} from './report.js?v=12';
+import { refreshLeave, startAdminRequests } from './requests.js?v=12';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
-} from './ui.js?v=10';
+} from './ui.js?v=12';
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 

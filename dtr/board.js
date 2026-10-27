@@ -4,8 +4,8 @@ import {
   addDoc, collection, deleteDoc, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { db } from './firebase.js?v=2';
-import { addDays, dayKey, nextOccurrence } from './report.js?v=10';
-import { $, cell, el, fmt, fmtDay, show, showError } from './ui.js?v=10';
+import { addDays, dayKey, nextOccurrence } from './report.js?v=12';
+import { $, cell, el, fmt, fmtDay, show, showError } from './ui.js?v=12';
 
 const UPCOMING_DAYS = 45;
 // Birthday and holiday posts stay on the board this many days, so late greetings still land.
@@ -97,16 +97,17 @@ function celebrations(today) {
 
 function renderFeed() {
   const today = dayKey(new Date(), PH_TZ);
-  const cards = [
-    ...celebrations(today).map((c) => postCard(c.id, {
-      className: 'celebrate', icon: c.icon, author: 'CloversVA', when: c.day === today ? 'Today' : fmtDay(c.day), title: c.title, body: c.body,
-    })),
-    ...posts.map((p) => {
-      const remove = admin ? el('button', { className: 'link', textContent: 'Delete' }) : null;
-      if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p.id).catch(showError);
-      return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, remove });
-    }),
-  ];
+  // Birthdays and holidays get their own card at the top of the board; announcements stay below.
+  const party = celebrations(today).map((c) => postCard(c.id, {
+    className: 'celebrate', icon: c.icon, author: 'CloversVA', when: c.day === today ? 'Today' : fmtDay(c.day), title: c.title, body: c.body,
+  }));
+  show('celebrationsCard', party.length > 0);
+  $('celebrations').replaceChildren(...party);
+  const cards = posts.map((p) => {
+    const remove = admin ? el('button', { className: 'link', textContent: 'Delete' }) : null;
+    if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p.id).catch(showError);
+    return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, remove });
+  });
   show('postsEmpty', cards.length === 0);
   $('posts').replaceChildren(...cards);
 }

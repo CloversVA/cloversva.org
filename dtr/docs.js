@@ -1,6 +1,6 @@
 // Printable documents (payslip, invoice, certificate, timesheet), opened in a new tab where
 // the browser's "Save as PDF" turns them into files. Every value goes through esc().
-import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=10';
+import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=12';
 
 export const COMPANY = {
   legalName: 'Clovers Virtual Assistance Services',
@@ -157,8 +157,9 @@ ${footer}`, `
 }
 
 // The leave request letter an admin sends to the VA's client for approval.
-// request: the leaveRequests doc with requestedAt as a Date and typeLabel; va: {fullName, position, clientName}; sender: the admin.
-export function leaveLetterHtml({ request: r, va, sender }) {
+// Signed as CloversVA Admin rather than by the individual admin who sends it.
+// request: the leaveRequests doc with requestedAt as a Date and typeLabel; va: {fullName, position, clientName}.
+export function leaveLetterHtml({ request: r, va }) {
   const days = Math.round((Date.parse(r.endDay) - Date.parse(r.startDay)) / 86_400_000) + 1;
   const dates = r.startDay === r.endDay ? longDate(fromDay(r.startDay)) : periodText(r.startDay, r.endDay);
   const box = '<span class="box"></span>';
@@ -168,7 +169,7 @@ export function leaveLetterHtml({ request: r, va, sender }) {
 <table class="meta">
   <tr><td class="label">Date</td><td>${esc(longDate(new Date()))}</td></tr>
   <tr><td class="label">To</td><td>${esc(va.clientName)}</td></tr>
-  <tr><td class="label">From</td><td>${esc(sender.name)}, ${esc(COMPANY.legalName)}</td></tr>
+  <tr><td class="label">From</td><td>CloversVA Admin, ${esc(COMPANY.legalName)}</td></tr>
   <tr><td class="label">Subject</td><td>Leave request of ${esc(va.fullName)}</td></tr>
 </table>
 <p style="margin-top:24px">Dear ${esc(va.clientName)},</p>
@@ -185,9 +186,9 @@ or reply with your decision.</p>
     <tr><td class="label">Filed on</td><td>${esc(longDate(r.requestedAt))}</td></tr>
   </tbody>
 </table>
-<p>Thank you for your time. Please contact us at ${esc(sender.email)} if you have any questions.</p>
+<p>Thank you for your time. Please contact us at ${esc(COMPANY.email)} if you have any questions.</p>
 <div class="sign" style="margin-top:24px"><div>Sincerely,</div><div class="line"></div>
-  <div>${esc(sender.name)}</div><div>${esc(COMPANY.legalName)}</div></div>
+  <div>CloversVA Admin</div><div>${esc(COMPANY.legalName)}</div></div>
 <div class="decision">
   <p class="label">Client decision</p>
   <p>${box} Approved &nbsp;&nbsp;&nbsp; ${box} Not approved</p>

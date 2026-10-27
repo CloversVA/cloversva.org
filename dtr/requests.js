@@ -4,12 +4,12 @@
 import {
   collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { leaveLetterHtml } from './docs.js?v=10';
+import { leaveLetterHtml } from './docs.js?v=12';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, LEAVE_NOTICE_DAYS, MAX_SHIFT_HOURS, addDays, dayKey, formatHM, leaveNoticeOk,
-} from './report.js?v=10';
-import { $, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from './ui.js?v=10';
+} from './report.js?v=12';
+import { $, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from './ui.js?v=12';
 
 const TYPE_LABEL = { leave: 'Leave (unpaid)', absence: 'Absence (unpaid)' };
 const datesText = (r) => (r.startDay === r.endDay ? fmtDay(r.startDay) : `${fmtDay(r.startDay)} to ${fmtDay(r.endDay)}`);
@@ -100,7 +100,7 @@ $('otForm').onsubmit = async (e) => {
 
 // ---------- Admin ----------
 
-// Opens the letter (sender: the admin; requester: the VA; recipient: the VA's client) and marks it sent.
+// Opens the letter (from CloversVA Admin; requester: the VA; recipient: the VA's client) and marks it sent.
 async function sendLetter(r, admin, vaLookup, vaFullName) {
   const va = vaLookup(r.email) ?? {};
   if (!va.clientName) { alert(`Assign a client to ${r.name} first (VAs > Edit).`); return; }
@@ -109,7 +109,6 @@ async function sendLetter(r, admin, vaLookup, vaFullName) {
     openDocument(leaveLetterHtml({
       request: { ...r, requestedAt: r.requestedAt.toDate(), typeLabel: TYPE_LABEL[r.type] },
       va: { fullName: await vaFullName(r.email), position: va.position, clientName: va.clientName },
-      sender: { name: admin.name, email: admin.email },
     }), tab);
     if (r.status === 'pending' && !r.clientStatus) {
       await updateDoc(doc(db, 'leaveRequests', r.id), { clientStatus: 'sent', clientName: va.clientName, sentBy: admin.email, sentAt: serverTimestamp() });

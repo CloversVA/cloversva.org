@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=11">
-  <script type="module" src="app.js?v=11"></script>
+  <link rel="stylesheet" href="style.css?v=12">
+  <script type="module" src="app.js?v=12"></script>
 </head>
 <body>
   <header class="topbar">
@@ -160,6 +160,10 @@
         </section>
 
         <section data-panel="board" hidden>
+          <div id="celebrationsCard" class="card" hidden>
+            <h2>Birthdays and holidays</h2>
+            <div id="celebrations"></div>
+          </div>
           <div class="card" data-admin hidden>
             <h2>Post an announcement</h2>
             <form id="postForm" class="stack narrow-form">
@@ -182,7 +186,6 @@
           </div>
           <div class="card">
             <h2>Announcements</h2>
-            <p class="muted">Birthdays and holidays appear here for everyone. Leave a comment on any post.</p>
             <div id="posts"></div>
             <p id="postsEmpty" class="muted" hidden>No announcements yet.</p>
           </div>
