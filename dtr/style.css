@@ -186,3 +186,4 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 .comment-form { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .comment-form input { flex: 1; min-width: 0; border-radius: 999px; padding: 7px 14px; }
 .comment-form button { border-radius: 999px; padding: 6px 14px; }
+.no-comments .comment-form, .no-comments .comments, .no-comments .comment-count { display: none; }

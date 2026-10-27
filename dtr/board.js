@@ -49,7 +49,12 @@ export function startBoard(signedIn, track, isAdmin) {
       comments.set(c.thread, [...(comments.get(c.thread) ?? []), c]);
     }
     for (const id of threads.keys()) renderComments(id);
-  }, showError));
+  }, (err) => {
+    // Until the database rules allow comments, hide them instead of showing everyone an error.
+    if (err?.code !== 'permission-denied') { showError(err); return; }
+    console.warn('Comments are not allowed by the database rules yet.', err);
+    document.body.classList.add('no-comments');
+  }));
 }
 
 function renderUpcoming() {
