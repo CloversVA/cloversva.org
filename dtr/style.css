@@ -167,3 +167,22 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
   td input { width: 5.5em; }
   .details { font-size: .95rem; }
 }
+
+/* Board posts and comments, Facebook style */
+.board-video { display: block; width: 100%; max-width: 720px; aspect-ratio: 16 / 9; border-radius: 10px; background: #000; margin-bottom: 8px; }
+.post { padding: 14px 0; }
+.post-by { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.post.celebrate { background: var(--leaf-soft); border: 1px solid var(--leaf-mid); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.avatar { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font: 600 .9rem Poppins, sans-serif; }
+.avatar.icon { background: var(--card); border: 1px solid var(--leaf-mid); font-size: 1.1rem; }
+.small { font-size: .8rem; }
+.comment-count { margin: 6px 0 0; font-size: .85rem; }
+.comments { list-style: none; padding: 0; margin: 8px 0 0; }
+.comment { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+.comment .avatar, .comment-form .avatar { width: 28px; height: 28px; font-size: .75rem; }
+.bubble { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 6px 12px; overflow-wrap: anywhere; }
+.post .bubble p { margin: 0; }
+.comment .small { padding-left: 12px; }
+.comment-form { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.comment-form input { flex: 1; min-width: 0; border-radius: 999px; padding: 7px 14px; }
+.comment-form button { border-radius: 999px; padding: 6px 14px; }

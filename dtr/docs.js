@@ -1,6 +1,6 @@
 // Printable documents (payslip, invoice, certificate, timesheet), opened in a new tab where
 // the browser's "Save as PDF" turns them into files. Every value goes through esc().
-import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=9';
+import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=10';
 
 export const COMPANY = {
   legalName: 'Clovers Virtual Assistance Services',
@@ -99,12 +99,13 @@ ${bank ? `<table class="meta">
 ${footer}`);
 }
 
-// lines: [{day, name, position, usdRate, hours}]; company: settings/company or {}.
-export function invoiceHtml({ clientName, invoiceDate, dueDate, lines, company, signatureUrl }) {
+// lines: [{name, position, usdRate, hours}], one per VA with their total for the cut-off; company: settings/company or {}.
+export function invoiceHtml({ clientName, periodStart, periodEnd, invoiceDate, dueDate, lines, company, signatureUrl }) {
+  const cutOff = periodText(periodStart, periodEnd);
   const rows = lines.map((l) => {
     const total = round3(l.hours * l.usdRate);
     return `<tr><td>${esc(l.name)}</td><td>${esc(l.position || '')}</td><td class="num">${esc(formatUsd(l.usdRate))}</td>
-      <td>${esc(longDate(fromDay(l.day)))}</td><td class="num">${l.hours.toFixed(2)}</td><td class="num">${esc(formatUsd(total))}</td></tr>`;
+      <td>${esc(cutOff)}</td><td class="num">${l.hours.toFixed(2)}</td><td class="num">${esc(formatUsd(total))}</td></tr>`;
   }).join('');
   const hours = round2(lines.reduce((s, l) => s + l.hours, 0));
   const amount = round3(lines.reduce((s, l) => s + round3(l.hours * l.usdRate), 0));
@@ -113,9 +114,10 @@ export function invoiceHtml({ clientName, invoiceDate, dueDate, lines, company, 
 <table class="meta" style="margin-top:24px;width:100%">
   <tr><td class="label">Invoice date :</td><td>${esc(longDate(invoiceDate))}</td><td class="label">Bill to</td></tr>
   <tr><td class="label">Due date :</td><td>${esc(longDate(dueDate))}</td><td>${esc(clientName)}</td></tr>
+  <tr><td class="label">Cut-off :</td><td>${esc(cutOff)}</td><td></td></tr>
 </table>
 <table class="grid">
-  <thead><tr><th>Name</th><th>Position</th><th class="num">Rate ($)</th><th>Date</th><th class="num">Qty./Hrs.</th><th class="num">Total ($)</th></tr></thead>
+  <thead><tr><th>Name</th><th>Position</th><th class="num">Rate ($)</th><th>Cut-off period</th><th class="num">Total hrs.</th><th class="num">Total ($)</th></tr></thead>
   <tbody>${rows || '<tr><td colspan="6">No hours in this period.</td></tr>'}</tbody>
   <tfoot><tr><td colspan="4">TOTAL</td><td class="num">${hours.toFixed(2)}</td><td class="num">${esc(formatUsd(amount))}</td></tr></tfoot>
 </table>
@@ -152,6 +154,57 @@ ${footer}`, `
   .sheet::after { bottom: 0; right: 0; border-top-left-radius: 100% 80%; }
   .body { font: 18px/1.7 Georgia, 'Times New Roman', serif; margin: 20px 0 20px 32px; }
   .footer { text-align: left; }`);
+}
+
+// The leave request letter an admin sends to the VA's client for approval.
+// request: the leaveRequests doc with requestedAt as a Date and typeLabel; va: {fullName, position, clientName}; sender: the admin.
+export function leaveLetterHtml({ request: r, va, sender }) {
+  const days = Math.round((Date.parse(r.endDay) - Date.parse(r.startDay)) / 86_400_000) + 1;
+  const dates = r.startDay === r.endDay ? longDate(fromDay(r.startDay)) : periodText(r.startDay, r.endDay);
+  const box = '<span class="box"></span>';
+  return page(`Leave request ${va.fullName} ${r.startDay}`, `
+<img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
+<h1>LEAVE REQUEST</h1>
+<table class="meta">
+  <tr><td class="label">Date</td><td>${esc(longDate(new Date()))}</td></tr>
+  <tr><td class="label">To</td><td>${esc(va.clientName)}</td></tr>
+  <tr><td class="label">From</td><td>${esc(sender.name)}, ${esc(COMPANY.legalName)}</td></tr>
+  <tr><td class="label">Subject</td><td>Leave request of ${esc(va.fullName)}</td></tr>
+</table>
+<p style="margin-top:24px">Dear ${esc(va.clientName)},</p>
+<p>Our virtual assistant assigned to you, <b>${esc(va.fullName)}</b>, has filed the request below. Leave requests need your
+approval before CloversVA can approve them. Please mark your decision at the bottom and send this letter back to us,
+or reply with your decision.</p>
+<table class="grid">
+  <tbody>
+    <tr><td class="label">Requested by</td><td>${esc(va.fullName)}</td></tr>
+    <tr><td class="label">Position</td><td>${esc(va.position || '-')}</td></tr>
+    <tr><td class="label">Type</td><td>${esc(r.typeLabel)}</td></tr>
+    <tr><td class="label">Dates</td><td>${esc(dates)} (${days} day${days === 1 ? '' : 's'})</td></tr>
+    <tr><td class="label">Reason</td><td>${esc(r.reason)}</td></tr>
+    <tr><td class="label">Filed on</td><td>${esc(longDate(r.requestedAt))}</td></tr>
+  </tbody>
+</table>
+<p>Thank you for your time. Please contact us at ${esc(sender.email)} if you have any questions.</p>
+<div class="sign" style="margin-top:24px"><div>Sincerely,</div><div class="line"></div>
+  <div>${esc(sender.name)}</div><div>${esc(COMPANY.legalName)}</div></div>
+<div class="decision">
+  <p class="label">Client decision</p>
+  <p>${box} Approved &nbsp;&nbsp;&nbsp; ${box} Not approved</p>
+  <p>Comments: <span class="fill"></span></p>
+  <div class="sign-row">
+    <div><div class="line"></div><div>Signature over printed name</div></div>
+    <div><div class="line short"></div><div>Date</div></div>
+  </div>
+</div>
+${footer}`, `
+  .decision { margin-top: 32px; border: 1px solid #d9e0d4; border-radius: 8px; padding: 12px 16px; }
+  .decision .box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #152318; vertical-align: -2px; margin-right: 4px; }
+  .decision .fill { display: inline-block; width: 75%; border-bottom: 1px solid #152318; }
+  .sign-row { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 28px; }
+  .sign-row .line { width: 260px; border-bottom: 1px solid #152318; height: 28px; }
+  .sign-row .line.short { width: 160px; }
+  .grid td.label { width: 160px; background: #eef6e2; }`);
 }
 
 // totals: summarize() rows plus clientName; shifts: [{name, clockIn, clockOut}]; fmt shows a time in the viewer's chosen zone.

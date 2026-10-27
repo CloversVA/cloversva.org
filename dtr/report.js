@@ -149,13 +149,13 @@ export function payFor(shifts, rate, tz = BUSINESS_TZ) {
   return { hours, amount: round2(hours * rate), days };
 }
 
-// One invoice line per VA per day, in date order.
+// One invoice line per VA: their total hours for the cut-off, added up the same way as their payslip.
 export function invoiceLines(shifts, tz = BUSINESS_TZ) {
   const byEmail = new Map();
   for (const s of shifts) byEmail.set(s.email, [...(byEmail.get(s.email) ?? []), s]);
   return [...byEmail.entries()]
-    .flatMap(([email, theirs]) => dailyHours(theirs, tz).map((d) => ({ ...d, email })))
-    .sort((a, b) => a.day.localeCompare(b.day) || a.email.localeCompare(b.email));
+    .map(([email, theirs]) => ({ email, hours: round2(dailyHours(theirs, tz).reduce((sum, d) => sum + d.hours, 0)) }))
+    .filter((l) => l.hours > 0);
 }
 
 // ---------- Exports (CSV and Excel share the same rows) ----------

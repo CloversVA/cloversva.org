@@ -3,7 +3,7 @@ import {
   collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { db } from './firebase.js?v=2';
-import { $, cell, downloadBlob, el, fmt, show, showError } from './ui.js?v=9';
+import { $, cell, downloadBlob, el, fmt, show, showError } from './ui.js?v=10';
 
 const MAX_DATA_URL = 990_000; // the database rule allows 1,000,000 characters (a ~740 KB file)
 const KIND = { payroll: 'Payroll', invoice: 'Client invoice', other: 'Other' };

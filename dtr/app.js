@@ -5,18 +5,18 @@ import {
 import {
   Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=9';
-import { setMyBirthday, startBoard } from './board.js?v=9';
-import { startVaFiles } from './files.js?v=9';
-import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=9';
-import { coeHtml, payslipHtml } from './docs.js?v=9';
+import { startAdmin } from './admin.js?v=10';
+import { setMyBirthday, startBoard } from './board.js?v=10';
+import { startVaFiles } from './files.js?v=10';
+import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=10';
+import { coeHtml, payslipHtml } from './docs.js?v=10';
 import { auth, db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatPhp, hmFromHours, payFor, periodRange, zonedToDate,
-} from './report.js?v=9';
+} from './report.js?v=10';
 import {
   $, TIME_ZONES, asDate, cell, displayTz, el, fmt, fmtDay, numCell, openDocument, setDisplayTz, show, showError,
-} from './ui.js?v=9';
+} from './ui.js?v=10';
 
 const MY_SHIFTS_SHOWN = 14;
 let mineDocs = [];

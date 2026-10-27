@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=9">
-  <script type="module" src="app.js?v=9"></script>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script type="module" src="app.js?v=10"></script>
 </head>
 <body>
   <header class="topbar">
@@ -24,6 +24,7 @@
     <p id="error" class="error" role="alert" hidden></p>
     <div id="banner" class="banner" role="status" hidden>
       <img src="../images/clover-icon.png" alt=""><p id="bannerText"></p>
+      <button id="bannerGo" class="primary">Send a greeting</button>
       <button id="bannerClose" class="link" aria-label="Close greeting">Close</button>
     </div>
 
@@ -168,12 +169,20 @@
             </form>
           </div>
           <div class="card">
+            <h2>Daylight saving time reminder</h2>
+            <video class="board-video" controls playsinline preload="metadata" poster="../images/dst-reminder.jpg">
+              <source src="../images/dst-reminder.mp4" type="video/mp4">
+            </video>
+            <p class="muted">US daylight saving time ends on Sunday, November 1, 2026: US clocks go back one hour, so your shift may start an hour later on the Philippine clock. Check your schedule with your client.</p>
+          </div>
+          <div class="card">
             <h2>Coming up (next 45 days)</h2>
             <ul id="upcoming" class="plain-list"></ul>
             <p id="upcomingEmpty" class="muted" hidden>Nothing in the next 45 days.</p>
           </div>
           <div class="card">
             <h2>Announcements</h2>
+            <p class="muted">Birthdays and holidays appear here for everyone. Leave a comment on any post.</p>
             <div id="posts"></div>
             <p id="postsEmpty" class="muted" hidden>No announcements yet.</p>
           </div>
@@ -205,7 +214,7 @@
               <div class="row"><button class="primary">Send request</button></div>
               <p id="leaveNote" class="muted" role="status"></p>
             </form>
-            <p class="muted">Paid leave credits are coming later. For now all leave and absences are unpaid.</p>
+            <p class="muted">Your request goes to your client first, then to CloversVA for final approval. Paid leave credits are coming later. For now all leave and absences are unpaid.</p>
           </div>
           <div class="card">
             <h2>My leave and absences</h2>
@@ -322,7 +331,7 @@
               <label>Due date <input type="date" id="invDue" required></label>
               <button class="primary">Download invoice</button>
             </form>
-            <p class="muted">Uses each VA's USD rate and the bank details under Company details.</p>
+            <p class="muted">One line per VA with their total hours for the cut-off. Uses each VA's USD rate and the bank details under Company details.</p>
           </div>
         </section>
 
@@ -362,7 +371,12 @@
         <section data-panel="leaveAdmin" hidden>
           <div class="card">
             <h2>Leave requests</h2>
-            <div class="scroll"><table><thead><tr><th>VA</th><th>Dates</th><th>Type</th><th>Reason</th><th>Filed</th><th>Status</th><th></th></tr></thead><tbody id="leaveRows"></tbody></table></div>
+            <ol class="steps muted">
+              <li>Click <b>Letter for client</b> to download the leave request letter (PDF) and send it to the VA's client.</li>
+              <li>When the client answers, click <b>Client approved</b> or <b>Client declined</b>.</li>
+              <li>After the client approves, click <b>Approve</b> to finish. Declined requests are closed as denied.</li>
+            </ol>
+            <div class="scroll"><table><thead><tr><th>VA</th><th>Dates</th><th>Type</th><th>Reason</th><th>Filed</th><th>Client</th><th>Status</th><th></th></tr></thead><tbody id="leaveRows"></tbody></table></div>
             <p id="leaveEmpty" class="muted">No requests yet.</p>
           </div>
         </section>

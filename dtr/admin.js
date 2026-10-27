@@ -2,19 +2,19 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=9';
-import { setFileAudience, startAdminFiles } from './files.js?v=9';
+import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=10';
+import { setFileAudience, startAdminFiles } from './files.js?v=10';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
-} from './report.js?v=9';
-import { startAdminRequests } from './requests.js?v=9';
+} from './report.js?v=10';
+import { refreshLeave, startAdminRequests } from './requests.js?v=10';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
-} from './ui.js?v=9';
+} from './ui.js?v=10';
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
@@ -48,13 +48,17 @@ export function startAdmin(signedIn, track) {
     const current = $('invClient').value;
     $('invClient').replaceChildren(...clients.map((c) => el('option', { value: c, textContent: c })));
     if (clients.includes(current)) $('invClient').value = current;
+    refreshLeave();
   }, showError));
 
   track(onSnapshot(collection(db, 'coeRequests'), renderCoeRequests, showError));
   startAdminRequests(me, track, async (ids) => new Map(await Promise.all(ids.map(async (id) => {
     const snap = await getDoc(doc(db, 'entries', id));
     return [id, snap.exists() ? { clockIn: asDate(snap.data().clockIn), clockOut: asDate(snap.data().clockOut) } : null];
-  }))));
+  }))), (email) => vas.get(email), async (email) => {
+    const profile = await getDoc(doc(db, 'profiles', email));
+    return (profile.exists() && profile.data().fullName) || vas.get(email)?.name || email;
+  });
   startAdminFiles(me, track);
 
   const due = calendarToday(BUSINESS_TZ); due.setDate(due.getDate() + 7);
@@ -642,9 +646,9 @@ $('invForm').onsubmit = async (e) => {
     const lines = invoiceLines(shifts).map((l) => {
       const va = vas.get(l.email) ?? {};
       return { ...l, name: va.name ?? l.email, position: va.position ?? '', usdRate: va.usdRate ?? 0 };
-    });
+    }).sort((a, b) => a.name.localeCompare(b.name));
     openDocument(invoiceHtml({
-      clientName: client, invoiceDate: calendarToday(BUSINESS_TZ), dueDate: new Date(`${$('invDue').value}T00:00`), lines, company, signatureUrl,
+      clientName: client, periodStart: $('invFrom').value, periodEnd: $('invTo').value, invoiceDate: calendarToday(BUSINESS_TZ), dueDate: new Date(`${$('invDue').value}T00:00`), lines, company, signatureUrl,
     }));
   } catch (err) { showError(err); }
 };

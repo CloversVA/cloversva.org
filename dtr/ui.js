@@ -1,5 +1,5 @@
 // Small DOM helpers shared by the VA and admin screens.
-import { BUSINESS_TZ, zonedInputValue, zonedToDate } from './report.js?v=9';
+import { BUSINESS_TZ, zonedInputValue, zonedToDate } from './report.js?v=10';
 
 export const $ = (id) => document.getElementById(id);
 export const show = (id, on = true) => { $(id).hidden = !on; };
@@ -60,8 +60,8 @@ export function showError(err) {
 }
 
 // Opens a generated document in a new tab; it prints itself so it can be saved as PDF.
-export function openDocument(html) {
-  const w = window.open('', '_blank');
+// Pass a tab opened before any waiting (await), or the browser may block it as a pop-up.
+export function openDocument(html, w = window.open('', '_blank')) {
   if (!w) { showError({ message: 'Your browser blocked the new tab. Allow pop-ups for this site and try again.' }); return; }
   w.document.open();
   w.document.write(html);
