@@ -48,6 +48,9 @@ export function startAdmin(signedIn, track) {
     const current = $('invClient').value;
     $('invClient').replaceChildren(...clients.map((c) => el('option', { value: c, textContent: c })));
     if (clients.includes(current)) $('invClient').value = current;
+    const payClient = $('payClient').value;
+    $('payClient').replaceChildren(el('option', { value: '', textContent: 'All clients' }), ...clients.map((c) => el('option', { value: c, textContent: c })));
+    if (clients.includes(payClient)) $('payClient').value = payClient;
     refreshLeave();
   }, showError));
 
@@ -382,18 +385,29 @@ $('editForm').onsubmit = async (e) => {
 const slipId = (periodStart, email) => `${periodStart}_${email}`;
 const stamp = () => ({ updatedBy: me.email, updatedAt: serverTimestamp() });
 
+let paySlips = [];
+let payBanks = new Map();
+
 async function loadPayroll() {
   const from = $('payFrom').value; const to = $('payTo').value;
   const snap = await getDocs(query(collection(db, 'payslips'), where('periodStart', '==', from)));
-  const slips = snap.docs.map((d) => d.data()).filter((s) => s.periodEnd === to).sort((a, b) => a.name.localeCompare(b.name));
-  const banks = new Map(await Promise.all(slips.map(async (s) => {
+  paySlips = snap.docs.map((d) => d.data()).filter((s) => s.periodEnd === to).sort((a, b) => a.name.localeCompare(b.name));
+  payBanks = new Map(await Promise.all(paySlips.map(async (s) => {
     const b = await getDoc(doc(db, 'bank', s.email));
     return [s.email, b.exists() ? b.data() : null];
   })));
+  renderPayroll();
+}
+
+// The client filter only changes what is shown; payslips are still made for every VA.
+function renderPayroll() {
+  const client = $('payClient').value;
+  const slips = client ? paySlips.filter((s) => s.clientName === client) : paySlips;
   show('payEmpty', slips.length === 0);
+  $('payEmpty').textContent = client && paySlips.length ? `No payslips for ${client} in this period.` : 'No payslips for this period yet.';
   const total = round2(slips.reduce((sum, s) => sum + s.amount, 0));
-  $('payTotal').textContent = slips.length ? `Total: ${formatPhp(total)}` : '';
-  $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, banks.get(s.email))));
+  $('payTotal').textContent = slips.length ? `Total${client ? ` for ${client}` : ''}: ${formatPhp(total)}` : '';
+  $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, payBanks.get(s.email))));
 }
 
 function payrollRow(slip, bank) {
@@ -470,6 +484,7 @@ function choosePayPeriod() {
 }
 
 $('payPeriod').onchange = choosePayPeriod;
+$('payClient').onchange = renderPayroll;
 $('payForm').onsubmit = (e) => e.preventDefault();
 
 $('payCreateBtn').onclick = async () => {

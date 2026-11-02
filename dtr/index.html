@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=13">
-  <script type="module" src="app.js?v=13"></script>
+  <script type="module" src="app.js?v=14"></script>
 </head>
 <body>
   <header class="topbar">
@@ -308,6 +308,7 @@
             </ol>
             <form id="payForm" class="row">
               <label>Pay period <select id="payPeriod"></select></label>
+              <label>Client <select id="payClient"><option value="">All clients</option></select></label>
               <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
             </form>
             <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
