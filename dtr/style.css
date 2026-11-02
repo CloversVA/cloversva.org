@@ -187,6 +187,12 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 .comment-form { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .comment-form input { flex: 1; min-width: 0; border-radius: 999px; padding: 7px 14px; }
 .comment-form button { border-radius: 999px; padding: 6px 14px; }
+.emoji-box { position: relative; flex: none; }
+.comment-form .emoji-toggle { border-radius: 999px; padding: 4px 9px; font-size: 1.1rem; line-height: 1.2; background: transparent; }
+.emoji-grid { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 10; display: grid; grid-template-columns: repeat(7, 36px); gap: 2px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 20px rgb(0 0 0 / .15); }
+.emoji-grid[hidden] { display: none; }
+.emoji-grid button { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; font-size: 1.25rem; }
+.emoji-grid button:hover, .emoji-grid button:focus-visible { background: var(--line); }
 .no-comments .comment-form, .no-comments .comments, .no-comments .comment-count { display: none; }
 
 /* Photos, videos and files on posts */
