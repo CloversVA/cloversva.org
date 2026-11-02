@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=13">
-  <script type="module" src="app.js?v=14"></script>
+  <link rel="stylesheet" href="style.css?v=14">
+  <script type="module" src="app.js?v=15"></script>
 </head>
 <body>
   <header class="topbar">
@@ -169,7 +169,7 @@
             <form id="postForm" class="stack narrow-form">
               <label>Title <input id="postTitle" maxlength="120" required></label>
               <label>Message <textarea id="postBody" maxlength="2000" rows="3"></textarea></label>
-              <label>Photo or video (optional, up to 15 MB) <input id="postMedia" type="file" accept="image/*,video/*"></label>
+              <label>Photo, video or file such as a PDF, Word or Excel document (optional, up to 15 MB) <input id="postMedia" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip"></label>
               <div class="row"><button class="primary">Post</button><span id="postNote" class="muted" role="status"></span></div>
             </form>
           </div>
