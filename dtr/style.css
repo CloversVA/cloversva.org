@@ -208,7 +208,7 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 .reaction-grid button { width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: transparent; font-size: 1.4rem; transition: transform .1s; }
 .reaction-grid button:hover, .reaction-grid button:focus-visible { transform: scale(1.25); background: var(--leaf-soft); }
 .reaction-grid button.mine { background: var(--leaf-mid); }
-@media (max-width: 600px) { .reaction-grid { flex-wrap: wrap; width: 254px; border-radius: 16px; } }
+@media (max-width: 600px) { .reaction-grid { flex-wrap: wrap; width: 220px; border-radius: 16px; } }
 .no-comments .reactions-wrap,
 .no-comments .comment-form, .no-comments .comments, .no-comments .comment-count { display: none; }
 

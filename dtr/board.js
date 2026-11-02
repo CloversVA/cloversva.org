@@ -120,7 +120,7 @@ const threads = new Map(); // thread id -> { node, head, list, count, input }
 
 const avatar = (name) => el('span', { className: 'avatar', textContent: (name || '?').trim().charAt(0).toUpperCase(), ariaHidden: 'true' });
 
-const EMOJIS = ['🍀', '☘️', '😀', '😊', '😂', '🥰', '😍', '🤗', '😎', '🥳', '😢', '🙏', '👏', '👍', '👋', '💪', '🙌', '❤️', '💚', '🎉', '🎂', '🎁', '🌟', '🔥', '✨', '💐', '☕', '✅', '💯'];
+const EMOJIS = ['🍀', '😀', '😊', '😂', '🥰', '😍', '🤗', '😎', '🥳', '😢', '🙏', '👏', '👍', '👋', '💪', '🙌', '❤️', '💚', '🎉', '🎂', '🎁', '🌟', '🔥', '✨', '💐', '☕', '✅', '💯'];
 
 // An emoji button that opens a small grid; picking one types it into the message where the cursor is.
 function emojiPicker(input) {
@@ -152,7 +152,7 @@ function emojiPicker(input) {
 
 // Everyone can react to any post with one emoji (pick another to change it, tap yours again to remove it).
 // Reactions are saved as comments on a separate "react_<post id>" thread, so they need no extra database rules.
-const REACTIONS = ['🍀', '☘️', '👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🙏', '💚'];
+const REACTIONS = ['🍀', '👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🙏', '💚'];
 const reactThread = (id) => `react_${id}`;
 
 // One compact summary per post ("❤️🎉👏 12"); tapping it lists each emoji with its count and who reacted.
