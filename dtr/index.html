@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=17">
-  <script type="module" src="app.js?v=18"></script>
+  <link rel="stylesheet" href="style.css?v=21">
+  <script type="module" src="app.js?v=23"></script>
 </head>
 <body>
   <header class="topbar">
@@ -64,9 +64,7 @@
     <div id="shell" class="shell" hidden>
       <nav class="sidenav" aria-label="Sections">
         <div class="nav-title">Information</div>
-        <button data-view="board">Announcements<span id="boardCount" class="badge" hidden></span></button>
-        <button data-view="greetings">Greetings wall</button>
-        <button data-view="inbox">Inbox<span id="inboxCount" class="badge" hidden></span></button>
+        <button data-view="board">Announcement Wall<span id="boardCount" class="badge" hidden></span></button>
         <button data-view="clock" aria-current="page">Time clock</button>
         <button data-view="leave">Leave &amp; absence</button>
         <button data-view="payslips">My payslips</button>
@@ -158,41 +156,6 @@
               <div class="row"><button class="primary">Save bank details</button><span id="bankNote" class="muted" role="status"></span></div>
             </form>
             <p class="muted">Only you and CloversVA admins can see these.</p>
-          </div>
-        </section>
-
-        <section data-panel="greetings" hidden>
-          <div class="card">
-            <h2>Greetings wall</h2>
-            <p class="muted">Share a greeting, a thank-you or some good news. Everyone on the team can see this wall.</p>
-            <form id="wallForm" class="wall-form">
-              <textarea id="wallText" maxlength="500" rows="3" required placeholder="Write a greeting..." aria-label="Your greeting"></textarea>
-              <button id="wallSend" class="primary">Post greeting</button>
-            </form>
-            <p id="wallOff" class="muted" hidden>The greetings wall isn't switched on in the database rules yet. Ask an admin.</p>
-            <ul id="wallList" class="wall"></ul>
-            <p id="wallEmpty" class="muted" hidden>No greetings yet. Be the first!</p>
-          </div>
-        </section>
-
-        <section data-panel="inbox" id="inboxPanel" hidden>
-          <div class="card">
-            <h2>Inbox</h2>
-            <p id="inboxIntro" class="muted"></p>
-            <p id="inboxOff" class="muted" hidden>The inbox isn't switched on in the database rules yet. Ask an admin.</p>
-            <div class="inbox">
-              <ul id="inboxPeople" class="inbox-people" aria-label="Conversations" hidden></ul>
-              <p id="inboxNoPeople" class="muted" hidden>No VAs yet.</p>
-              <div id="inboxThread" class="inbox-thread" hidden>
-                <h3 id="inboxWith"></h3>
-                <ul id="inboxMessages" class="chat" aria-live="polite"></ul>
-                <p id="inboxEmpty" class="muted" hidden>No messages yet. Say hello!</p>
-                <form id="inboxForm" class="comment-form">
-                  <input id="inboxInput" maxlength="2000" required placeholder="Write a private message..." autocomplete="off">
-                  <button id="inboxSend" class="primary">Send</button>
-                </form>
-              </div>
-            </div>
           </div>
         </section>
 
