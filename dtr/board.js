@@ -5,7 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { db } from './firebase.js?v=2';
 import { addDays, dayKey, nextOccurrence } from './report.js?v=13';
-import { $, cell, el, fmt, fmtDay, show, showError } from './ui.js?v=13';
+import { $, cell, downloadBlob, el, fmt, fmtDay, show, showError } from './ui.js?v=13';
 
 const UPCOMING_DAYS = 45;
 // Birthday and holiday posts stay on the board this many days, so late greetings still land.
@@ -170,7 +170,7 @@ function renderComments(id) {
   }));
 }
 
-// Deleting an announcement takes its comments and its photo or video with it.
+// Deleting an announcement takes its comments and its attached photo, video or file with it.
 async function deletePost(p) {
   const snap = await getDocs(query(collection(db, 'comments'), where('thread', '==', p.id)));
   const b = writeBatch(db);
@@ -180,7 +180,7 @@ async function deletePost(p) {
   await b.commit();
 }
 
-// ---------- Photos and videos on posts ----------
+// ---------- Photos, videos and files on posts ----------
 
 // The free plan has no file storage, so a file is split into pieces small enough for one database record each
 // (base64 makes each piece 4/3 bigger, staying under the 1 MB record limit).
@@ -203,7 +203,20 @@ function loadMedia(id, media) {
 }
 
 // Photos load right away. Videos show their first frame and only download when someone presses play.
+// Other files (PDF, Word, Excel...) show their name and a Download button.
 function mediaBlock(id, media) {
+  if (media.kind === 'file') {
+    const get = el('button', { textContent: 'Download' });
+    get.onclick = async () => {
+      get.disabled = true;
+      get.textContent = 'Downloading...';
+      try {
+        downloadBlob(media.name, await (await fetch(await loadMedia(id, media))).blob());
+      } catch (err) { showError(err); } finally { get.disabled = false; get.textContent = 'Download'; }
+    };
+    return el('div', { className: 'post-file' }, el('span', { className: 'post-file-icon', textContent: '\u{1F4CE}', ariaHidden: 'true' }),
+      el('div', {}, el('strong', { textContent: media.name }), el('div', { className: 'muted small', textContent: sizeLabel(media.size) })), get);
+  }
   if (media.kind === 'image') {
     const img = el('img', { className: 'post-media', alt: '' });
     loadMedia(id, media).then((url) => { img.src = url; }).catch(showError);
@@ -223,6 +236,8 @@ function mediaBlock(id, media) {
   };
   return box;
 }
+
+const sizeLabel = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
 const base64Of = (blob) => new Promise((resolve, reject) => {
   const r = new FileReader();
@@ -250,7 +265,7 @@ function videoPoster(file) {
 
 // Saves the pieces first, so nobody sees a post whose file is still uploading.
 async function uploadMedia(postId, file) {
-  const kind = file.type.startsWith('video/') ? 'video' : 'image';
+  const kind = file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'file';
   const chunks = Math.ceil(file.size / CHUNK_BYTES);
   try {
     for (let i = 0; i < chunks; i += 1) {
@@ -263,7 +278,7 @@ async function uploadMedia(postId, file) {
     throw err;
   }
   const poster = kind === 'video' ? await videoPoster(file) : null;
-  return { kind, mime: file.type, name: file.name.slice(0, 200), size: file.size, chunks, poster };
+  return { kind, mime: file.type || 'application/octet-stream', name: file.name.slice(0, 200), size: file.size, chunks, poster };
 }
 
 // ---------- Greeting banner ----------
@@ -302,7 +317,6 @@ const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice
 $('postForm').onsubmit = async (e) => {
   e.preventDefault();
   const file = $('postMedia').files[0];
-  if (file && !/^(image|video)\//.test(file.type)) { $('postNote').textContent = 'Choose a photo or a video file.'; return; }
   if (file && file.size > MEDIA_MAX_MB * 1024 * 1024) {
     $('postNote').textContent = `That file is ${(file.size / 1048576).toFixed(1)} MB. The limit is ${MEDIA_MAX_MB} MB; trim or compress it and try again.`;
     return;
