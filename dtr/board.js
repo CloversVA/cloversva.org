@@ -1,5 +1,5 @@
 // Announcement board: admin posts, today's birthdays and holidays for everyone, comments on every post,
-// upcoming PH/US holidays and birthdays, and the login greeting banner.
+// upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
@@ -69,7 +69,6 @@ function renderUpcoming() {
   $('upcoming').replaceChildren(...items.map((i) => el('li', { className: i.kind },
     el('strong', { textContent: i.day === today ? 'Today' : fmtDay(i.day) }), ` ${i.text}`)));
   renderFeed();
-  showGreeting(today);
 }
 
 // Birthdays and holidays from the last few days, newest first, as posts everyone sees and can comment on.
@@ -110,6 +109,7 @@ function renderFeed() {
   });
   show('postsEmpty', cards.length === 0);
   $('posts').replaceChildren(...cards);
+  showGreeting(today);
 }
 
 // ---------- Posts and comments ----------
@@ -281,34 +281,75 @@ async function uploadMedia(postId, file) {
   return { kind, mime: file.type || 'application/octet-stream', name: file.name.slice(0, 200), size: file.size, chunks, poster };
 }
 
-// ---------- Greeting banner ----------
+// ---------- Greeting banner and "new announcement" alert ----------
 
-// One banner per day for everyone: your own birthday, teammates' birthdays, and PH/US holidays today.
+// One banner for everyone at sign-in: your own birthday, teammates' birthdays, PH/US holidays today (once a day),
+// and any announcement from the last NEW_DAYS days this person hasn't opened yet (until they open the board or close it).
+const NEW_DAYS = 14;
+const SEEN_KEY = 'cloversva.seenAnnouncements';
 let myBirthday = null;
 export function setMyBirthday(monthDay) { myBirthday = monthDay; renderUpcoming(); }
+
+function readSeen() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); }
+}
+const seen = readSeen();
+function markSeen(items) {
+  for (const n of items) seen.add(n.id);
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-300))); } catch { /* private mode */ }
+}
+
+// Pinned cards written into the page carry data-notice (a unique id), data-date and data-title.
+function unseenAnnouncements(today) {
+  const since = addDays(today, -(NEW_DAYS - 1));
+  const pinned = [...document.querySelectorAll('[data-notice]')].filter((n) => n.dataset.date >= since && n.dataset.date <= today)
+    .map((n) => ({ id: `pinned_${n.dataset.notice}`, title: n.dataset.title }));
+  const recent = posts.filter((p) => p.by !== me.email && dayKey(p.at.toDate(), PH_TZ) >= since).map((p) => ({ id: p.id, title: p.title }));
+  return [...recent, ...pinned].filter((n) => !seen.has(n.id));
+}
 
 function showGreeting(today) {
   if (!me) return;
   const key = `cloversva.greeted.${today}`;
-  try { if (localStorage.getItem(key)) return; } catch { /* private mode: show it */ }
+  let greeted = false;
+  try { greeted = Boolean(localStorage.getItem(key)); } catch { /* private mode: show it */ }
   const lines = [];
-  const mine = today.slice(5) === myBirthday || birthdays.some((b) => b.email === me.email && b.monthDay === today.slice(5));
-  if (mine) lines.push(`Happy birthday, ${me.name}! The whole CloversVA team wishes you a wonderful day.`);
-  const others = birthdays.filter((b) => b.monthDay === today.slice(5) && b.email !== me.email).map((b) => b.name);
-  if (others.length) lines.push(`Today is ${joinNames(others)}'s birthday!`);
-  const todays = holidays.filter((x) => x.day === today);
-  for (const h of todays) lines.push(`Happy ${h.name}! Today is a ${COUNTRY[h.country]} holiday.`);
+  let greet = false;
+  if (!greeted) {
+    const mine = today.slice(5) === myBirthday || birthdays.some((b) => b.email === me.email && b.monthDay === today.slice(5));
+    if (mine) lines.push(`Happy birthday, ${me.name}! The whole CloversVA team wishes you a wonderful day.`);
+    const others = birthdays.filter((b) => b.monthDay === today.slice(5) && b.email !== me.email).map((b) => b.name);
+    if (others.length) lines.push(`Today is ${joinNames(others)}'s birthday!`);
+    const todays = holidays.filter((x) => x.day === today);
+    for (const h of todays) lines.push(`Happy ${h.name}! Today is a ${COUNTRY[h.country]} holiday.`);
+    greet = others.length > 0 || todays.length > 0;
+  }
+  const fresh = unseenAnnouncements(today);
+  $('boardCount').textContent = String(fresh.length);
+  show('boardCount', fresh.length > 0);
+  if (fresh.length === 1) lines.push(`New announcement: "${fresh[0].title}".`);
+  else if (fresh.length > 1) lines.push(`${fresh.length} new announcements, including "${fresh[0].title}".`);
   if (!lines.length) { show('banner', false); return; }
-  if (others.length || todays.length) lines.push('Send your greetings on the Announcements board.');
+  if (greet) lines.push('Send your greetings on the Announcements board.');
   $('bannerText').textContent = lines.join(' ');
+  $('bannerGo').textContent = fresh.length ? 'View announcements' : 'Send a greeting';
   show('banner');
   const close = () => {
-    show('banner', false);
     try { localStorage.setItem(key, '1'); } catch { /* fine */ }
+    markSeen(fresh);
+    showGreeting(today);
   };
   $('bannerClose').onclick = close;
   $('bannerGo').onclick = () => { document.querySelector('[data-view="board"]').click(); close(); };
 }
+
+// Opening the Announcements tab counts as reading what's there.
+document.querySelector('[data-view="board"]').addEventListener('click', () => {
+  if (!me) return;
+  const today = dayKey(new Date(), PH_TZ);
+  markSeen(unseenAnnouncements(today));
+  showGreeting(today);
+});
 
 const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
 

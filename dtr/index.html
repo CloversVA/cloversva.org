@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=15">
-  <script type="module" src="app.js?v=15"></script>
+  <script type="module" src="app.js?v=16"></script>
 </head>
 <body>
   <header class="topbar">
@@ -25,7 +25,7 @@
     <div id="banner" class="banner" role="status" hidden>
       <img src="../images/clover-icon.png" alt=""><p id="bannerText"></p>
       <button id="bannerGo" class="primary">Send a greeting</button>
-      <button id="bannerClose" class="link" aria-label="Close greeting">Close</button>
+      <button id="bannerClose" class="link" aria-label="Close">Close</button>
     </div>
 
     <section id="signin" class="card center narrow" hidden>
@@ -64,7 +64,7 @@
     <div id="shell" class="shell" hidden>
       <nav class="sidenav" aria-label="Sections">
         <div class="nav-title">Information</div>
-        <button data-view="board">Announcements</button>
+        <button data-view="board">Announcements<span id="boardCount" class="badge" hidden></span></button>
         <button data-view="clock" aria-current="page">Time clock</button>
         <button data-view="leave">Leave &amp; absence</button>
         <button data-view="payslips">My payslips</button>
@@ -164,7 +164,8 @@
             <h2>Birthdays and holidays</h2>
             <div id="celebrations"></div>
           </div>
-          <div class="card">
+          <!-- Pinned cards with data-notice show a "new announcement" alert at sign-in for NEW_DAYS days (see board.js). -->
+          <div class="card" data-notice="welcome-margarita" data-date="2026-11-02" data-title="Welcome to the team, Ms. Margarita Khassandra!">
             <h2>Welcome to the team, Ms. Margarita Khassandra!</h2>
             <img class="board-poster" src="../images/welcome-margarita.jpg" alt="Welcome to our team! Ms. Margarita Khassandra, Team Trust. So glad you're here!" loading="lazy">
             <p>Good evening, team!</p>
