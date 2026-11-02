@@ -1,6 +1,6 @@
 // Printable documents (payslip, invoice, certificate, timesheet), opened in a new tab where
 // the browser's "Save as PDF" turns them into files. Every value goes through esc().
-import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=12';
+import { dayKey, esc, formatHM, formatPhp, formatUsd, hmFromHours, round2, round3 } from './report.js?v=13';
 
 export const COMPANY = {
   legalName: 'Clovers Virtual Assistance Services',
@@ -96,6 +96,31 @@ ${bank ? `<table class="meta">
   <tr><td>Account name</td><td>: ${esc(bank.accountName)}</td></tr>
   <tr><td>Account number</td><td>: ${esc(masked(bank.accountNumber))}</td></tr>
 </table>` : '<p>No bank details on file yet.</p>'}
+${footer}`);
+}
+
+// The client's copy of one payslip: the VA's hours day by day at their USD billing rate. Never shows PHP pay or bank details.
+// slip: payslip doc data; usdRate: the VA's current USD rate.
+export function clientPayrollHtml(slip, usdRate) {
+  const amount = round3(slip.hours * usdRate);
+  return page(`Hours ${slip.periodStart} ${slip.name}`, `
+<img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
+<h1>STATEMENT OF HOURS</h1>
+<table class="meta">
+  <tr><td class="label">VA</td><td>${esc(slip.name)}</td><td class="label">Pay period</td><td>${esc(periodText(slip.periodStart, slip.periodEnd))}</td></tr>
+  <tr><td class="label">Position</td><td>${esc(slip.position || '-')}</td><td class="label">Client</td><td>${esc(slip.clientName || '-')}</td></tr>
+</table>
+<table class="grid">
+  <thead><tr><th>Description</th><th class="num">Hours</th><th class="num">Rate (USD/hr)</th><th class="num">Amount (USD)</th></tr></thead>
+  <tbody><tr><td>Virtual assistance services${slip.clientName ? ` for ${esc(slip.clientName)}` : ''}</td>
+    <td class="num">${slip.hours.toFixed(2)}</td><td class="num">${esc(formatUsd(usdRate))}</td><td class="num">${esc(formatUsd(amount))}</td></tr></tbody>
+  <tfoot><tr><td>TOTAL</td><td class="num">${slip.hours.toFixed(2)}</td><td></td><td class="num">${esc(formatUsd(amount))}</td></tr></tfoot>
+</table>
+${slip.days?.length ? `<p class="label">Daily hours (Eastern Time)</p>
+<table class="grid">
+  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th class="num">Hours (decimal)</th></tr></thead>
+  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td><td class="num">${x.hours.toFixed(2)}</td></tr>`).join('')}</tbody>
+</table>` : ''}
 ${footer}`);
 }
 

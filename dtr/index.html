@@ -7,8 +7,8 @@
   <link rel="icon" href="../images/clover-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=12">
-  <script type="module" src="app.js?v=12"></script>
+  <link rel="stylesheet" href="style.css?v=13">
+  <script type="module" src="app.js?v=13"></script>
 </head>
 <body>
   <header class="topbar">
@@ -169,7 +169,8 @@
             <form id="postForm" class="stack narrow-form">
               <label>Title <input id="postTitle" maxlength="120" required></label>
               <label>Message <textarea id="postBody" maxlength="2000" rows="3"></textarea></label>
-              <div class="row"><button class="primary">Post</button></div>
+              <label>Photo or video (optional, up to 15 MB) <input id="postMedia" type="file" accept="image/*,video/*"></label>
+              <div class="row"><button class="primary">Post</button><span id="postNote" class="muted" role="status"></span></div>
             </form>
           </div>
           <div class="card">
@@ -303,6 +304,7 @@
               <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate.</li>
               <li>Check each row (<b>Daily hours</b> shows the breakdown), fix a rate if needed, then pay the VA using the bank details shown.</li>
               <li>Click <b>Mark paid</b>. The payslip locks and the VA sees it as paid.</li>
+              <li>PDFs: <b>VA payslip (PHP)</b> is for the VA. <b>Client copy (USD)</b> shows the same hours day by day at the VA's USD rate, for the client. For one summary per client, use Client invoices.</li>
             </ol>
             <form id="payForm" class="row">
               <label>Pay period <select id="payPeriod"></select></label>
@@ -310,7 +312,7 @@
             </form>
             <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
             <div class="scroll"><table>
-              <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th>Bank</th><th></th></tr></thead>
+              <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th>Bank</th></tr></thead>
               <tbody id="payRows"></tbody>
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>

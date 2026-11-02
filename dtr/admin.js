@@ -2,19 +2,19 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=12';
-import { setFileAudience, startAdminFiles } from './files.js?v=12';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=13';
+import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
-} from './report.js?v=12';
-import { refreshLeave, startAdminRequests } from './requests.js?v=12';
+} from './report.js?v=13';
+import { refreshLeave, startAdminRequests } from './requests.js?v=13';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
-} from './ui.js?v=12';
+} from './ui.js?v=13';
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
@@ -420,22 +420,30 @@ function payrollRow(slip, bank) {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
-  const pdf = el('button', { textContent: 'Payslip PDF' });
+  const pdf = el('button', { textContent: 'VA payslip (PHP)', title: "The VA's payslip at their PHP pay rate" });
   pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank));
+  const clientPdf = el('button', { textContent: 'Client copy (USD)', title: "Day-by-day hours at the VA's USD billing rate, for the client" });
+  clientPdf.onclick = () => {
+    const usdRate = vas.get(slip.email)?.usdRate;
+    if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (VAs > Edit).`); return; }
+    openDocument(clientPayrollHtml(slip, usdRate));
+  };
 
   const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
 
   // Day-by-day hours, shown under the row on request.
-  const daysRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 8 }, slip.days?.length
+  const daysRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 7 }, slip.days?.length
     ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)} (${x.hours.toFixed(2)} h)` })))
     : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" to add it.' })));
   const daily = el('button', { textContent: 'Daily hours' });
   daily.onclick = () => { daysRow.hidden = !daysRow.hidden; };
 
-  const row = el('tr', {}, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)), cell(rate), amount,
-    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })), cell(daily, ' ', save, ' ', recalc, ' ', paid, ' ', pdf, ' ', remove));
-  return [row, daysRow];
+  const row = el('tr', { className: 'pay-main' }, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)), cell(rate), amount,
+    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })));
+  // The buttons get their own line under the payslip so the table fits without scrolling sideways.
+  const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 7 }, daily, ' ', save, ' ', recalc, ' ', paid, ' ', pdf, ' ', clientPdf, ' ', remove));
+  return [row, actions, daysRow];
 }
 
 async function saveSlip(slip) {

@@ -1,11 +1,11 @@
 // Announcement board: admin posts, today's birthdays and holidays for everyone, comments on every post,
 // upcoming PH/US holidays and birthdays, and the login greeting banner.
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { db } from './firebase.js?v=2';
-import { addDays, dayKey, nextOccurrence } from './report.js?v=12';
-import { $, cell, el, fmt, fmtDay, show, showError } from './ui.js?v=12';
+import { addDays, dayKey, nextOccurrence } from './report.js?v=13';
+import { $, cell, el, fmt, fmtDay, show, showError } from './ui.js?v=13';
 
 const UPCOMING_DAYS = 45;
 // Birthday and holiday posts stay on the board this many days, so late greetings still land.
@@ -105,8 +105,8 @@ function renderFeed() {
   $('celebrations').replaceChildren(...party);
   const cards = posts.map((p) => {
     const remove = admin ? el('button', { className: 'link', textContent: 'Delete' }) : null;
-    if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p.id).catch(showError);
-    return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, remove });
+    if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p).catch(showError);
+    return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, media: p.media, remove });
   });
   show('postsEmpty', cards.length === 0);
   $('posts').replaceChildren(...cards);
@@ -119,10 +119,12 @@ const threads = new Map(); // thread id -> { node, head, list, count }
 
 const avatar = (name) => el('span', { className: 'avatar', textContent: (name || '?').trim().charAt(0).toUpperCase(), ariaHidden: 'true' });
 
-function postCard(id, { className = '', icon, author, when, title, body, remove }) {
+function postCard(id, { className = '', icon, author, when, title, body, media, remove }) {
   let t = threads.get(id);
   if (!t) {
     const head = el('div');
+    // Built once, so a playing video keeps playing when the board redraws.
+    const mediaNode = media ? mediaBlock(id, media) : null;
     const count = el('p', { className: 'muted comment-count' });
     const list = el('ul', { className: 'comments' });
     const input = el('input', { maxLength: 500, required: true, placeholder: 'Write a comment...', autocomplete: 'off' });
@@ -138,7 +140,7 @@ function postCard(id, { className = '', icon, author, when, title, body, remove 
         input.value = '';
       } catch (err) { showError(err); } finally { send.disabled = false; }
     };
-    t = { node: el('article', { className: `post ${className}` }, head, count, list, form), head, list, count, input };
+    t = { node: el('article', { className: `post ${className}` }, head, mediaNode, count, list, form), head, list, count, input };
     threads.set(id, t);
   }
   t.input.ariaLabel = `Comment on ${title}`;
@@ -146,7 +148,7 @@ function postCard(id, { className = '', icon, author, when, title, body, remove 
     el('div', { className: 'post-by' }, icon ? el('span', { className: 'avatar icon', textContent: icon, ariaHidden: 'true' }) : avatar(author),
       el('div', {}, el('strong', { textContent: author }), el('div', { className: 'muted small' }, when, remove ? ' · ' : null, remove))),
     el('h3', { textContent: title }),
-    body ? el('p', { textContent: body }) : null,
+    ...(body ? [el('p', { textContent: body })] : []),
   );
   renderComments(id);
   return t.node;
@@ -168,13 +170,100 @@ function renderComments(id) {
   }));
 }
 
-// Deleting an announcement takes its comments with it.
-async function deletePost(id) {
-  const snap = await getDocs(query(collection(db, 'comments'), where('thread', '==', id)));
+// Deleting an announcement takes its comments and its photo or video with it.
+async function deletePost(p) {
+  const snap = await getDocs(query(collection(db, 'comments'), where('thread', '==', p.id)));
   const b = writeBatch(db);
   for (const d of snap.docs) b.delete(d.ref);
-  b.delete(doc(db, 'announcements', id));
+  for (let i = 0; i < (p.media?.chunks ?? 0); i += 1) b.delete(doc(db, 'announcementMedia', `${p.id}_${i}`));
+  b.delete(doc(db, 'announcements', p.id));
   await b.commit();
+}
+
+// ---------- Photos and videos on posts ----------
+
+// The free plan has no file storage, so a file is split into pieces small enough for one database record each
+// (base64 makes each piece 4/3 bigger, staying under the 1 MB record limit).
+const MEDIA_MAX_MB = 15;
+const CHUNK_BYTES = 675_000;
+const mediaUrls = new Map(); // post id -> Promise of a blob: URL
+
+function loadMedia(id, media) {
+  if (!mediaUrls.has(id)) {
+    const parts = Array.from({ length: media.chunks }, async (_, i) => {
+      const snap = await getDoc(doc(db, 'announcementMedia', `${id}_${i}`));
+      if (!snap.exists()) throw new Error('Part of this file is missing. Ask an admin to post it again.');
+      return (await fetch(`data:${media.mime};base64,${snap.data().data}`)).blob();
+    });
+    const url = Promise.all(parts).then((blobs) => URL.createObjectURL(new Blob(blobs, { type: media.mime })));
+    url.catch(() => mediaUrls.delete(id));
+    mediaUrls.set(id, url);
+  }
+  return mediaUrls.get(id);
+}
+
+// Photos load right away. Videos show their first frame and only download when someone presses play.
+function mediaBlock(id, media) {
+  if (media.kind === 'image') {
+    const img = el('img', { className: 'post-media', alt: '' });
+    loadMedia(id, media).then((url) => { img.src = url; }).catch(showError);
+    return img;
+  }
+  const play = el('button', { className: 'play', textContent: '\u25B6 Play video' });
+  const box = el('div', { className: 'post-media post-video' },
+    media.poster ? el('img', { src: media.poster, alt: '' }) : null, play);
+  play.onclick = async () => {
+    play.disabled = true;
+    play.textContent = 'Loading...';
+    try {
+      const video = el('video', { className: 'post-media', controls: true, playsInline: true, src: await loadMedia(id, media) });
+      box.replaceWith(video);
+      video.play().catch(() => {});
+    } catch (err) { play.disabled = false; play.textContent = '\u25B6 Play video'; showError(err); }
+  };
+  return box;
+}
+
+const base64Of = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(r.result.slice(r.result.indexOf(',') + 1));
+  r.onerror = () => reject(new Error('That file could not be read.'));
+  r.readAsDataURL(blob);
+});
+
+// A small still from about a second in, shown before the video is played. Null if the browser can't read the video.
+function videoPoster(file) {
+  return new Promise((resolve) => {
+    const video = el('video', { muted: true, preload: 'auto', src: URL.createObjectURL(file) });
+    const done = (result) => { URL.revokeObjectURL(video.src); resolve(result); };
+    setTimeout(() => done(null), 8000);
+    video.onerror = () => done(null);
+    video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration / 2 || 0); };
+    video.onseeked = () => {
+      const scale = Math.min(1, 640 / video.videoWidth);
+      const canvas = el('canvas', { width: Math.round(video.videoWidth * scale), height: Math.round(video.videoHeight * scale) });
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      done(canvas.toDataURL('image/jpeg', 0.7));
+    };
+  });
+}
+
+// Saves the pieces first, so nobody sees a post whose file is still uploading.
+async function uploadMedia(postId, file) {
+  const kind = file.type.startsWith('video/') ? 'video' : 'image';
+  const chunks = Math.ceil(file.size / CHUNK_BYTES);
+  try {
+    for (let i = 0; i < chunks; i += 1) {
+      $('postNote').textContent = `Uploading ${Math.round((i / chunks) * 100)}%...`;
+      const data = await base64Of(file.slice(i * CHUNK_BYTES, (i + 1) * CHUNK_BYTES));
+      await setDoc(doc(db, 'announcementMedia', `${postId}_${i}`), { post: postId, i, data });
+    }
+  } catch (err) {
+    for (let i = 0; i < chunks; i += 1) deleteDoc(doc(db, 'announcementMedia', `${postId}_${i}`)).catch(() => {});
+    throw err;
+  }
+  const poster = kind === 'video' ? await videoPoster(file) : null;
+  return { kind, mime: file.type, name: file.name.slice(0, 200), size: file.size, chunks, poster };
 }
 
 // ---------- Greeting banner ----------
@@ -212,12 +301,22 @@ const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice
 
 $('postForm').onsubmit = async (e) => {
   e.preventDefault();
+  const file = $('postMedia').files[0];
+  if (file && !/^(image|video)\//.test(file.type)) { $('postNote').textContent = 'Choose a photo or a video file.'; return; }
+  if (file && file.size > MEDIA_MAX_MB * 1024 * 1024) {
+    $('postNote').textContent = `That file is ${(file.size / 1048576).toFixed(1)} MB. The limit is ${MEDIA_MAX_MB} MB; trim or compress it and try again.`;
+    return;
+  }
+  const button = e.target.querySelector('button');
+  button.disabled = true;
   try {
-    await addDoc(collection(db, 'announcements'), {
-      title: $('postTitle').value.trim(), body: $('postBody').value.trim(), by: me.email, byName: me.name, at: serverTimestamp(),
-    });
+    const ref = doc(collection(db, 'announcements'));
+    const post = { title: $('postTitle').value.trim(), body: $('postBody').value.trim(), by: me.email, byName: me.name, at: serverTimestamp() };
+    if (file) post.media = await uploadMedia(ref.id, file);
+    await setDoc(ref, post);
     e.target.reset();
-  } catch (err) { showError(err); }
+    $('postNote').textContent = 'Posted.';
+  } catch (err) { $('postNote').textContent = ''; showError(err); } finally { button.disabled = false; }
 };
 
 function renderHolidayAdmin() {
