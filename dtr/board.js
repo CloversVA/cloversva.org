@@ -1,5 +1,5 @@
-// Announcement board: admin posts, today's birthdays and holidays for everyone, comments on every post,
-// the public greetings wall, upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
+// Announcement board: admin posts with emoji reactions, today's birthdays and holidays for everyone, comments on every post,
+// upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
@@ -10,7 +10,7 @@ import { $, cell, downloadBlob, el, fmt, fmtDay, show, showError } from './ui.js
 const UPCOMING_DAYS = 45;
 // Birthday and holiday posts stay on the board this many days, so late greetings still land.
 const CELEBRATION_DAYS = 3;
-const COMMENTS_SHOWN = 500;
+const COMMENTS_SHOWN = 1500; // messages and emoji reactions together
 const FLAG = { PH: 'PH', US: 'US' };
 const COUNTRY = { PH: 'Philippine', US: 'US' };
 // Greetings follow the Philippine calendar, where the VAs are.
@@ -50,13 +50,11 @@ export function startBoard(signedIn, track, isAdmin) {
       comments.set(c.thread, [...(comments.get(c.thread) ?? []), c]);
     }
     for (const id of threads.keys()) renderComments(id);
-    renderWall();
   }, (err) => {
     // Until the database rules allow comments, hide them instead of showing everyone an error.
     if (err?.code !== 'permission-denied') { showError(err); return; }
     console.warn('Comments are not allowed by the database rules yet.', err);
     document.body.classList.add('no-comments');
-    show('wallOff');
   }));
 }
 
@@ -125,7 +123,7 @@ const avatar = (name) => el('span', { className: 'avatar', textContent: (name ||
 const EMOJIS = ['😀', '😊', '😂', '🥰', '😍', '🤗', '😎', '🥳', '😢', '🙏', '👏', '👍', '👋', '💪', '🙌', '❤️', '💚', '🍀', '🎉', '🎂', '🎁', '🌟', '🔥', '✨', '💐', '☕', '✅', '💯'];
 
 // An emoji button that opens a small grid; picking one types it into the message where the cursor is.
-export function emojiPicker(input) {
+function emojiPicker(input) {
   const grid = el('div', { className: 'emoji-grid', role: 'menu', hidden: true });
   const toggle = el('button', { type: 'button', className: 'emoji-toggle', textContent: '😊', title: 'Add an emoji', ariaLabel: 'Add an emoji' });
   const close = () => { grid.hidden = true; document.removeEventListener('click', outside); };
@@ -150,6 +148,65 @@ export function emojiPicker(input) {
   return box;
 }
 
+// ---------- Emoji reactions ----------
+
+// Everyone can react to any post with one emoji (pick another to change it, tap yours again to remove it).
+// Reactions are saved as comments on a separate "react_<post id>" thread, so they need no extra database rules.
+const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🙏', '🍀', '💚'];
+const reactThread = (id) => `react_${id}`;
+
+function reactionBar(id) {
+  const chips = el('div', { className: 'reaction-chips' });
+  const grid = el('div', { className: 'reaction-grid', role: 'menu', hidden: true });
+  const add = el('button', { type: 'button', className: 'reaction-add', textContent: '🙂 React', ariaLabel: 'Add a reaction' });
+  const box = el('div', { className: 'reaction-pick' }, add, grid);
+  const close = () => { grid.hidden = true; document.removeEventListener('click', outside); };
+  const outside = (e) => { if (!box.contains(e.target)) close(); };
+  for (const emoji of REACTIONS) {
+    const b = el('button', { type: 'button', textContent: emoji, ariaLabel: `React with ${emoji}`, role: 'menuitem' });
+    b.onclick = () => { close(); react(id, emoji); };
+    grid.append(b);
+  }
+  add.onclick = () => {
+    if (!grid.hidden) { close(); return; }
+    grid.hidden = false;
+    setTimeout(() => document.addEventListener('click', outside));
+  };
+  return { reactions: el('div', { className: 'reactions' }, chips, box), chips };
+}
+
+const busy = new Set(); // posts with a reaction being saved, so double taps don't add two
+async function react(id, emoji) {
+  if (busy.has(id)) return;
+  busy.add(id);
+  try {
+    const mine = (comments.get(reactThread(id)) ?? []).filter((c) => c.email === me.email);
+    await Promise.all(mine.map((c) => deleteDoc(doc(db, 'comments', c.id))));
+    // Tapping the emoji you already picked just takes your reaction off.
+    if (!mine.some((c) => c.text === emoji)) {
+      await addDoc(collection(db, 'comments'), { thread: reactThread(id), email: me.email, name: me.name, text: emoji, at: serverTimestamp() });
+    }
+  } catch (err) { showError(err); } finally { busy.delete(id); }
+}
+
+const namesLabel = (names) => (names.length <= 6 ? joinNames(names) : `${names.slice(0, 5).join(', ')} and ${names.length - 5} others`);
+
+function renderReactions(id) {
+  const t = threads.get(id);
+  const byEmoji = new Map();
+  for (const c of comments.get(reactThread(id)) ?? []) byEmoji.set(c.text, [...(byEmoji.get(c.text) ?? []), c]);
+  t.chips.replaceChildren(...[...byEmoji].sort((a, b) => b[1].length - a[1].length).map(([emoji, list]) => {
+    const mine = list.some((c) => c.email === me.email);
+    const names = list.map((c) => (c.email === me.email ? 'You' : c.name));
+    const chip = el('button', {
+      type: 'button', className: `reaction-chip${mine ? ' mine' : ''}`, title: `${namesLabel(names)} reacted ${emoji}`,
+      ariaLabel: `${emoji} ${list.length}, ${mine ? 'including you. Tap to remove yours' : 'tap to react the same'}`,
+    }, el('span', { textContent: emoji, ariaHidden: 'true' }), el('span', { textContent: String(list.length), ariaHidden: 'true' }));
+    chip.onclick = () => react(id, emoji);
+    return chip;
+  }));
+}
+
 // The message list and "Write a message" box under a post, saved as comments on that post's thread.
 function threadParts(id) {
   const count = el('p', { className: 'muted comment-count' });
@@ -167,7 +224,7 @@ function threadParts(id) {
       input.value = '';
     } catch (err) { showError(err); } finally { send.disabled = false; }
   };
-  return { count, list, form, input };
+  return { ...reactionBar(id), count, list, form, input };
 }
 
 function postCard(id, { className = '', icon, author, when, title, body, media, remove }) {
@@ -177,7 +234,7 @@ function postCard(id, { className = '', icon, author, when, title, body, media, 
     // Built once, so a playing video keeps playing when the board redraws.
     const mediaNode = media ? mediaBlock(id, media) : null;
     const parts = threadParts(id);
-    t = { node: el('article', { className: `post ${className}` }, head, mediaNode, parts.count, parts.list, parts.form), head, ...parts };
+    t = { node: el('article', { className: `post ${className}` }, head, mediaNode, parts.reactions, parts.count, parts.list, parts.form), head, ...parts };
     threads.set(id, t);
   }
   t.input.ariaLabel = `Message on ${title}`;
@@ -198,7 +255,7 @@ function addPinnedThreads() {
     if (threads.has(id)) continue;
     const parts = threadParts(id);
     parts.input.ariaLabel = `Message on ${card.dataset.title}`;
-    card.append(parts.count, parts.list, parts.form);
+    card.append(parts.reactions, parts.count, parts.list, parts.form);
     threads.set(id, { node: card, ...parts });
     renderComments(id);
   }
@@ -206,6 +263,7 @@ function addPinnedThreads() {
 
 function renderComments(id) {
   const t = threads.get(id);
+  renderReactions(id);
   const list = comments.get(id) ?? [];
   t.count.textContent = list.length ? `${list.length} message${list.length === 1 ? '' : 's'}` : '';
   t.list.replaceChildren(...list.map((c) => {
@@ -220,9 +278,9 @@ function renderComments(id) {
   }));
 }
 
-// Deleting an announcement takes its comments and its attached photo, video or file with it.
+// Deleting an announcement takes its comments, reactions and attached photo, video or file with it.
 async function deletePost(p) {
-  const snap = await getDocs(query(collection(db, 'comments'), where('thread', '==', p.id)));
+  const snap = await getDocs(query(collection(db, 'comments'), where('thread', 'in', [p.id, reactThread(p.id)])));
   const b = writeBatch(db);
   for (const d of snap.docs) b.delete(d.ref);
   for (let i = 0; i < (p.media?.chunks ?? 0); i += 1) b.delete(doc(db, 'announcementMedia', `${p.id}_${i}`));
@@ -402,40 +460,6 @@ document.querySelector('[data-view="board"]').addEventListener('click', () => {
 });
 
 const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
-
-// ---------- Greetings wall ----------
-
-// A public wall everyone can post greetings to, newest first. Saved as comments on the "wall" thread.
-const WALL = 'wall';
-$('wallForm').insertBefore(emojiPicker($('wallText')), $('wallSend'));
-
-function renderWall() {
-  const list = [...(comments.get(WALL) ?? [])].reverse();
-  show('wallEmpty', list.length === 0);
-  $('wallList').replaceChildren(...list.map((c) => {
-    let remove = null;
-    if (admin || c.email === me.email) {
-      remove = el('button', { className: 'link', textContent: 'Delete' });
-      remove.onclick = () => confirm('Delete this greeting?') && deleteDoc(doc(db, 'comments', c.id)).catch(showError);
-    }
-    return el('li', { className: 'wall-note' },
-      el('div', { className: 'post-by' }, avatar(c.name),
-        el('div', {}, el('strong', { textContent: c.email === me.email ? `${c.name} (you)` : c.name }),
-          el('div', { className: 'muted small' }, fmt(c.at.toDate()), remove ? ' · ' : null, remove))),
-      el('p', { textContent: c.text }));
-  }));
-}
-
-$('wallForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const text = $('wallText').value.trim();
-  if (!text) return;
-  $('wallSend').disabled = true;
-  try {
-    await addDoc(collection(db, 'comments'), { thread: WALL, email: me.email, name: me.name, text, at: serverTimestamp() });
-    $('wallText').value = '';
-  } catch (err) { showError(err); } finally { $('wallSend').disabled = false; }
-};
 
 // ---------- Admin ----------
 
