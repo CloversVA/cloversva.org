@@ -452,7 +452,7 @@ function showGreeting(today) {
   if (fresh.length === 1) lines.push(`New announcement: "${fresh[0].title}".`);
   else if (fresh.length > 1) lines.push(`${fresh.length} new announcements, including "${fresh[0].title}".`);
   if (!lines.length) { show('banner', false); return; }
-  if (greet) lines.push('Send your greetings on the Announcements board.');
+  if (greet) lines.push('Send your greetings on the Announcement Wall.');
   $('bannerText').textContent = lines.join(' ');
   $('bannerGo').textContent = fresh.length ? 'View announcements' : 'Send a greeting';
   show('banner');
@@ -465,7 +465,7 @@ function showGreeting(today) {
   $('bannerGo').onclick = () => { document.querySelector('[data-view="board"]').click(); close(); };
 }
 
-// Opening the Announcements tab counts as reading what's there.
+// Opening the Announcement Wall tab counts as reading what's there.
 document.querySelector('[data-view="board"]').addEventListener('click', () => {
   if (!me) return;
   const today = dayKey(new Date(), PH_TZ);
