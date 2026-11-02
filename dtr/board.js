@@ -155,10 +155,16 @@ function emojiPicker(input) {
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🙏', '🍀', '💚'];
 const reactThread = (id) => `react_${id}`;
 
+// One compact summary per post ("❤️🎉👏 12"); tapping it lists each emoji with its count and who reacted.
 function reactionBar(id) {
-  const chips = el('div', { className: 'reaction-chips' });
+  const summary = el('button', { type: 'button', className: 'reaction-summary', hidden: true });
+  const details = el('ul', { className: 'reaction-details', hidden: true });
+  summary.onclick = () => {
+    details.hidden = !details.hidden;
+    summary.ariaExpanded = String(!details.hidden);
+  };
   const grid = el('div', { className: 'reaction-grid', role: 'menu', hidden: true });
-  const add = el('button', { type: 'button', className: 'reaction-add', textContent: '🙂 React', ariaLabel: 'Add a reaction' });
+  const add = el('button', { type: 'button', className: 'reaction-add', textContent: '🙂 React' });
   const box = el('div', { className: 'reaction-pick' }, add, grid);
   const close = () => { grid.hidden = true; document.removeEventListener('click', outside); };
   const outside = (e) => { if (!box.contains(e.target)) close(); };
@@ -172,7 +178,7 @@ function reactionBar(id) {
     grid.hidden = false;
     setTimeout(() => document.addEventListener('click', outside));
   };
-  return { reactions: el('div', { className: 'reactions' }, chips, box), chips };
+  return { reactions: el('div', { className: 'reactions-wrap' }, el('div', { className: 'reactions' }, box, summary), details), summary, details, add, grid };
 }
 
 const busy = new Set(); // posts with a reaction being saved, so double taps don't add two
@@ -189,22 +195,30 @@ async function react(id, emoji) {
   } catch (err) { showError(err); } finally { busy.delete(id); }
 }
 
-const namesLabel = (names) => (names.length <= 6 ? joinNames(names) : `${names.slice(0, 5).join(', ')} and ${names.length - 5} others`);
-
 function renderReactions(id) {
   const t = threads.get(id);
+  const all = comments.get(reactThread(id)) ?? [];
   const byEmoji = new Map();
-  for (const c of comments.get(reactThread(id)) ?? []) byEmoji.set(c.text, [...(byEmoji.get(c.text) ?? []), c]);
-  t.chips.replaceChildren(...[...byEmoji].sort((a, b) => b[1].length - a[1].length).map(([emoji, list]) => {
-    const mine = list.some((c) => c.email === me.email);
-    const names = list.map((c) => (c.email === me.email ? 'You' : c.name));
-    const chip = el('button', {
-      type: 'button', className: `reaction-chip${mine ? ' mine' : ''}`, title: `${namesLabel(names)} reacted ${emoji}`,
-      ariaLabel: `${emoji} ${list.length}, ${mine ? 'including you. Tap to remove yours' : 'tap to react the same'}`,
-    }, el('span', { textContent: emoji, ariaHidden: 'true' }), el('span', { textContent: String(list.length), ariaHidden: 'true' }));
-    chip.onclick = () => react(id, emoji);
-    return chip;
-  }));
+  for (const c of all) byEmoji.set(c.text, [...(byEmoji.get(c.text) ?? []), c]);
+  const ranked = [...byEmoji].sort((a, b) => b[1].length - a[1].length);
+  const mine = all.find((c) => c.email === me.email);
+
+  // Your own reaction shows on the button; pick it again to take it off.
+  t.add.textContent = mine ? `${mine.text} Reacted` : '🙂 React';
+  t.add.classList.toggle('mine', Boolean(mine));
+  t.add.ariaLabel = mine ? `You reacted ${mine.text}. Change or remove your reaction` : 'Add a reaction';
+  for (const b of t.grid.children) b.classList.toggle('mine', b.textContent === mine?.text);
+
+  t.summary.hidden = all.length === 0;
+  if (!all.length) t.details.hidden = true;
+  const total = all.length === 1 ? '1 reaction' : `${all.length} reactions`;
+  t.summary.replaceChildren(el('span', { className: 'reaction-icons', textContent: ranked.slice(0, 3).map(([e]) => e).join(''), ariaHidden: 'true' }),
+    el('span', { textContent: String(all.length), ariaHidden: 'true' }));
+  t.summary.ariaLabel = `${total}. Show who reacted`;
+  t.summary.title = total;
+  t.details.replaceChildren(...ranked.map(([emoji, list]) => el('li', {},
+    el('span', { className: 'reaction-row-emoji', textContent: `${emoji} ${list.length}` }),
+    el('span', { className: 'muted', textContent: joinNames(list.map((c) => (c.email === me.email ? 'You' : c.name))) }))));
 }
 
 // The message list and "Write a message" box under a post, saved as comments on that post's thread.

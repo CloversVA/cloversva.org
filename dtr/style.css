@@ -193,18 +193,23 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 .emoji-grid[hidden] { display: none; }
 .emoji-grid button { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; font-size: 1.25rem; }
 .emoji-grid button:hover, .emoji-grid button:focus-visible { background: var(--line); }
-.reactions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
-.reaction-chips { display: contents; }
-.reaction-chip { display: inline-flex; gap: 5px; align-items: center; border-radius: 999px; padding: 3px 10px; font-size: .95rem; background: var(--card); }
-.reaction-chip.mine { background: var(--leaf-soft); border-color: var(--leaf); font-weight: 700; }
+.reactions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+.reaction-summary { display: inline-flex; gap: 6px; align-items: center; border: 0; padding: 2px 4px; background: transparent; color: var(--muted); font-size: .9rem; }
+.reaction-summary:hover { text-decoration: underline; }
+.reaction-icons { font-size: 1rem; letter-spacing: 1px; }
+.reaction-details { list-style: none; margin: 6px 0 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: .9rem; }
+.reaction-details li { display: flex; gap: 10px; padding: 3px 0; }
+.reaction-row-emoji { flex: none; min-width: 3.2em; font-weight: 600; }
 .reaction-pick { position: relative; }
 .reaction-add { border-radius: 999px; padding: 3px 12px; font-size: .9rem; background: transparent; }
+.reaction-add.mine { background: var(--leaf-soft); border-color: var(--leaf); font-weight: 600; }
 .reaction-grid { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 10; display: flex; gap: 2px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 6px 20px rgb(0 0 0 / .15); }
 .reaction-grid[hidden] { display: none; }
 .reaction-grid button { width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: transparent; font-size: 1.4rem; transition: transform .1s; }
 .reaction-grid button:hover, .reaction-grid button:focus-visible { transform: scale(1.25); background: var(--leaf-soft); }
+.reaction-grid button.mine { background: var(--leaf-mid); }
 @media (max-width: 600px) { .reaction-grid { flex-wrap: wrap; width: 220px; border-radius: 16px; } }
-.no-comments .reactions,
+.no-comments .reactions-wrap,
 .no-comments .comment-form, .no-comments .comments, .no-comments .comment-count { display: none; }
 
 /* Photos, videos and files on posts */
