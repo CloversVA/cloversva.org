@@ -1,5 +1,5 @@
 // Announcement board: admin posts, today's birthdays and holidays for everyone, comments on every post,
-// upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
+// the public greetings wall, upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
@@ -50,11 +50,13 @@ export function startBoard(signedIn, track, isAdmin) {
       comments.set(c.thread, [...(comments.get(c.thread) ?? []), c]);
     }
     for (const id of threads.keys()) renderComments(id);
+    renderWall();
   }, (err) => {
     // Until the database rules allow comments, hide them instead of showing everyone an error.
     if (err?.code !== 'permission-denied') { showError(err); return; }
     console.warn('Comments are not allowed by the database rules yet.', err);
     document.body.classList.add('no-comments');
+    show('wallOff');
   }));
 }
 
@@ -123,7 +125,7 @@ const avatar = (name) => el('span', { className: 'avatar', textContent: (name ||
 const EMOJIS = ['😀', '😊', '😂', '🥰', '😍', '🤗', '😎', '🥳', '😢', '🙏', '👏', '👍', '👋', '💪', '🙌', '❤️', '💚', '🍀', '🎉', '🎂', '🎁', '🌟', '🔥', '✨', '💐', '☕', '✅', '💯'];
 
 // An emoji button that opens a small grid; picking one types it into the message where the cursor is.
-function emojiPicker(input) {
+export function emojiPicker(input) {
   const grid = el('div', { className: 'emoji-grid', role: 'menu', hidden: true });
   const toggle = el('button', { type: 'button', className: 'emoji-toggle', textContent: '😊', title: 'Add an emoji', ariaLabel: 'Add an emoji' });
   const close = () => { grid.hidden = true; document.removeEventListener('click', outside); };
@@ -400,6 +402,40 @@ document.querySelector('[data-view="board"]').addEventListener('click', () => {
 });
 
 const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
+
+// ---------- Greetings wall ----------
+
+// A public wall everyone can post greetings to, newest first. Saved as comments on the "wall" thread.
+const WALL = 'wall';
+$('wallForm').insertBefore(emojiPicker($('wallText')), $('wallSend'));
+
+function renderWall() {
+  const list = [...(comments.get(WALL) ?? [])].reverse();
+  show('wallEmpty', list.length === 0);
+  $('wallList').replaceChildren(...list.map((c) => {
+    let remove = null;
+    if (admin || c.email === me.email) {
+      remove = el('button', { className: 'link', textContent: 'Delete' });
+      remove.onclick = () => confirm('Delete this greeting?') && deleteDoc(doc(db, 'comments', c.id)).catch(showError);
+    }
+    return el('li', { className: 'wall-note' },
+      el('div', { className: 'post-by' }, avatar(c.name),
+        el('div', {}, el('strong', { textContent: c.email === me.email ? `${c.name} (you)` : c.name }),
+          el('div', { className: 'muted small' }, fmt(c.at.toDate()), remove ? ' · ' : null, remove))),
+      el('p', { textContent: c.text }));
+  }));
+}
+
+$('wallForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('wallText').value.trim();
+  if (!text) return;
+  $('wallSend').disabled = true;
+  try {
+    await addDoc(collection(db, 'comments'), { thread: WALL, email: me.email, name: me.name, text, at: serverTimestamp() });
+    $('wallText').value = '';
+  } catch (err) { showError(err); } finally { $('wallSend').disabled = false; }
+};
 
 // ---------- Admin ----------
 

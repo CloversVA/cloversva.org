@@ -5,6 +5,7 @@ import {
 import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=13';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
+import { setInboxPeople } from './inbox.js?v=1';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
@@ -43,6 +44,7 @@ export function startAdmin(signedIn, track) {
     vas = new Map(snap.docs.map((d) => [d.id, { email: d.id, ...d.data() }]));
     renderVas();
     setFileAudience([...vas.values()]);
+    setInboxPeople([...vas.values()]);
     const clients = [...new Set([...vas.values()].map((v) => v.clientName).filter(Boolean))].sort();
     $('clientList').replaceChildren(...clients.map((c) => el('option', { value: c })));
     const current = $('invClient').value;

@@ -5,8 +5,9 @@ import {
 import {
   Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=14';
-import { setMyBirthday, startBoard } from './board.js?v=16';
+import { startAdmin } from './admin.js?v=15';
+import { setMyBirthday, startBoard } from './board.js?v=17';
+import { startInbox } from './inbox.js?v=1';
 import { startVaFiles } from './files.js?v=13';
 import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=13';
 import { coeHtml, payslipHtml } from './docs.js?v=13';
@@ -228,6 +229,7 @@ function startVa() {
   renderMe();
   watchCurrentPeriod();
   startBoard(me, track, me.role === 'admin');
+  startInbox(me, track, me.role === 'admin');
   startVaFiles(me, track);
   startVaRequests(me, track, () => { renderMine(); renderCurrentPeriod(); });
 
