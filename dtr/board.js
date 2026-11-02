@@ -1,5 +1,5 @@
 // Announcement board: admin posts, today's birthdays and holidays for everyone, comments on every post,
-// upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
+// the public greetings wall, upcoming PH/US holidays and birthdays, and the login banner (greetings and new announcements).
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
@@ -26,6 +26,7 @@ const comments = new Map(); // thread id -> [comment], oldest first
 export function startBoard(signedIn, track, isAdmin) {
   me = signedIn;
   admin = isAdmin;
+  addPinnedThreads();
   track(onSnapshot(collection(db, 'announcements'), (snap) => {
     posts = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })).sort((a, b) => b.at.toMillis() - a.at.toMillis());
     renderFeed();
@@ -49,11 +50,13 @@ export function startBoard(signedIn, track, isAdmin) {
       comments.set(c.thread, [...(comments.get(c.thread) ?? []), c]);
     }
     for (const id of threads.keys()) renderComments(id);
+    renderWall();
   }, (err) => {
     // Until the database rules allow comments, hide them instead of showing everyone an error.
     if (err?.code !== 'permission-denied') { showError(err); return; }
     console.warn('Comments are not allowed by the database rules yet.', err);
     document.body.classList.add('no-comments');
+    show('wallOff');
   }));
 }
 
@@ -115,9 +118,57 @@ function renderFeed() {
 // ---------- Posts and comments ----------
 
 // Post cards are kept between redraws so a half-typed comment survives new posts and comments.
-const threads = new Map(); // thread id -> { node, head, list, count }
+const threads = new Map(); // thread id -> { node, head, list, count, input }
 
 const avatar = (name) => el('span', { className: 'avatar', textContent: (name || '?').trim().charAt(0).toUpperCase(), ariaHidden: 'true' });
+
+const EMOJIS = ['😀', '😊', '😂', '🥰', '😍', '🤗', '😎', '🥳', '😢', '🙏', '👏', '👍', '👋', '💪', '🙌', '❤️', '💚', '🍀', '🎉', '🎂', '🎁', '🌟', '🔥', '✨', '💐', '☕', '✅', '💯'];
+
+// An emoji button that opens a small grid; picking one types it into the message where the cursor is.
+export function emojiPicker(input) {
+  const grid = el('div', { className: 'emoji-grid', role: 'menu', hidden: true });
+  const toggle = el('button', { type: 'button', className: 'emoji-toggle', textContent: '😊', title: 'Add an emoji', ariaLabel: 'Add an emoji' });
+  const close = () => { grid.hidden = true; document.removeEventListener('click', outside); };
+  const outside = (e) => { if (!box.contains(e.target)) close(); };
+  for (const emoji of EMOJIS) {
+    const b = el('button', { type: 'button', textContent: emoji, ariaLabel: emoji, role: 'menuitem' });
+    b.onclick = () => {
+      const at = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? at;
+      if (input.value.length - (end - at) + emoji.length > input.maxLength) return;
+      input.setRangeText(emoji, at, end, 'end');
+      input.focus();
+    };
+    grid.append(b);
+  }
+  toggle.onclick = () => {
+    if (!grid.hidden) { close(); return; }
+    grid.hidden = false;
+    setTimeout(() => document.addEventListener('click', outside));
+  };
+  const box = el('div', { className: 'emoji-box' }, toggle, grid);
+  return box;
+}
+
+// The message list and "Write a message" box under a post, saved as comments on that post's thread.
+function threadParts(id) {
+  const count = el('p', { className: 'muted comment-count' });
+  const list = el('ul', { className: 'comments' });
+  const input = el('input', { maxLength: 500, required: true, placeholder: 'Write a message...', autocomplete: 'off' });
+  const send = el('button', { className: 'primary', textContent: 'Send' });
+  const form = el('form', { className: 'comment-form' }, avatar(me.name), input, emojiPicker(input), send);
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    send.disabled = true;
+    try {
+      await addDoc(collection(db, 'comments'), { thread: id, email: me.email, name: me.name, text, at: serverTimestamp() });
+      input.value = '';
+    } catch (err) { showError(err); } finally { send.disabled = false; }
+  };
+  return { count, list, form, input };
+}
 
 function postCard(id, { className = '', icon, author, when, title, body, media, remove }) {
   let t = threads.get(id);
@@ -125,25 +176,11 @@ function postCard(id, { className = '', icon, author, when, title, body, media, 
     const head = el('div');
     // Built once, so a playing video keeps playing when the board redraws.
     const mediaNode = media ? mediaBlock(id, media) : null;
-    const count = el('p', { className: 'muted comment-count' });
-    const list = el('ul', { className: 'comments' });
-    const input = el('input', { maxLength: 500, required: true, placeholder: 'Write a comment...', autocomplete: 'off' });
-    const send = el('button', { className: 'primary', textContent: 'Send' });
-    const form = el('form', { className: 'comment-form' }, avatar(me.name), input, send);
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      send.disabled = true;
-      try {
-        await addDoc(collection(db, 'comments'), { thread: id, email: me.email, name: me.name, text, at: serverTimestamp() });
-        input.value = '';
-      } catch (err) { showError(err); } finally { send.disabled = false; }
-    };
-    t = { node: el('article', { className: `post ${className}` }, head, mediaNode, count, list, form), head, list, count, input };
+    const parts = threadParts(id);
+    t = { node: el('article', { className: `post ${className}` }, head, mediaNode, parts.count, parts.list, parts.form), head, ...parts };
     threads.set(id, t);
   }
-  t.input.ariaLabel = `Comment on ${title}`;
+  t.input.ariaLabel = `Message on ${title}`;
   t.head.replaceChildren(
     el('div', { className: 'post-by' }, icon ? el('span', { className: 'avatar icon', textContent: icon, ariaHidden: 'true' }) : avatar(author),
       el('div', {}, el('strong', { textContent: author }), el('div', { className: 'muted small' }, when, remove ? ' · ' : null, remove))),
@@ -154,15 +191,28 @@ function postCard(id, { className = '', icon, author, when, title, body, media, 
   return t.node;
 }
 
+// Pinned cards written into the page (data-notice) get the same message box as posts.
+function addPinnedThreads() {
+  for (const card of document.querySelectorAll('[data-notice]')) {
+    const id = `pinned_${card.dataset.notice}`;
+    if (threads.has(id)) continue;
+    const parts = threadParts(id);
+    parts.input.ariaLabel = `Message on ${card.dataset.title}`;
+    card.append(parts.count, parts.list, parts.form);
+    threads.set(id, { node: card, ...parts });
+    renderComments(id);
+  }
+}
+
 function renderComments(id) {
   const t = threads.get(id);
   const list = comments.get(id) ?? [];
-  t.count.textContent = list.length ? `${list.length} comment${list.length === 1 ? '' : 's'}` : '';
+  t.count.textContent = list.length ? `${list.length} message${list.length === 1 ? '' : 's'}` : '';
   t.list.replaceChildren(...list.map((c) => {
     let remove = null;
     if (admin || c.email === me.email) {
       remove = el('button', { className: 'link', textContent: 'Delete' });
-      remove.onclick = () => confirm('Delete this comment?') && deleteDoc(doc(db, 'comments', c.id)).catch(showError);
+      remove.onclick = () => confirm('Delete this message?') && deleteDoc(doc(db, 'comments', c.id)).catch(showError);
     }
     return el('li', { className: 'comment' }, avatar(c.name),
       el('div', {}, el('div', { className: 'bubble' }, el('strong', { textContent: c.name }), el('p', { textContent: c.text })),
@@ -352,6 +402,40 @@ document.querySelector('[data-view="board"]').addEventListener('click', () => {
 });
 
 const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
+
+// ---------- Greetings wall ----------
+
+// A public wall everyone can post greetings to, newest first. Saved as comments on the "wall" thread.
+const WALL = 'wall';
+$('wallForm').insertBefore(emojiPicker($('wallText')), $('wallSend'));
+
+function renderWall() {
+  const list = [...(comments.get(WALL) ?? [])].reverse();
+  show('wallEmpty', list.length === 0);
+  $('wallList').replaceChildren(...list.map((c) => {
+    let remove = null;
+    if (admin || c.email === me.email) {
+      remove = el('button', { className: 'link', textContent: 'Delete' });
+      remove.onclick = () => confirm('Delete this greeting?') && deleteDoc(doc(db, 'comments', c.id)).catch(showError);
+    }
+    return el('li', { className: 'wall-note' },
+      el('div', { className: 'post-by' }, avatar(c.name),
+        el('div', {}, el('strong', { textContent: c.email === me.email ? `${c.name} (you)` : c.name }),
+          el('div', { className: 'muted small' }, fmt(c.at.toDate()), remove ? ' · ' : null, remove))),
+      el('p', { textContent: c.text }));
+  }));
+}
+
+$('wallForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('wallText').value.trim();
+  if (!text) return;
+  $('wallSend').disabled = true;
+  try {
+    await addDoc(collection(db, 'comments'), { thread: WALL, email: me.email, name: me.name, text, at: serverTimestamp() });
+    $('wallText').value = '';
+  } catch (err) { showError(err); } finally { $('wallSend').disabled = false; }
+};
 
 // ---------- Admin ----------
 
