@@ -354,12 +354,11 @@
 
   /* ===== MEET THE TEAM ===== */
   .team-section{ padding:100px 0 110px; background:var(--white); border-top:1px solid var(--line); overflow:hidden; }
-  .team-row{ display:flex; justify-content:center; flex-wrap:wrap; gap:26px; padding:20px 0 10px; }
+  .team-row{ display:grid; grid-template-columns:repeat(5, var(--size, 150px)); justify-content:center; gap:30px 32px; padding:20px 0 10px; --size:150px; }
   .team-face{
-    --size:150px;
-    width:var(--size); height:var(--size); position:relative; opacity:0; transform:scale(.6) translateY(30px);
+    width:100%; aspect-ratio:1; position:relative; opacity:0; transform:scale(.6) translateY(30px);
   }
-  .team-row.in .team-face{ animation: team-pop .8s var(--ease) forwards; animation-delay: calc(var(--i) * 140ms); }
+  .team-row.in .team-face{ animation: team-pop .8s var(--ease) forwards; animation-delay: calc(var(--i) * 110ms); }
   .team-face img{
     width:100%; height:100%; object-fit:cover; border-radius:50%;
     border:5px solid var(--white); box-shadow:0 0 0 2px var(--leaf-300), var(--shadow-md);
@@ -492,7 +491,7 @@
     .stat-grid{ max-width:520px; }
   }
   @media (max-width: 900px){
-    .team-face{ --size:120px; }
+    .team-row{ --size:112px; gap:24px 22px; }
     .steps-grid{ grid-template-columns:1fr; gap:40px; max-width:420px; margin:0 auto; }
     .steps-grid::before{ display:none; }
     .trust-grid{ grid-template-columns:repeat(2, 1fr); gap:22px 18px; }
@@ -513,8 +512,7 @@
     .footer-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width: 560px){
-    .team-row{ gap:16px 18px; }
-    .team-face{ --size:94px; }
+    .team-row{ grid-template-columns:repeat(5, 1fr); gap:16px 10px; }
     .team-face img{ border-width:3px; }
     .trust-strip{ padding:24px 0; }
     .trust-icon{ width:42px; height:42px; border-radius:12px; }
@@ -775,6 +773,11 @@
         <div class="team-face" style="--i:2"><img src="images/team/va-3.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
         <div class="team-face" style="--i:3"><img src="images/team/va-4.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
         <div class="team-face" style="--i:4"><img src="images/team/va-5.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
+        <div class="team-face" style="--i:5"><img src="images/team/va-6.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
+        <div class="team-face" style="--i:6"><img src="images/team/va-7.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
+        <div class="team-face" style="--i:7"><img src="images/team/va-8.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
+        <div class="team-face" style="--i:8"><img src="images/team/va-9.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
+        <div class="team-face" style="--i:9"><img src="images/team/va-10.jpg" alt="Clovers virtual associate" width="150" height="150" loading="lazy"></div>
       </div>
       <p class="team-note reveal">Based in the Philippines, working on <strong>your US business hours</strong>.</p>
     </div>
