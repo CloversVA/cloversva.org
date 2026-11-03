@@ -222,6 +222,17 @@
     .hero .container{ display:flex; align-items:center; min-height:640px; }
   }
 
+  /* ===== TRUST BADGES ===== */
+  .trust-strip{ background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:30px 0; }
+  .trust-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:20px; }
+  .trust-item{ display:flex; align-items:center; gap:14px; }
+  .trust-icon{
+    width:48px; height:48px; border-radius:14px; flex-shrink:0;
+    background:var(--leaf-100); display:flex; align-items:center; justify-content:center;
+  }
+  .trust-item strong{ display:block; font-family:'Poppins',sans-serif; font-size:15px; font-weight:600; color:var(--forest-900); line-height:1.3; }
+  .trust-item div span{ display:block; margin-top:2px; font-size:13px; color:var(--ink-500); line-height:1.45; }
+
   /* ===== MISSION & VISION ===== */
   .mv-section{ padding:110px 0 120px; background:var(--cream); }
   .section-head{ text-align:center; max-width:640px; margin:0 auto 56px; }
@@ -430,6 +441,7 @@
     .stat-grid{ max-width:520px; }
   }
   @media (max-width: 900px){
+    .trust-grid{ grid-template-columns:repeat(2, 1fr); gap:22px 18px; }
     .testimonial-grid{ grid-template-columns:1fr; }
     .nav-links{ display:none; }
     .burger{ display:flex; }
@@ -447,6 +459,11 @@
     .footer-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width: 560px){
+    .trust-strip{ padding:24px 0; }
+    .trust-icon{ width:42px; height:42px; border-radius:12px; }
+    .trust-item{ flex-direction:column; align-items:flex-start; gap:8px; }
+    .trust-item strong{ font-size:13.5px; }
+    .trust-item div span{ font-size:12px; }
     .testimonial-card{ padding:30px 24px 26px; }
     .container{ padding:0 20px; }
     .nav-inner{ padding:14px 20px; }
@@ -511,6 +528,30 @@
             Speak with Our Team
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BADGES -->
+  <section class="trust-strip" aria-label="How we protect your business">
+    <div class="container">
+      <div class="trust-grid">
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3L4 6V11C4 16 7.4 19.7 12 21C16.6 19.7 20 16 20 11V6L12 3Z" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 12L11 14.5L15.5 10" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>HIPAA-trained VAs</strong><span>Every VA is trained to handle patient data</span></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3H14L19 8V20C19 20.55 18.55 21 18 21H7C6.45 21 6 20.55 6 20V4C6 3.45 6.45 3 7 3Z" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 3V8H19" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 13H16M9 17H13" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>BAA available</strong><span>Business Associate Agreement for healthcare clients</span></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10V7C8 4.8 9.8 3 12 3C14.2 3 16 4.8 16 7V10" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 14.5V17" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>NDA-signed VAs</strong><span>Every VA signs a confidentiality agreement</span></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7V12L15.5 14" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>US-hours coverage</strong><span>Working during your US business hours</span></div>
         </div>
       </div>
     </div>
