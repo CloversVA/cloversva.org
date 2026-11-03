@@ -212,7 +212,7 @@
 
   /* Team photo slide show in the hero: a clover leaf flips each page, then the mascot video plays. */
   .hero-show{
-    --h:440px; --pw:calc(var(--h) * .8); --vw:calc(var(--h) * .5625);
+    --h:330px; --pw:calc(var(--h) * .8); --vw:calc(var(--h) * .5625);
     position:absolute; z-index:3; top:50%; left:63%; transform:translate(-50%, -50%);
     width:var(--pw); height:var(--h); perspective:1600px;
   }
@@ -231,17 +231,17 @@
     content:''; position:absolute; inset:0; pointer-events:none; opacity:0;
     background:linear-gradient(90deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.35));
   }
-  .hs-page.is-turning{ animation:hs-turn .75s cubic-bezier(.42,0,.9,.6) forwards; }
-  .hs-page.is-turning::after{ animation:hs-shade .75s ease-in forwards; }
+  .hs-page.is-turning{ animation:hs-turn .5s cubic-bezier(.42,0,.9,.6) forwards; }
+  .hs-page.is-turning::after{ animation:hs-shade .5s ease-in forwards; }
   .hs-badge{
-    position:absolute; left:12px; top:12px; width:62px; height:62px; border-radius:50%;
+    position:absolute; left:10px; top:10px; width:50px; height:50px; border-radius:50%;
     box-shadow:0 4px 14px rgba(0,0,0,.25); background:var(--white);
   }
   .hs-clover{
-    position:absolute; z-index:5; width:58px; height:auto; left:0; top:0; opacity:0; pointer-events:none;
+    position:absolute; z-index:5; width:46px; height:auto; left:0; top:0; opacity:0; pointer-events:none;
     filter:drop-shadow(0 6px 10px rgba(0,0,0,.3));
   }
-  .hs-clover.is-flipping{ animation:hs-clover .75s linear forwards; }
+  .hs-clover.is-flipping{ animation:hs-clover .5s linear forwards; }
   @keyframes hs-turn{
     0%{ transform:rotateY(0); }
     100%{ transform:rotateY(-92deg); }
@@ -563,10 +563,10 @@
       order:-1; border-radius:0 0 40px 90px; overflow:hidden;
     }
     .hero-visual .swoosh{ display:none; }
-    .hero-show{ --h:250px; left:50%; }
+    .hero-show{ --h:210px; left:50%; }
     .hs-page{ border-width:4px; border-radius:16px; }
-    .hs-badge{ width:42px; height:42px; left:8px; top:8px; }
-    .hs-clover{ width:40px; }
+    .hs-badge{ width:34px; height:34px; left:6px; top:6px; }
+    .hs-clover{ width:32px; }
     .mv-grid{ grid-template-columns:1fr; }
     .services-grid{ grid-template-columns:repeat(2,1fr); }
     .cta-box{ flex-direction:column; text-align:center; padding:48px 32px; }
@@ -586,7 +586,7 @@
     .brand img{ height:44px; }
     .hero-copy .eyebrow{ font-size:12px; }
     .hero-visual{ height:240px; border-radius:0 0 28px 60px; }
-    .hero-show{ --h:206px; }
+    .hero-show{ --h:172px; }
     .services-grid{ grid-template-columns:1fr; }
     .footer-grid{ grid-template-columns:1fr; gap:32px; }
     .why-list li{ font-size:14px; }
@@ -1009,9 +1009,9 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     const clover = document.getElementById('heroClover');
     if (!show) return;
     const PHOTOS = 16;          // images/hero/slide-1.jpg ... slide-16.jpg
-    const PHOTO_MS = 1100;      // how long each photo stays before the clover flips it
-    const FLIP_MS = 750;        // matches the hs-turn animation in the CSS
-    const VIDEO_SPEED = 1.25;   // the mascot video plays a little faster than normal
+    const PHOTO_MS = 550;       // how long each photo stays before the clover flips it (fast)
+    const FLIP_MS = 500;        // matches the hs-turn animation in the CSS
+    const VIDEO_SPEED = 1;      // the mascot video plays at normal speed: the slow, highlight part
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const pages = [];
