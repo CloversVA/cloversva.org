@@ -206,8 +206,58 @@
     width:56%;
     overflow:hidden;
   }
-  .hero-visual img{
+  .hero-visual > img.hero-bg{
     width:100%; height:100%; object-fit:cover; display:block;
+  }
+
+  /* Team photo slide show in the hero: a clover leaf flips each page, then the mascot video plays. */
+  .hero-show{
+    --h:440px; --pw:calc(var(--h) * .8); --vw:calc(var(--h) * .5625);
+    position:absolute; z-index:3; top:50%; left:63%; transform:translate(-50%, -50%);
+    width:var(--pw); height:var(--h); perspective:1600px;
+  }
+  .hs-page{
+    position:absolute; top:0; bottom:0; left:0; width:var(--pw); margin:0;
+    border-radius:22px; overflow:hidden; background:var(--white);
+    border:6px solid var(--white); box-shadow:0 24px 60px rgba(3,44,23,.35);
+    transform-origin:left center; backface-visibility:hidden; visibility:hidden;
+  }
+  .hs-page.hs-video{ left:calc((var(--pw) - var(--vw)) / 2); width:var(--vw); background:#e9ece6; }
+  .hs-page.is-current, .hs-page.is-next{ visibility:visible; }
+  .hs-page.is-current{ z-index:3; }
+  .hs-page.is-next{ z-index:2; }
+  .hs-page > img:not(.hs-badge), .hs-page > video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .hs-page::after{ /* page shadow while it turns */
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:linear-gradient(90deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.35));
+  }
+  .hs-page.is-turning{ animation:hs-turn .75s cubic-bezier(.42,0,.9,.6) forwards; }
+  .hs-page.is-turning::after{ animation:hs-shade .75s ease-in forwards; }
+  .hs-badge{
+    position:absolute; left:12px; top:12px; width:62px; height:62px; border-radius:50%;
+    box-shadow:0 4px 14px rgba(0,0,0,.25); background:var(--white);
+  }
+  .hs-clover{
+    position:absolute; z-index:5; width:58px; height:auto; left:0; top:0; opacity:0; pointer-events:none;
+    filter:drop-shadow(0 6px 10px rgba(0,0,0,.3));
+  }
+  .hs-clover.is-flipping{ animation:hs-clover .75s linear forwards; }
+  @keyframes hs-turn{
+    0%{ transform:rotateY(0); }
+    100%{ transform:rotateY(-92deg); }
+  }
+  @keyframes hs-shade{ to{ opacity:1; } }
+  /* The clover grabs the bottom-right corner and pulls the page over to the left. */
+  /* It follows the page's turning edge from the bottom-right corner across to the spine. */
+  @keyframes hs-clover{
+    0%{ opacity:0; transform:translate(calc(var(--pw) - 34px), calc(var(--h) - 46px)) rotate(0) scale(.6); }
+    10%{ opacity:1; transform:translate(calc(var(--pw) - 36px), calc(var(--h) - 62px)) rotate(-30deg) scale(1); }
+    50%{ transform:translate(calc(var(--pw) * .72 - 26px), calc(var(--h) * .56)) rotate(-150deg) scale(1.1); }
+    80%{ opacity:1; transform:translate(calc(var(--pw) * .3 - 22px), calc(var(--h) * .46)) rotate(-280deg) scale(1.15); }
+    100%{ opacity:0; transform:translate(-24px, calc(var(--h) * .4)) rotate(-360deg) scale(.8); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hs-page.is-turning, .hs-page.is-turning::after, .hs-clover.is-flipping{ animation:none; }
   }
   .hero-visual .swoosh{
     position:absolute; z-index:2;
@@ -513,6 +563,10 @@
       order:-1; border-radius:0 0 40px 90px; overflow:hidden;
     }
     .hero-visual .swoosh{ display:none; }
+    .hero-show{ --h:250px; left:50%; }
+    .hs-page{ border-width:4px; border-radius:16px; }
+    .hs-badge{ width:42px; height:42px; left:8px; top:8px; }
+    .hs-clover{ width:40px; }
     .mv-grid{ grid-template-columns:1fr; }
     .services-grid{ grid-template-columns:repeat(2,1fr); }
     .cta-box{ flex-direction:column; text-align:center; padding:48px 32px; }
@@ -532,6 +586,7 @@
     .brand img{ height:44px; }
     .hero-copy .eyebrow{ font-size:12px; }
     .hero-visual{ height:240px; border-radius:0 0 28px 60px; }
+    .hero-show{ --h:206px; }
     .services-grid{ grid-template-columns:1fr; }
     .footer-grid{ grid-template-columns:1fr; gap:32px; }
     .why-list li{ font-size:14px; }
@@ -575,7 +630,10 @@
   <section class="hero" id="home">
     <div class="hero-visual">
       <div class="swoosh"></div>
-      <img src="https://images.unsplash.com/photo-1772513168377-185aa30b72ac?fm=jpg&q=80&w=1400&auto=format&fit=crop" alt="Close-up of a lush four-leaf clover with morning dew, symbolizing growth and good fortune">
+      <img class="hero-bg" src="https://images.unsplash.com/photo-1772513168377-185aa30b72ac?fm=jpg&q=80&w=1400&auto=format&fit=crop" alt="Close-up of a lush four-leaf clover with morning dew, symbolizing growth and good fortune">
+      <div class="hero-show" id="heroShow" role="region" aria-roledescription="slide show" aria-label="Meet the Clovers team">
+        <img class="hs-clover" id="heroClover" src="images/clover-icon.png" alt="">
+      </div>
     </div>
     <div class="container">
       <div class="hero-grid">
@@ -791,6 +849,7 @@
           <div class="team-face" style="--i:12"><img src="images/team/va-13.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
           <div class="team-face" style="--i:13"><img src="images/team/va-14.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
           <div class="team-face" style="--i:14"><img src="images/team/va-15.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:15"><img src="images/team/va-16.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
           <div class="team-face" style="--i:0" aria-hidden="true"><img src="images/team/va-1.jpg" alt="" width="150" height="150"></div>
           <div class="team-face" style="--i:1" aria-hidden="true"><img src="images/team/va-2.jpg" alt="" width="150" height="150"></div>
           <div class="team-face" style="--i:2" aria-hidden="true"><img src="images/team/va-3.jpg" alt="" width="150" height="150"></div>
@@ -806,6 +865,7 @@
           <div class="team-face" style="--i:12" aria-hidden="true"><img src="images/team/va-13.jpg" alt="" width="150" height="150"></div>
           <div class="team-face" style="--i:13" aria-hidden="true"><img src="images/team/va-14.jpg" alt="" width="150" height="150"></div>
           <div class="team-face" style="--i:14" aria-hidden="true"><img src="images/team/va-15.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:15" aria-hidden="true"><img src="images/team/va-16.jpg" alt="" width="150" height="150"></div>
         </div>
       </div>
       <p class="team-note reveal">Based in the Philippines, working on <strong>your US business hours</strong>.</p>
@@ -940,6 +1000,94 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     });
   }, { threshold: 0.15 });
   revealEls.forEach(el => io.observe(el));
+
+  // ===== Hero slide show =====
+  // Team photos flip past quickly (a clover leaf turns each page), then the mascot video plays as the
+  // highlight, and the round starts again. It pauses while the top of the page is off screen.
+  (function heroShow(){
+    const show = document.getElementById('heroShow');
+    const clover = document.getElementById('heroClover');
+    if (!show) return;
+    const PHOTOS = 16;          // images/hero/slide-1.jpg ... slide-16.jpg
+    const PHOTO_MS = 1100;      // how long each photo stays before the clover flips it
+    const FLIP_MS = 750;        // matches the hs-turn animation in the CSS
+    const VIDEO_SPEED = 1.25;   // the mascot video plays a little faster than normal
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const pages = [];
+    for (let i = 1; i <= PHOTOS; i++){
+      const fig = document.createElement('figure');
+      fig.className = 'hs-page';
+      const img = document.createElement('img');
+      img.alt = 'Clovers virtual associate';
+      img.dataset.src = `images/hero/slide-${i}.jpg`;
+      const badge = document.createElement('img');
+      badge.className = 'hs-badge'; badge.src = 'images/hero/clovers-badge.png'; badge.alt = 'Clovers Virtual Assistance';
+      fig.append(img, badge);
+      pages.push(fig);
+    }
+    const vfig = document.createElement('figure');
+    vfig.className = 'hs-page hs-video';
+    const video = document.createElement('video');
+    Object.assign(video, { muted:true, playsInline:true, preload:'none', poster:'images/hero/clovers-mascot.jpg' });
+    video.setAttribute('muted', ''); video.setAttribute('playsinline', '');
+    video.setAttribute('aria-label', 'Clovers mascot video');
+    video.src = 'images/hero/clovers-mascot.mp4';
+    vfig.append(video);
+    pages.push(vfig);
+    show.prepend(...pages);
+
+    const load = (fig) => { const img = fig.querySelector('img[data-src]'); if (img){ img.src = img.dataset.src; img.removeAttribute('data-src'); } };
+    let cur = 0, timer = null, running = false, visible = true, flipping = false;
+    const next = () => (cur + 1) % pages.length;
+    function mark(){
+      pages.forEach((p, i) => { p.classList.toggle('is-current', i === cur); p.classList.toggle('is-next', i === next()); });
+      load(pages[cur]); load(pages[next()]); load(pages[(cur + 2) % pages.length]);
+    }
+    mark();
+    if (still) return; // visitors who turn off animations just see the first photo
+
+    function schedule(){
+      clearTimeout(timer);
+      if (!running) return;
+      if (pages[cur] === vfig){
+        // Play the video once; flip on when it ends (or after a short wait if the browser blocks it).
+        video.currentTime = 0;
+        video.playbackRate = VIDEO_SPEED;
+        const p = video.play();
+        if (p) p.catch(() => { timer = setTimeout(flip, 3000); });
+        timer = setTimeout(flip, 14000);
+      } else {
+        timer = setTimeout(flip, PHOTO_MS);
+      }
+    }
+    video.addEventListener('playing', () => { video.playbackRate = VIDEO_SPEED; });
+    video.addEventListener('ended', () => { if (running && pages[cur] === vfig) flip(); });
+
+    function flip(){
+      if (flipping || !running) return;
+      clearTimeout(timer);
+      flipping = true;
+      const page = pages[cur];
+      if (page === vfig) video.pause();
+      page.classList.add('is-turning');
+      clover.classList.remove('is-flipping'); void clover.offsetWidth; clover.classList.add('is-flipping');
+      setTimeout(() => {
+        page.classList.remove('is-turning');
+        cur = next();
+        mark();
+        flipping = false;
+        schedule();
+      }, FLIP_MS);
+    }
+    function setRunning(on){
+      if (on === running) return;
+      running = on;
+      if (on) schedule(); else { clearTimeout(timer); video.pause(); }
+    }
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; setRunning(visible && !document.hidden); }, { threshold:0.2 }).observe(show);
+    document.addEventListener('visibilitychange', () => setRunning(visible && !document.hidden));
+  })();
 </script>
 </body>
 </html>
