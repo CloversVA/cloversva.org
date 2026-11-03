@@ -367,8 +367,7 @@
     border-radius:8px; box-shadow:0 8px 18px rgba(5,68,34,.22);
     transform:translate(-50%, -50%) rotate(var(--r));
     animation:tm-stamp .38s cubic-bezier(.2,.7,.3,1) both;
-    transition:transform .45s cubic-bezier(.5,0,.75,0), opacity .45s ease;
-    transition-delay:var(--d, 0s);
+    transition:transform .4s cubic-bezier(.5,0,.75,0), opacity .4s ease;
   }
   .tm-stamp img{ width:100%; height:100%; object-fit:cover; border-radius:5px; display:block; }
   @keyframes tm-stamp{
@@ -377,7 +376,7 @@
     78%{ transform:translate(-50%, -50%) rotate(var(--r)) scale(1.05); }
     100%{ opacity:1; transform:translate(-50%, -50%) rotate(var(--r)) scale(1); }
   }
-  .team-stage.leaving .tm-stamp{ opacity:0; transform:translate(-50%, -50%) rotate(var(--r)) scale(0); }
+  .tm-stamp.gone{ opacity:0; transform:translate(-50%, -50%) rotate(var(--r)) scale(0); }
   .tm-welcome{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:10px;
     pointer-events:none; opacity:0; visibility:hidden;
@@ -952,6 +951,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     if (!stage) return;
     const PHOTOS = 16;        // images/team/va-1.jpg ... va-16.jpg
     const STAMP_MS = 420;     // time between stamps (medium fast)
+    const HOLD_MS = 1300;     // how long each photo stays before it disappears on its own
     const WELCOME_MS = 4800;  // how long the mascot says hello
     const photo = (i) => `images/team/va-${i}.jpg`;
     const welcome = stage.querySelector('.tm-welcome');
@@ -976,10 +976,20 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
       const fig = document.createElement('figure');
       fig.className = 'tm-stamp';
       fig.style.left = spot.x + '%'; fig.style.top = spot.y + '%';
-      fig.style.setProperty('--r', spot.r + 'deg'); fig.style.setProperty('--d', (k * 0.03) + 's');
+      fig.style.setProperty('--r', spot.r + 'deg');
       const img = document.createElement('img'); img.src = photo(i); img.alt = '';
       fig.append(img);
       stage.insertBefore(fig, welcome);
+      return fig;
+    }
+    // Each photo leaves by itself a moment after it lands, so they come and go one by one.
+    async function stampAndGo(i, spot, k){
+      const fig = stamp(i, spot, k);
+      await sleep(HOLD_MS);
+      await ready();
+      fig.classList.add('gone');
+      await sleep(420);
+      fig.remove();
     }
     for (let i = 1; i <= PHOTOS; i++) new Image().src = photo(i);
     if (still){ spots().forEach((sp, k) => stamp(k + 1, sp, k)); return; } // a still wall of photos
@@ -994,12 +1004,10 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
         await ready();
         const order = Array.from({ length: PHOTOS }, (_, k) => k + 1).sort(() => Math.random() - .5);
         const where = spots();
-        for (let k = 0; k < PHOTOS; k++){ await ready(); stamp(order[k], where[k], k); await sleep(STAMP_MS); }
-        await sleep(900);
-        stage.classList.add('leaving');          // the photos shrink away
-        await sleep(450 + PHOTOS * 30);
-        stage.querySelectorAll('.tm-stamp').forEach((n) => n.remove());
-        stage.classList.remove('leaving');
+        const leaving = [];
+        for (let k = 0; k < PHOTOS; k++){ await ready(); leaving.push(stampAndGo(order[k], where[k], k)); await sleep(STAMP_MS); }
+        await Promise.all(leaving);              // wait until the last photo has gone
+        await sleep(200);
         stage.classList.add('welcome');          // the mascot pops up and says hello
         await sleep(WELCOME_MS);
         await ready();
