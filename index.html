@@ -352,6 +352,70 @@
   .testimonial-by strong{ display:block; font-family:'Poppins',sans-serif; font-size:15.5px; color:var(--forest-900); }
   .testimonial-by div span{ font-size:13.5px; color:var(--ink-500); }
 
+  /* ===== MEET THE TEAM: photos stamped on, then the mascot says welcome ===== */
+  .team-section{ padding:100px 0 110px; background:var(--white); border-top:1px solid var(--line); }
+  .team-stage{
+    --stamp:96px; --mascot:270px;
+    position:relative; height:400px; max-width:1000px; margin:0 auto; overflow:hidden;
+    border-radius:var(--radius-lg); border:1px solid var(--line);
+    background:
+      radial-gradient(circle, rgba(129,190,57,.18) 1.5px, transparent 1.5px) 0 0 / 22px 22px,
+      linear-gradient(160deg, var(--leaf-100), var(--cream));
+  }
+  .tm-stamp{
+    position:absolute; width:var(--stamp); aspect-ratio:1; margin:0; padding:4px; background:var(--white);
+    border-radius:8px; box-shadow:0 8px 18px rgba(5,68,34,.22);
+    transform:translate(-50%, -50%) rotate(var(--r));
+    animation:tm-stamp .38s cubic-bezier(.2,.7,.3,1) both;
+    transition:transform .45s cubic-bezier(.5,0,.75,0), opacity .45s ease;
+    transition-delay:var(--d, 0s);
+  }
+  .tm-stamp img{ width:100%; height:100%; object-fit:cover; border-radius:5px; display:block; }
+  @keyframes tm-stamp{
+    0%{ opacity:0; transform:translate(-50%, -50%) rotate(calc(var(--r) * 3)) scale(3.4); }
+    55%{ opacity:1; transform:translate(-50%, -50%) rotate(var(--r)) scale(.88); }
+    78%{ transform:translate(-50%, -50%) rotate(var(--r)) scale(1.05); }
+    100%{ opacity:1; transform:translate(-50%, -50%) rotate(var(--r)) scale(1); }
+  }
+  .team-stage.leaving .tm-stamp{ opacity:0; transform:translate(-50%, -50%) rotate(var(--r)) scale(0); }
+  .tm-welcome{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:10px;
+    pointer-events:none; opacity:0; visibility:hidden;
+  }
+  .team-stage.welcome .tm-welcome{ opacity:1; visibility:visible; }
+  .tm-mascot{ width:var(--mascot); height:auto; transform-origin:50% 90%; transform:translateY(60%) scale(.2); }
+  .team-stage.welcome .tm-mascot{ animation:tm-pop .7s cubic-bezier(.2,.9,.3,1.35) forwards, tm-sway 1.6s ease-in-out .7s infinite; }
+  .tm-bubble{
+    position:relative; align-self:flex-start; margin-top:70px; max-width:230px;
+    background:var(--white); border:2px solid var(--leaf-500); border-radius:20px; padding:14px 18px;
+    box-shadow:var(--shadow-md); font-family:'Poppins',sans-serif; color:var(--forest-900);
+    opacity:0; transform:scale(.6); transform-origin:0% 100%;
+  }
+  .tm-bubble::before{
+    content:''; position:absolute; left:-12px; bottom:18px; width:20px; height:20px; background:var(--white);
+    border-left:2px solid var(--leaf-500); border-bottom:2px solid var(--leaf-500); transform:rotate(45deg); border-radius:0 0 0 4px;
+  }
+  .tm-bubble strong{ display:block; font-size:20px; line-height:1.2; }
+  .tm-bubble > span{ display:block; font-size:14px; color:var(--ink-500); margin-top:4px; font-family:'Inter',sans-serif; }
+  .tm-wave{ display:inline-block; transform-origin:70% 80%; }
+  .team-stage.welcome .tm-bubble{ animation:tm-bubble .45s cubic-bezier(.2,.9,.3,1.3) .55s forwards; }
+  .team-stage.welcome .tm-wave{ animation:tm-wave 1s ease-in-out 1s infinite; }
+  .team-stage.bye .tm-welcome{ opacity:0; transition:opacity .45s ease; }
+  @keyframes tm-pop{ to{ transform:translateY(0) scale(1); } }
+  @keyframes tm-sway{ /* a happy little bounce and lean, like saying hello */
+    0%, 100%{ transform:translateY(0) rotate(0); }
+    25%{ transform:translateY(-10px) rotate(-6deg); }
+    50%{ transform:translateY(0) rotate(0); }
+    75%{ transform:translateY(-10px) rotate(6deg); }
+  }
+  @keyframes tm-bubble{ to{ opacity:1; transform:scale(1); } }
+  @keyframes tm-wave{ 0%, 60%, 100%{ transform:rotate(0); } 15%, 45%{ transform:rotate(18deg); } 30%{ transform:rotate(-10deg); } }
+  .team-note{ text-align:center; margin-top:26px; color:var(--ink-500); font-size:15px; }
+  .team-note strong{ color:var(--forest-900); }
+  @media (prefers-reduced-motion: reduce){
+    .tm-stamp{ animation:none; }
+  }
+
   /* ===== WHY / STATS BANNER ===== */
   .why-section{
     background: radial-gradient(120% 140% at 10% 0%, var(--forest-800) 0%, var(--forest-900) 55%, #032c17 100%);
@@ -462,6 +526,7 @@
     .stat-grid{ max-width:520px; }
   }
   @media (max-width: 900px){
+    .team-stage{ --stamp:78px; --mascot:220px; height:360px; }
     .steps-grid{ grid-template-columns:1fr; gap:40px; max-width:420px; margin:0 auto; }
     .steps-grid::before{ display:none; }
     .trust-grid{ grid-template-columns:repeat(2, 1fr); gap:22px 18px; }
@@ -482,6 +547,13 @@
     .footer-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width: 560px){
+    .team-stage{ --stamp:58px; --mascot:150px; height:330px; }
+    .tm-stamp{ padding:3px; border-radius:6px; }
+    .tm-welcome{ flex-direction:column; gap:0; }
+    .tm-bubble{ align-self:center; margin:0 0 8px; order:-1; padding:10px 14px; max-width:240px; text-align:center; transform-origin:50% 100%; }
+    .tm-bubble::before{ left:calc(50% - 10px); bottom:-12px; transform:rotate(-45deg); }
+    .tm-bubble strong{ font-size:17px; }
+    .tm-bubble > span{ font-size:13px; }
     .trust-strip{ padding:24px 0; }
     .trust-icon{ width:42px; height:42px; border-radius:12px; }
     .trust-item{ flex-direction:column; align-items:flex-start; gap:8px; }
@@ -727,6 +799,24 @@
     </div>
   </section>
 
+  <!-- MEET THE TEAM -->
+  <section class="team-section" id="team">
+    <div class="container">
+      <div class="section-head reveal" style="margin-bottom:34px;">
+        <span class="eyebrow">Meet the Team</span>
+        <h2 style="margin-top:14px;">The Faces Behind Clovers</h2>
+        <p>Real people, carefully selected and trained, ready to support your business.</p>
+      </div>
+      <div class="team-stage reveal" id="teamStage" role="img" aria-label="Photos of the Clovers team, followed by the Clovers mascot saying welcome">
+        <div class="tm-welcome">
+          <img class="tm-mascot" src="images/clovers-mascot.webp" alt="" width="467" height="520">
+          <p class="tm-bubble"><strong>Welcome to Clovers! <span class="tm-wave">👋</span></strong><span>We're so glad you're here.</span></p>
+        </div>
+      </div>
+      <p class="team-note reveal">Based in the Philippines, working on <strong>your US business hours</strong>.</p>
+    </div>
+  </section>
+
   <!-- WHY / STATS -->
   <section class="why-section" id="careers">
     <div class="container">
@@ -855,6 +945,73 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     });
   }, { threshold: 0.15 });
   revealEls.forEach(el => io.observe(el));
+
+  // ===== Meet the Team: stamp the photos, clear them, then the mascot welcomes the visitor =====
+  (function teamStamps(){
+    const stage = document.getElementById('teamStage');
+    if (!stage) return;
+    const PHOTOS = 16;        // images/team/va-1.jpg ... va-16.jpg
+    const STAMP_MS = 420;     // time between stamps (medium fast)
+    const WELCOME_MS = 4800;  // how long the mascot says hello
+    const photo = (i) => `images/team/va-${i}.jpg`;
+    const welcome = stage.querySelector('.tm-welcome');
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function spots(){
+      const w = stage.clientWidth, h = stage.clientHeight;
+      const size = parseFloat(getComputedStyle(stage).getPropertyValue('--stamp')) || 90;
+      const pad = size * .65, aw = w - pad * 2, ah = h - pad * 2;
+      const cols = Math.max(3, Math.round(Math.sqrt(PHOTOS * aw / ah)));
+      const rows = Math.ceil(PHOTOS / cols);
+      const cells = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([c, r]);
+      cells.sort(() => Math.random() - .5);
+      return cells.slice(0, PHOTOS).map(([c, r]) => ({
+        x: (pad + (c + .5 + (Math.random() - .5) * .5) * aw / cols) / w * 100,
+        y: (pad + (r + .5 + (Math.random() - .5) * .45) * ah / rows) / h * 100,
+        r: Math.round((Math.random() - .5) * 24),
+      }));
+    }
+    function stamp(i, spot, k){
+      const fig = document.createElement('figure');
+      fig.className = 'tm-stamp';
+      fig.style.left = spot.x + '%'; fig.style.top = spot.y + '%';
+      fig.style.setProperty('--r', spot.r + 'deg'); fig.style.setProperty('--d', (k * 0.03) + 's');
+      const img = document.createElement('img'); img.src = photo(i); img.alt = '';
+      fig.append(img);
+      stage.insertBefore(fig, welcome);
+    }
+    for (let i = 1; i <= PHOTOS; i++) new Image().src = photo(i);
+    if (still){ spots().forEach((sp, k) => stamp(k + 1, sp, k)); return; } // a still wall of photos
+
+    let running = false, visible = false, wake = null;
+    const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+    const ready = () => running ? Promise.resolve() : new Promise((go) => { wake = go; });
+    const setRunning = (on) => { running = on; if (on){ wake?.(); wake = null; } };
+
+    (async function loop(){
+      for (;;){
+        await ready();
+        const order = Array.from({ length: PHOTOS }, (_, k) => k + 1).sort(() => Math.random() - .5);
+        const where = spots();
+        for (let k = 0; k < PHOTOS; k++){ await ready(); stamp(order[k], where[k], k); await sleep(STAMP_MS); }
+        await sleep(900);
+        stage.classList.add('leaving');          // the photos shrink away
+        await sleep(450 + PHOTOS * 30);
+        stage.querySelectorAll('.tm-stamp').forEach((n) => n.remove());
+        stage.classList.remove('leaving');
+        stage.classList.add('welcome');          // the mascot pops up and says hello
+        await sleep(WELCOME_MS);
+        await ready();
+        stage.classList.add('bye');
+        await sleep(500);
+        stage.classList.remove('welcome', 'bye');
+        await sleep(300);
+      }
+    })();
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; setRunning(visible && !document.hidden); }, { threshold:0.25 }).observe(stage);
+    document.addEventListener('visibilitychange', () => setRunning(visible && !document.hidden));
+  })();
 </script>
 </body>
 </html>
