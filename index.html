@@ -206,7 +206,7 @@
     width:56%;
     overflow:hidden;
   }
-  .hero-visual img{
+  .hero-visual > img{
     width:100%; height:100%; object-fit:cover; display:block;
   }
   .hero-visual .swoosh{
@@ -352,19 +352,15 @@
   .testimonial-by strong{ display:block; font-family:'Poppins',sans-serif; font-size:15.5px; color:var(--forest-900); }
   .testimonial-by div span{ font-size:13.5px; color:var(--ink-500); }
 
-  /* ===== MEET THE TEAM: photos stamped on, then the mascot says welcome ===== */
-  .team-section{ padding:100px 0 110px; background:var(--white); border-top:1px solid var(--line); }
+  /* ===== HERO: team photos stamped onto the clover plants, then the mascot says welcome ===== */
   .team-stage{
-    --stamp:96px; --mascot:270px;
-    position:relative; height:400px; max-width:1000px; margin:0 auto; overflow:hidden;
-    border-radius:var(--radius-lg); border:1px solid var(--line);
-    background:
-      radial-gradient(circle, rgba(129,190,57,.18) 1.5px, transparent 1.5px) 0 0 / 22px 22px,
-      linear-gradient(160deg, var(--leaf-100), var(--cream));
+    /* --free: where the clover photo starts showing (on computers the cream curve covers the left part) */
+    --stamp:86px; --mascot:230px; --free:44%;
+    position:absolute; inset:0; z-index:3; pointer-events:none;
   }
   .tm-stamp{
     position:absolute; width:var(--stamp); aspect-ratio:1; margin:0; padding:4px; background:var(--white);
-    border-radius:8px; box-shadow:0 8px 18px rgba(5,68,34,.22);
+    border-radius:8px; box-shadow:0 10px 22px rgba(0,0,0,.35);
     transform:translate(-50%, -50%) rotate(var(--r));
     animation:tm-stamp .38s cubic-bezier(.2,.7,.3,1) both;
     transition:transform .4s cubic-bezier(.5,0,.75,0), opacity .4s ease;
@@ -378,21 +374,22 @@
   }
   .tm-stamp.gone{ opacity:0; transform:translate(-50%, -50%) rotate(var(--r)) scale(0); }
   .tm-welcome{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:10px;
-    pointer-events:none; opacity:0; visibility:hidden;
+    position:absolute; top:0; bottom:0; right:0; left:var(--free); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; pointer-events:none; opacity:0; visibility:hidden;
   }
   .team-stage.welcome .tm-welcome{ opacity:1; visibility:visible; }
-  .tm-mascot{ width:var(--mascot); height:auto; transform-origin:50% 90%; transform:translateY(60%) scale(.2); }
+  .tm-mascot{ width:var(--mascot); height:auto; transform-origin:50% 90%; transform:translateY(60%) scale(.2);
+    filter:drop-shadow(0 14px 18px rgba(0,0,0,.35)); }
   .team-stage.welcome .tm-mascot{ animation:tm-pop .7s cubic-bezier(.2,.9,.3,1.35) forwards, tm-sway 1.6s ease-in-out .7s infinite; }
   .tm-bubble{
-    position:relative; align-self:flex-start; margin-top:70px; max-width:230px;
-    background:var(--white); border:2px solid var(--leaf-500); border-radius:20px; padding:14px 18px;
-    box-shadow:var(--shadow-md); font-family:'Poppins',sans-serif; color:var(--forest-900);
-    opacity:0; transform:scale(.6); transform-origin:0% 100%;
+    position:relative; z-index:2; order:-1; margin:0 0 16px; max-width:320px; white-space:nowrap; text-align:center;
+    background:var(--white); border:2px solid var(--leaf-500); border-radius:20px; padding:12px 18px;
+    box-shadow:0 10px 26px rgba(0,0,0,.3); font-family:'Poppins',sans-serif; color:var(--forest-900);
+    opacity:0; transform:scale(.6); transform-origin:50% 100%;
   }
   .tm-bubble::before{
-    content:''; position:absolute; left:-12px; bottom:18px; width:20px; height:20px; background:var(--white);
-    border-left:2px solid var(--leaf-500); border-bottom:2px solid var(--leaf-500); transform:rotate(45deg); border-radius:0 0 0 4px;
+    content:''; position:absolute; z-index:-1; left:calc(50% - 10px); bottom:-12px; width:20px; height:20px; background:var(--white);
+    border-left:2px solid var(--leaf-500); border-bottom:2px solid var(--leaf-500); transform:rotate(-45deg); border-radius:0 0 0 4px;
   }
   .tm-bubble strong{ display:block; font-size:20px; line-height:1.2; }
   .tm-bubble > span{ display:block; font-size:14px; color:var(--ink-500); margin-top:4px; font-family:'Inter',sans-serif; }
@@ -409,8 +406,6 @@
   }
   @keyframes tm-bubble{ to{ opacity:1; transform:scale(1); } }
   @keyframes tm-wave{ 0%, 60%, 100%{ transform:rotate(0); } 15%, 45%{ transform:rotate(18deg); } 30%{ transform:rotate(-10deg); } }
-  .team-note{ text-align:center; margin-top:26px; color:var(--ink-500); font-size:15px; }
-  .team-note strong{ color:var(--forest-900); }
   @media (prefers-reduced-motion: reduce){
     .tm-stamp{ animation:none; }
   }
@@ -525,7 +520,10 @@
     .stat-grid{ max-width:520px; }
   }
   @media (max-width: 900px){
-    .team-stage{ --stamp:78px; --mascot:220px; height:360px; }
+    .team-stage{ --stamp:62px; --mascot:150px; --free:0%; }
+    .tm-bubble{ margin-bottom:16px; padding:8px 14px; }
+    .tm-bubble strong{ font-size:16px; }
+    .tm-bubble > span{ font-size:12.5px; }
     .steps-grid{ grid-template-columns:1fr; gap:40px; max-width:420px; margin:0 auto; }
     .steps-grid::before{ display:none; }
     .trust-grid{ grid-template-columns:repeat(2, 1fr); gap:22px 18px; }
@@ -546,13 +544,11 @@
     .footer-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width: 560px){
-    .team-stage{ --stamp:58px; --mascot:150px; height:330px; }
-    .tm-stamp{ padding:3px; border-radius:6px; }
-    .tm-welcome{ flex-direction:column; gap:0; }
-    .tm-bubble{ align-self:center; margin:0 0 8px; order:-1; padding:10px 14px; max-width:240px; text-align:center; transform-origin:50% 100%; }
-    .tm-bubble::before{ left:calc(50% - 10px); bottom:-12px; transform:rotate(-45deg); }
-    .tm-bubble strong{ font-size:17px; }
-    .tm-bubble > span{ font-size:13px; }
+    .team-stage{ --stamp:50px; --mascot:112px; }
+    .tm-stamp{ padding:2px; border-radius:5px; }
+    .tm-bubble{ padding:6px 12px; margin-bottom:16px; }
+    .tm-bubble strong{ font-size:14px; }
+    .tm-bubble > span{ font-size:11.5px; margin-top:2px; }
     .trust-strip{ padding:24px 0; }
     .trust-icon{ width:42px; height:42px; border-radius:12px; }
     .trust-item{ flex-direction:column; align-items:flex-start; gap:8px; }
@@ -608,6 +604,12 @@
     <div class="hero-visual">
       <div class="swoosh"></div>
       <img src="https://images.unsplash.com/photo-1772513168377-185aa30b72ac?fm=jpg&q=80&w=1400&auto=format&fit=crop" alt="Close-up of a lush four-leaf clover with morning dew, symbolizing growth and good fortune">
+      <div class="team-stage" id="teamStage" role="img" aria-label="Photos of the Clovers team, followed by the Clovers mascot saying welcome">
+        <div class="tm-welcome">
+          <img class="tm-mascot" src="images/clovers-mascot.webp" alt="" width="467" height="520">
+          <p class="tm-bubble"><strong>Welcome to Clovers! <span class="tm-wave">👋</span></strong><span>We're so glad you're here.</span></p>
+        </div>
+      </div>
     </div>
     <div class="container">
       <div class="hero-grid">
@@ -798,24 +800,6 @@
     </div>
   </section>
 
-  <!-- MEET THE TEAM -->
-  <section class="team-section" id="team">
-    <div class="container">
-      <div class="section-head reveal" style="margin-bottom:34px;">
-        <span class="eyebrow">Meet the Team</span>
-        <h2 style="margin-top:14px;">The Faces Behind Clovers</h2>
-        <p>Real people, carefully selected and trained, ready to support your business.</p>
-      </div>
-      <div class="team-stage reveal" id="teamStage" role="img" aria-label="Photos of the Clovers team, followed by the Clovers mascot saying welcome">
-        <div class="tm-welcome">
-          <img class="tm-mascot" src="images/clovers-mascot.webp" alt="" width="467" height="520">
-          <p class="tm-bubble"><strong>Welcome to Clovers! <span class="tm-wave">👋</span></strong><span>We're so glad you're here.</span></p>
-        </div>
-      </div>
-      <p class="team-note reveal">Based in the Philippines, working on <strong>your US business hours</strong>.</p>
-    </div>
-  </section>
-
   <!-- WHY / STATS -->
   <section class="why-section" id="careers">
     <div class="container">
@@ -945,7 +929,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
   }, { threshold: 0.15 });
   revealEls.forEach(el => io.observe(el));
 
-  // ===== Meet the Team: stamp the photos, clear them, then the mascot welcomes the visitor =====
+  // ===== Hero: stamp the team photos onto the clover plants, then the mascot welcomes the visitor =====
   (function teamStamps(){
     const stage = document.getElementById('teamStage');
     if (!stage) return;
@@ -960,14 +944,15 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     function spots(){
       const w = stage.clientWidth, h = stage.clientHeight;
       const size = parseFloat(getComputedStyle(stage).getPropertyValue('--stamp')) || 90;
-      const pad = size * .65, aw = w - pad * 2, ah = h - pad * 2;
+      const free = (parseFloat(getComputedStyle(stage).getPropertyValue('--free')) || 0) / 100 * w;
+      const pad = size * .7, x0 = free + pad, aw = w - x0 - pad, ah = h - pad * 2;
       const cols = Math.max(3, Math.round(Math.sqrt(PHOTOS * aw / ah)));
       const rows = Math.ceil(PHOTOS / cols);
       const cells = [];
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([c, r]);
       cells.sort(() => Math.random() - .5);
       return cells.slice(0, PHOTOS).map(([c, r]) => ({
-        x: (pad + (c + .5 + (Math.random() - .5) * .5) * aw / cols) / w * 100,
+        x: (x0 + (c + .5 + (Math.random() - .5) * .5) * aw / cols) / w * 100,
         y: (pad + (r + .5 + (Math.random() - .5) * .45) * ah / rows) / h * 100,
         r: Math.round((Math.random() - .5) * 24),
       }));
