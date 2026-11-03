@@ -206,16 +206,44 @@
     width:56%;
     overflow:hidden;
   }
-  .hero-visual img{
+  .hero-visual > img.hero-bg{
     width:100%; height:100%; object-fit:cover; display:block;
   }
-  .hero-visual .swoosh{
-    position:absolute; z-index:2;
-    left:-22%; top:-15%;
-    width:64%; height:135%;
-    background: var(--cream);
-    border-radius:48%;
-    pointer-events:none;
+
+  /* Team photos stamped onto the clover wall one by one, then the mascot video covers them. */
+  .hero-show{
+    --stamp-w:70px; --vh:330px;
+    position:absolute; z-index:3; inset:0; pointer-events:none;
+  }
+  .hs-stamp{
+    position:absolute; width:var(--stamp-w); aspect-ratio:4/5; margin:0;
+    background:var(--white); padding:3px 3px 10px; border-radius:4px;
+    box-shadow:0 6px 14px rgba(3,44,23,.35);
+    transform:translate(-50%, -50%) rotate(var(--r)) scale(1);
+    animation:hs-stamp .32s cubic-bezier(.2,.7,.3,1) both;
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  .hs-stamp img{ width:100%; height:100%; object-fit:cover; display:block; border-radius:2px; }
+  .hs-stamp .hs-mark{ position:absolute; right:3px; bottom:1px; width:11px; height:auto; }
+  @keyframes hs-stamp{
+    0%{ opacity:0; transform:translate(-50%, -50%) rotate(calc(var(--r) * 3)) scale(4.5); box-shadow:0 40px 60px rgba(3,44,23,.15); }
+    55%{ opacity:1; transform:translate(-50%, -50%) rotate(var(--r)) scale(.86); }
+    78%{ transform:translate(-50%, -50%) rotate(var(--r)) scale(1.06); }
+    100%{ opacity:1; transform:translate(-50%, -50%) rotate(var(--r)) scale(1); box-shadow:0 6px 14px rgba(3,44,23,.35); }
+  }
+  .hs-video{
+    position:absolute; z-index:20; height:var(--vh); aspect-ratio:9/16; margin:0;
+    transform:translate(-50%, -50%) scale(.4); opacity:0;
+    border:6px solid var(--white); border-radius:22px; overflow:hidden; background:#e9ece6;
+    box-shadow:0 24px 60px rgba(3,44,23,.45);
+    transition:opacity .35s ease, transform .45s cubic-bezier(.2,.8,.3,1.2);
+  }
+  .hs-video video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .hero-show.video-on .hs-video{ opacity:1; transform:translate(-50%, -50%) scale(1); }
+  .hero-show.clearing .hs-stamp{ opacity:0; transform:translate(-50%, -40%) rotate(var(--r)) scale(.6); }
+  .hero-show.clearing .hs-video{ opacity:0; transform:translate(-50%, -50%) scale(.85); }
+  @media (prefers-reduced-motion: reduce){
+    .hs-stamp{ animation:none; }
   }
   @media (min-width:901px){
     .hero-grid{ display:contents; }
@@ -352,6 +380,42 @@
   .testimonial-by strong{ display:block; font-family:'Poppins',sans-serif; font-size:15.5px; color:var(--forest-900); }
   .testimonial-by div span{ font-size:13.5px; color:var(--ink-500); }
 
+  /* ===== MEET THE TEAM (sliding loop of faces) ===== */
+  .team-section{ padding:100px 0 110px; background:var(--white); border-top:1px solid var(--line); overflow:hidden; }
+  .team-slider{
+    --size:150px; --gap:32px; --speed:26s;
+    overflow:hidden; padding:24px 0 40px;
+    -webkit-mask-image:linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+            mask-image:linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  }
+  /* The faces are listed twice; sliding left by exactly one set makes the loop seamless. */
+  .team-track{ display:flex; gap:var(--gap); padding-right:var(--gap); width:max-content; animation:team-scroll var(--speed) linear infinite; }
+  .team-slider:hover .team-track, .team-slider:focus-within .team-track{ animation-play-state:paused; }
+  .team-face{ width:var(--size); height:var(--size); flex-shrink:0; position:relative; }
+  .team-face img{
+    width:100%; height:100%; object-fit:cover; border-radius:50%;
+    border:5px solid var(--white); box-shadow:0 0 0 2px var(--leaf-300), var(--shadow-md);
+    animation:team-float 3.6s ease-in-out infinite alternate; animation-delay:calc(var(--i) * -0.7s);
+    transition:box-shadow .35s var(--ease), transform .35s var(--ease);
+  }
+  .team-face::after{
+    content:''; position:absolute; inset:-10px; border-radius:50%; border:2px dashed var(--leaf-400);
+    opacity:0; transition:opacity .35s var(--ease); animation:team-spin 14s linear infinite; pointer-events:none;
+  }
+  .team-face:hover img{ box-shadow:0 0 0 3px var(--leaf-500), var(--shadow-lg); }
+  .team-face:hover::after{ opacity:1; }
+  .team-note{ text-align:center; margin-top:6px; color:var(--ink-500); font-size:15px; }
+  .team-note strong{ color:var(--forest-900); }
+  @keyframes team-scroll{ to{ transform:translateX(-50%); } }
+  @keyframes team-float{ from{ transform:translateY(6px); } to{ transform:translateY(-8px); } }
+  @keyframes team-spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){
+    .team-slider{ -webkit-mask-image:none; mask-image:none; }
+    .team-track{ animation:none; width:auto; flex-wrap:wrap; justify-content:center; padding-right:0; }
+    .team-track [aria-hidden="true"]{ display:none; }
+    .team-face img, .team-face::after{ animation:none; }
+  }
+
   /* ===== WHY / STATS BANNER ===== */
   .why-section{
     background: radial-gradient(120% 140% at 10% 0%, var(--forest-800) 0%, var(--forest-900) 55%, #032c17 100%);
@@ -462,6 +526,7 @@
     .stat-grid{ max-width:520px; }
   }
   @media (max-width: 900px){
+    .team-slider{ --size:124px; --gap:26px; --speed:24s; }
     .steps-grid{ grid-template-columns:1fr; gap:40px; max-width:420px; margin:0 auto; }
     .steps-grid::before{ display:none; }
     .trust-grid{ grid-template-columns:repeat(2, 1fr); gap:22px 18px; }
@@ -476,12 +541,18 @@
       order:-1; border-radius:0 0 40px 90px; overflow:hidden;
     }
     .hero-visual .swoosh{ display:none; }
+    .hero-show{ --stamp-w:48px; --vh:230px; }
+    .hs-stamp{ padding:2px 2px 7px; }
+    .hs-stamp .hs-mark{ width:8px; right:2px; bottom:0; }
+    .hs-video{ border-width:4px; border-radius:16px; }
     .mv-grid{ grid-template-columns:1fr; }
     .services-grid{ grid-template-columns:repeat(2,1fr); }
     .cta-box{ flex-direction:column; text-align:center; padding:48px 32px; }
     .footer-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width: 560px){
+    .team-slider{ --size:104px; --gap:18px; --speed:20s; }
+    .team-face img{ border-width:3px; }
     .trust-strip{ padding:24px 0; }
     .trust-icon{ width:42px; height:42px; border-radius:12px; }
     .trust-item{ flex-direction:column; align-items:flex-start; gap:8px; }
@@ -493,6 +564,7 @@
     .brand img{ height:44px; }
     .hero-copy .eyebrow{ font-size:12px; }
     .hero-visual{ height:240px; border-radius:0 0 28px 60px; }
+    .hero-show{ --stamp-w:42px; --vh:190px; }
     .services-grid{ grid-template-columns:1fr; }
     .footer-grid{ grid-template-columns:1fr; gap:32px; }
     .why-list li{ font-size:14px; }
@@ -536,7 +608,8 @@
   <section class="hero" id="home">
     <div class="hero-visual">
       <div class="swoosh"></div>
-      <img src="https://images.unsplash.com/photo-1772513168377-185aa30b72ac?fm=jpg&q=80&w=1400&auto=format&fit=crop" alt="Close-up of a lush four-leaf clover with morning dew, symbolizing growth and good fortune">
+      <img class="hero-bg" src="https://images.unsplash.com/photo-1772513168377-185aa30b72ac?fm=jpg&q=80&w=1400&auto=format&fit=crop" alt="Close-up of a lush four-leaf clover with morning dew, symbolizing growth and good fortune">
+      <div class="hero-show" id="heroShow" role="img" aria-label="Photos of the Clovers team stamped on a wall, followed by the Clovers mascot video"></div>
     </div>
     <div class="container">
       <div class="hero-grid">
@@ -727,6 +800,54 @@
     </div>
   </section>
 
+  <!-- MEET THE TEAM -->
+  <section class="team-section" id="team">
+    <div class="container">
+      <div class="section-head reveal" style="margin-bottom:30px;">
+        <span class="eyebrow">Meet the Team</span>
+        <h2 style="margin-top:14px;">The Faces Behind Clovers</h2>
+        <p>Real people, carefully selected and trained, ready to support your business.</p>
+      </div>
+      <div class="team-slider reveal" aria-label="Photos of Clovers virtual associates">
+        <div class="team-track">
+          <div class="team-face" style="--i:0"><img src="images/team/va-1.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:1"><img src="images/team/va-2.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:2"><img src="images/team/va-3.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:3"><img src="images/team/va-4.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:4"><img src="images/team/va-5.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:5"><img src="images/team/va-6.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:6"><img src="images/team/va-7.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:7"><img src="images/team/va-8.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:8"><img src="images/team/va-9.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:9"><img src="images/team/va-10.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:10"><img src="images/team/va-11.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:11"><img src="images/team/va-12.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:12"><img src="images/team/va-13.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:13"><img src="images/team/va-14.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:14"><img src="images/team/va-15.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:15"><img src="images/team/va-16.jpg" alt="Clovers virtual associate" width="150" height="150"></div>
+          <div class="team-face" style="--i:0" aria-hidden="true"><img src="images/team/va-1.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:1" aria-hidden="true"><img src="images/team/va-2.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:2" aria-hidden="true"><img src="images/team/va-3.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:3" aria-hidden="true"><img src="images/team/va-4.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:4" aria-hidden="true"><img src="images/team/va-5.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:5" aria-hidden="true"><img src="images/team/va-6.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:6" aria-hidden="true"><img src="images/team/va-7.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:7" aria-hidden="true"><img src="images/team/va-8.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:8" aria-hidden="true"><img src="images/team/va-9.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:9" aria-hidden="true"><img src="images/team/va-10.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:10" aria-hidden="true"><img src="images/team/va-11.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:11" aria-hidden="true"><img src="images/team/va-12.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:12" aria-hidden="true"><img src="images/team/va-13.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:13" aria-hidden="true"><img src="images/team/va-14.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:14" aria-hidden="true"><img src="images/team/va-15.jpg" alt="" width="150" height="150"></div>
+          <div class="team-face" style="--i:15" aria-hidden="true"><img src="images/team/va-16.jpg" alt="" width="150" height="150"></div>
+        </div>
+      </div>
+      <p class="team-note reveal">Based in the Philippines, working on <strong>your US business hours</strong>.</p>
+    </div>
+  </section>
+
   <!-- WHY / STATS -->
   <section class="why-section" id="careers">
     <div class="container">
@@ -855,6 +976,107 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     });
   }, { threshold: 0.15 });
   revealEls.forEach(el => io.observe(el));
+
+  // ===== Hero stamp wall =====
+  // Team photos are stamped onto the clover wall one by one (each drops in big and lands tiny), scattered
+  // around. Then the mascot video pops up in front of them and plays at normal speed (the slow part),
+  // everything clears, and it starts again. It pauses while the top of the page is off screen.
+  (function heroStamps(){
+    const show = document.getElementById('heroShow');
+    if (!show) return;
+    const PHOTOS = 16;       // images/hero/slide-1.jpg ... slide-16.jpg
+    const STAMP_MS = 260;    // time between stamps (fast)
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const photo = (i) => `images/hero/slide-${i}.jpg`;
+    for (let i = 1; i <= PHOTOS; i++) new Image().src = photo(i); // load them all up front
+
+    const vbox = document.createElement('figure');
+    vbox.className = 'hs-video';
+    const video = document.createElement('video');
+    Object.assign(video, { muted:true, playsInline:true, preload:'auto', poster:'images/hero/clovers-mascot.jpg' });
+    video.setAttribute('muted', ''); video.setAttribute('playsinline', '');
+    video.src = 'images/hero/clovers-mascot.mp4';
+    vbox.append(video);
+    show.append(vbox);
+
+    // The free part of the wall: on computers the cream curve covers the left side of the picture.
+    function area(){
+      const w = show.clientWidth, h = show.clientHeight;
+      const wide = innerWidth > 900;
+      const x0 = wide ? w * .44 : w * .05, x1 = w * (wide ? .95 : .95);
+      return { x0, x1, y0: h * .1, y1: h * .9, w, h };
+    }
+    // Spread the photos over a loose grid, in random order, each nudged and tilted a little.
+    function spots(){
+      const a = area(), aw = a.x1 - a.x0, ah = a.y1 - a.y0;
+      let cols = Math.max(2, Math.round(Math.sqrt(PHOTOS * aw / ah)));
+      const rows = Math.ceil(PHOTOS / cols);
+      const cells = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([c, r]);
+      cells.sort(() => Math.random() - .5);
+      return cells.slice(0, PHOTOS).map(([c, r]) => ({
+        x: (a.x0 + (c + .5 + (Math.random() - .5) * .6) * aw / cols) / a.w * 100,
+        y: (a.y0 + (r + .5 + (Math.random() - .5) * .5) * ah / rows) / a.h * 100,
+        r: Math.round((Math.random() - .5) * 28),
+      }));
+    }
+    function placeVideo(){
+      const a = area();
+      vbox.style.left = ((a.x0 + a.x1) / 2 / a.w * 100) + '%';
+      vbox.style.top = '50%';
+    }
+    function stamp(i, spot){
+      const fig = document.createElement('figure');
+      fig.className = 'hs-stamp';
+      fig.style.left = spot.x + '%'; fig.style.top = spot.y + '%'; fig.style.setProperty('--r', spot.r + 'deg');
+      const img = document.createElement('img'); img.src = photo(i); img.alt = '';
+      const mark = document.createElement('img'); mark.className = 'hs-mark'; mark.src = 'images/clover-icon.png'; mark.alt = '';
+      fig.append(img, mark);
+      show.insertBefore(fig, vbox);
+    }
+
+    placeVideo();
+    if (still){ spots().forEach((s, k) => stamp(k + 1, s)); return; } // a still wall of photos, no movement
+
+    let running = false, visible = true, wake = null;
+    const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+    const ready = () => running ? Promise.resolve() : new Promise((go) => { wake = go; });
+    function setRunning(on){
+      running = on;
+      if (on){ wake?.(); wake = null; if (show.classList.contains('video-on')) video.play().catch(() => {}); }
+      else video.pause();
+    }
+    const videoDone = () => new Promise((done) => {
+      const finish = () => { clearTimeout(t); video.removeEventListener('ended', finish); done(); };
+      video.addEventListener('ended', finish);
+      const t = setTimeout(finish, 15000); // in case the video never ends
+      video.currentTime = 0;
+      video.playbackRate = 1;
+      video.play().catch(() => { clearTimeout(t); setTimeout(finish, 3000); }); // blocked: show the still frame briefly
+    });
+
+    (async function loop(){
+      for (;;){
+        await ready();
+        placeVideo();
+        const order = Array.from({ length: PHOTOS }, (_, k) => k + 1).sort(() => Math.random() - .5);
+        const where = spots();
+        for (let k = 0; k < PHOTOS; k++){ await ready(); stamp(order[k], where[k]); await sleep(STAMP_MS); }
+        await sleep(500);
+        await ready();
+        show.classList.add('video-on');
+        await videoDone();
+        show.classList.add('clearing');
+        await sleep(650);
+        show.querySelectorAll('.hs-stamp').forEach((n) => n.remove());
+        show.classList.remove('clearing', 'video-on');
+        await sleep(300);
+      }
+    })();
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; setRunning(visible && !document.hidden); }, { threshold:0.2 }).observe(show);
+    document.addEventListener('visibilitychange', () => setRunning(visible && !document.hidden));
+    addEventListener('resize', placeVideo);
+  })();
 </script>
 </body>
 </html>
