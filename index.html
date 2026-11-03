@@ -60,6 +60,12 @@
   img{max-width:100%; display:block;}
   ul{list-style:none;}
   button{font-family:inherit; cursor:pointer; border:none;}
+  /* Clover mouse pointer (computers only; links and buttons keep the hand, text boxes keep the text cursor) */
+  @media (pointer:fine){
+    html{ cursor:url('images/cursor/clover-32.png') 16 16, auto; }
+    a, button, select, summary, [role="button"]{ cursor:pointer; }
+    input, textarea{ cursor:text; }
+  }
   .container{
     width:100%;
     max-width:1240px;
@@ -222,6 +228,17 @@
     .hero .container{ display:flex; align-items:center; min-height:640px; }
   }
 
+  /* ===== TRUST BADGES ===== */
+  .trust-strip{ background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:30px 0; }
+  .trust-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:20px; }
+  .trust-item{ display:flex; align-items:center; gap:14px; }
+  .trust-icon{
+    width:48px; height:48px; border-radius:14px; flex-shrink:0;
+    background:var(--leaf-100); display:flex; align-items:center; justify-content:center;
+  }
+  .trust-item strong{ display:block; font-family:'Poppins',sans-serif; font-size:15px; font-weight:600; color:var(--forest-900); line-height:1.3; }
+  .trust-item div span{ display:block; margin-top:2px; font-size:13px; color:var(--ink-500); line-height:1.45; }
+
   /* ===== MISSION & VISION ===== */
   .mv-section{ padding:110px 0 120px; background:var(--cream); }
   .section-head{ text-align:center; max-width:640px; margin:0 auto 56px; }
@@ -293,6 +310,32 @@
   }
   .service-card h4{ font-size:16.5px; font-weight:600; margin-bottom:8px; }
   .service-card p{ font-size:13.5px; color:var(--ink-500); }
+
+  /* ===== TESTIMONIALS ===== */
+  .testimonials-section{ padding:110px 0 120px; background:var(--cream); }
+  .testimonial-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:28px; max-width:1000px; margin:0 auto; }
+  .testimonial-card{
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg);
+    padding:38px 36px 32px; box-shadow:var(--shadow-sm); position:relative; overflow:hidden;
+    display:flex; flex-direction:column; gap:18px;
+    transition: transform .4s var(--ease), box-shadow .4s var(--ease);
+  }
+  .testimonial-card:hover{ transform:translateY(-6px); box-shadow:var(--shadow-md); }
+  .testimonial-card::before{
+    content:'\201C'; position:absolute; top:-18px; right:24px;
+    font-family:'Poppins',sans-serif; font-size:150px; line-height:1; color:var(--leaf-100); pointer-events:none;
+  }
+  .stars{ display:flex; gap:4px; position:relative; }
+  .stars svg{ width:20px; height:20px; }
+  .testimonial-card blockquote{ font-size:16.5px; color:var(--ink-700); line-height:1.7; position:relative; flex:1; }
+  .testimonial-by{ display:flex; align-items:center; gap:14px; padding-top:18px; border-top:1px solid var(--line); }
+  .testimonial-avatar{
+    width:46px; height:46px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg, var(--forest-700), var(--forest-900)); color:var(--white);
+    display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:600; font-size:18px;
+  }
+  .testimonial-by strong{ display:block; font-family:'Poppins',sans-serif; font-size:15.5px; color:var(--forest-900); }
+  .testimonial-by div span{ font-size:13.5px; color:var(--ink-500); }
 
   /* ===== WHY / STATS BANNER ===== */
   .why-section{
@@ -404,6 +447,8 @@
     .stat-grid{ max-width:520px; }
   }
   @media (max-width: 900px){
+    .trust-grid{ grid-template-columns:repeat(2, 1fr); gap:22px 18px; }
+    .testimonial-grid{ grid-template-columns:1fr; }
     .nav-links{ display:none; }
     .burger{ display:flex; }
     .hero{ min-height:auto; display:block; }
@@ -420,6 +465,12 @@
     .footer-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width: 560px){
+    .trust-strip{ padding:24px 0; }
+    .trust-icon{ width:42px; height:42px; border-radius:12px; }
+    .trust-item{ flex-direction:column; align-items:flex-start; gap:8px; }
+    .trust-item strong{ font-size:13.5px; }
+    .trust-item div span{ font-size:12px; }
+    .testimonial-card{ padding:30px 24px 26px; }
     .container{ padding:0 20px; }
     .nav-inner{ padding:14px 20px; }
     .brand img{ height:44px; }
@@ -483,6 +534,30 @@
             Speak with Our Team
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BADGES -->
+  <section class="trust-strip" aria-label="How we protect your business">
+    <div class="container">
+      <div class="trust-grid">
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3L4 6V11C4 16 7.4 19.7 12 21C16.6 19.7 20 16 20 11V6L12 3Z" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 12L11 14.5L15.5 10" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>HIPAA-trained VAs</strong><span>Every VA is trained to handle patient data</span></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3H14L19 8V20C19 20.55 18.55 21 18 21H7C6.45 21 6 20.55 6 20V4C6 3.45 6.45 3 7 3Z" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 3V8H19" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 13H16M9 17H13" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>BAA available</strong><span>Business Associate Agreement for healthcare clients</span></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10V7C8 4.8 9.8 3 12 3C14.2 3 16 4.8 16 7V10" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 14.5V17" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>NDA-signed VAs</strong><span>Every VA signs a confidentiality agreement</span></div>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7V12L15.5 14" stroke="#0a662d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><strong>US-hours coverage</strong><span>Working during your US business hours</span></div>
         </div>
       </div>
     </div>
@@ -567,6 +642,39 @@
           <h4>Healthcare</h4>
           <p>End-to-end healthcare support, including appointment scheduling, patient follow-up, medical billing, denial management, and administrative services.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="testimonials-section" id="testimonials">
+    <div class="container">
+      <div class="section-head reveal">
+        <div class="clover-divider">
+          <span class="line"></span>
+          <img src="images/clover-icon.png" alt="" width="20" height="22" class="clover-icon">
+          <span class="line right"></span>
+        </div>
+        <h2>What Our Clients Say</h2>
+        <p>Kind words from the teams our virtual associates support every day.</p>
+      </div>
+      <div class="testimonial-grid">
+        <figure class="testimonial-card reveal">
+          <div class="stars" role="img" aria-label="5 out of 5 stars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg></div>
+          <blockquote>&ldquo;I truly appreciate having you as part of the Trust Home Care. Your dedication, teamwork, sacrifice, and willingness to support our shared goals make a meaningful difference, and I&rsquo;m so grateful to have you as a teammate!&rdquo;</blockquote>
+          <figcaption class="testimonial-by">
+            <span class="testimonial-avatar" aria-hidden="true">P</span>
+            <div><strong>Prince</strong><span>Trust Home Care</span></div>
+          </figcaption>
+        </figure>
+        <figure class="testimonial-card reveal">
+          <div class="stars" role="img" aria-label="5 out of 5 stars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95L12 2.5z" fill="#81be39"/></svg></div>
+          <blockquote>&ldquo;Richelle and Jean are really good ones. John Paul is also good at what he does.&rdquo;</blockquote>
+          <figcaption class="testimonial-by">
+            <span class="testimonial-avatar" aria-hidden="true">M</span>
+            <div><strong>Mellisa</strong><span>Clovers client</span></div>
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>
