@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=22">
-  <script type="module" src="app.js?v=24"></script>
+  <script type="module" src="app.js?v=25"></script>
 </head>
 <body>
   <header class="topbar">
@@ -77,7 +77,7 @@
         <button data-view="timesheets" data-admin hidden>Timesheets</button>
         <button data-view="payroll" data-admin hidden>Payroll</button>
         <button data-view="invoices" data-admin hidden>Client invoices</button>
-        <button data-view="vas" data-admin hidden>VAs<span id="waitingCount" class="badge" hidden></span></button>
+        <button data-view="vas" data-admin hidden>Employee demographics<span id="waitingCount" class="badge" hidden></span></button>
         <button data-view="coe" data-admin hidden>COE requests<span id="coeCount" class="badge" hidden></span></button>
         <button data-view="leaveAdmin" data-admin hidden>Leave requests<span id="leaveCount" class="badge" hidden></span></button>
         <button data-view="otAdmin" data-admin hidden>Overtime<span id="otCount" class="badge" hidden></span></button>
@@ -372,13 +372,13 @@
             <h2>VA rates per client (USD)</h2>
             <p class="muted">Click a client to open it. The USD rate is what the client is billed per hour; it is used on invoices and client copies.</p>
             <div id="invRates"></div>
-            <p id="invRatesEmpty" class="muted" hidden>No VAs are assigned to a client yet (VAs &gt; Edit).</p>
+            <p id="invRatesEmpty" class="muted" hidden>No VAs are assigned to a client yet (Employee demographics &gt; Edit).</p>
           </div>
         </section>
 
         <section data-panel="vas" hidden>
           <div class="card">
-            <h2>VAs</h2>
+            <h2>Employee demographics</h2>
             <div id="requestsBox" hidden>
               <h3>Waiting for approval</h3>
               <div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Asked</th><th></th></tr></thead><tbody id="requestRows"></tbody></table></div>
