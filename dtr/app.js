@@ -5,11 +5,11 @@ import {
 import {
   Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=16';
-import { setMyBirthday, startBoard } from './board.js?v=22';
+import { startAdmin } from './admin.js?v=17';
+import { setMyBirthday, startBoard } from './board.js?v=23';
 import { startVaFiles } from './files.js?v=13';
-import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=13';
-import { coeHtml, payslipHtml } from './docs.js?v=13';
+import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=14';
+import { coeHtml, payslipHtml } from './docs.js?v=14';
 import { auth, db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatPhp, hmFromHours, payFor, periodRange, zonedToDate,
@@ -33,6 +33,8 @@ function renderMine() {
 
 let me = null; // the signed-in person's allowed/{email} record, kept live
 let myBank = null;
+// The founder's signature for payslip PDFs. VAs only get it if the database rules let them read settings/signature.
+let signatureUrl = null;
 let myProfile = null;
 let unsubs = [];
 const track = (unsub) => unsubs.push(unsub);
@@ -255,12 +257,14 @@ function startVa() {
     renderMine();
   }, showError));
 
+  getDoc(doc(db, 'settings', 'signature')).then((snap) => { signatureUrl = snap.exists() ? snap.data().dataUrl : null; })
+    .catch(() => { signatureUrl = null; }); // not allowed for VAs yet: payslips print without it
   track(onSnapshot(query(collection(db, 'payslips'), where('email', '==', me.email)), (snap) => {
     const slips = snap.docs.map((d) => d.data()).sort((a, b) => b.periodStart.localeCompare(a.periodStart));
     show('myPayslipsEmpty', slips.length === 0);
     $('myPayslipRows').replaceChildren(...slips.map((s) => {
       const btn = el('button', { textContent: 'Payslip PDF' });
-      btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank));
+      btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank, signatureUrl));
       const status = s.status === 'paid'
         ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate(), BUSINESS_TZ)) : ''}` })
         : el('span', { className: 'pill pending', textContent: 'Pending' });

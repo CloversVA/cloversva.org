@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=13';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=14';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
 import {
@@ -10,7 +10,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { refreshLeave, startAdminRequests } from './requests.js?v=13';
+import { refreshLeave, startAdminRequests } from './requests.js?v=14';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -51,6 +51,8 @@ export function startAdmin(signedIn, track) {
     const payClient = $('payClient').value;
     $('payClient').replaceChildren(el('option', { value: '', textContent: 'All clients' }), ...clients.map((c) => el('option', { value: c, textContent: c })));
     if (clients.includes(payClient)) $('payClient').value = payClient;
+    fillAddShiftVas();
+    renderInvoiceRates();
     refreshLeave();
   }, showError));
 
@@ -330,6 +332,56 @@ $('tsPrintBtn').onclick = () => {
   openDocument(timesheetHtml({ from: $('tsFrom').value, to: $('tsTo').value, totals: totalsOf(shown), shifts: shown, fmt }));
 };
 
+// ---------- Add a shift by hand ----------
+
+function fillAddShiftVas() {
+  const current = $('addShiftVa').value;
+  const list = [...vas.values()].filter((v) => v.active).sort((a, b) => a.name.localeCompare(b.name));
+  $('addShiftVa').replaceChildren(el('option', { value: '', textContent: 'Choose a VA' }),
+    ...list.map((v) => el('option', { value: v.email, textContent: `${v.name}${v.clientName ? ` (${v.clientName})` : ''}` })));
+  if (vas.has(current)) $('addShiftVa').value = current;
+}
+
+// Saved like a normal clock-in, plus an entry in the shift's change history saying who added it and why.
+$('addShiftForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const va = vas.get($('addShiftVa').value);
+  if (!va) { alert('Choose a VA first.'); return; }
+  const clockIn = fromDateTimeInput($('addShiftIn').value);
+  const clockOut = fromDateTimeInput($('addShiftOut').value);
+  if (!(clockOut > clockIn)) { alert('Clock out must be after clock in.'); return; }
+  if (clockOut - clockIn > 16 * 3_600_000 && !confirm(`That shift is ${formatHM(clockOut - clockIn)} long. Add it anyway?`)) return;
+  if (clockIn > new Date()) { alert('The clock-in time is in the future.'); return; }
+  const button = e.target.querySelector('button');
+  button.disabled = true;
+  try {
+    // Warn about a shift that overlaps one the VA already has.
+    const nearby = await fetchShifts(dayKey(new Date(clockIn - 86_400_000), BUSINESS_TZ), dayKey(clockOut, BUSINESS_TZ));
+    const clash = nearby.find((x) => x.email === va.email && x.clockIn < clockOut && (x.clockOut ?? new Date()) > clockIn);
+    if (clash && !confirm(`${va.name} already has a shift from ${fmt(clash.clockIn)} to ${clash.clockOut ? fmt(clash.clockOut) : 'now (still open)'}, which overlaps. Add this one anyway?`)) return;
+    const entryRef = doc(collection(db, 'entries'));
+    const editRef = doc(collection(db, 'entries', entryRef.id, 'edits'));
+    const b = writeBatch(db);
+    b.set(entryRef, {
+      email: va.email, name: va.name, client: va.clientName ?? '',
+      clockIn: Timestamp.fromDate(clockIn), clockOut: Timestamp.fromDate(clockOut), lastEditId: editRef.id,
+    });
+    b.set(editRef, {
+      by: me.email, at: serverTimestamp(), reason: `Added by admin: ${$('addShiftReason').value.trim()}`,
+      before: { clockIn: null, clockOut: null },
+      after: { clockIn: Timestamp.fromDate(clockIn), clockOut: Timestamp.fromDate(clockOut) },
+    });
+    await b.commit();
+    $('addShiftNote').textContent = `Added ${va.name}: ${fmt(clockIn)} to ${fmt(clockOut)}. If a payslip for that period exists, click "Recount hours" in Payroll.`;
+    $('addShiftIn').value = ''; $('addShiftOut').value = ''; $('addShiftReason').value = '';
+    await runTimesheet();
+  } catch (err) {
+    if (err?.code === 'permission-denied') {
+      showError({ message: 'The database rules do not let admins add shifts for a VA yet. The Firestore rules for "entries" need updating (see the notes from your developer).' });
+    } else showError(err);
+  } finally { button.disabled = false; }
+};
+
 // ---------- Fix a shift ----------
 
 let editingShift = null;
@@ -408,56 +460,83 @@ function renderPayroll() {
   const total = round2(slips.reduce((sum, s) => sum + s.amount, 0));
   $('payTotal').textContent = slips.length ? `Total${client ? ` for ${client}` : ''}: ${formatPhp(total)}` : '';
   $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, payBanks.get(s.email))));
+  // Show the rate the pending payslips share, so the box starts from what is in use.
+  const rates = [...new Set(slips.filter((s) => s.status === 'pending').map((s) => s.phpRate))];
+  if (document.activeElement !== $('payRate')) $('payRate').value = rates.length === 1 ? rates[0] : '';
 }
+
+// One PHP rate for everyone: re-prices each pending payslip on screen and saves it as those VAs' rate for next time.
+$('payRateForm').onsubmit = async (e) => {
+  e.preventDefault();
+  if ($('payRate').validity.badInput) { alert('Type the rate as a plain number, like 150 or 150.50, without commas or a ₱ sign.'); return; }
+  const rate = round2(Number($('payRate').value) || 0);
+  const client = $('payClient').value;
+  const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
+  if (!pending.length) { alert('There are no pending payslips to update. Create payslips first, or pick another period.'); return; }
+  if (!confirm(`Set the PHP rate to ${formatPhp(rate)}/hr for ${pending.length} pending payslip${pending.length === 1 ? '' : 's'}`
+    + `${client ? ` for ${client}` : ''}? Each of those VAs' PHP rate is updated too, so future payslips use it.`)) return;
+  const button = e.target.querySelector('button');
+  button.disabled = true;
+  try {
+    const b = writeBatch(db);
+    for (const slip of pending) {
+      b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, phpRate: rate, amount: round2(slip.hours * rate), ...stamp() });
+      const va = vas.get(slip.email);
+      if (va) b.set(doc(db, 'allowed', va.email), pick({ ...va, phpRate: rate }));
+    }
+    await b.commit();
+    await loadPayroll();
+  } catch (err) { showError(err); } finally { button.disabled = false; }
+};
 
 function payrollRow(slip, bank) {
   const pending = slip.status === 'pending';
-  const rate = el('input', { type: 'number', min: 0, max: 100000, step: 0.01, value: slip.phpRate, disabled: !pending, ariaLabel: `Rate for ${slip.name}` });
-  const amount = numCell(formatPhp(slip.amount));
-  rate.oninput = () => { amount.textContent = formatPhp(round2(slip.hours * (Number(rate.value) || 0))); };
+  const btn = (textContent, props = {}) => el('button', { type: 'button', textContent, ...props });
 
-  const save = el('button', { textContent: 'Save rate', hidden: !pending });
-  save.onclick = () => saveSlip({ ...slip, phpRate: round2(Number(rate.value) || 0), amount: round2(slip.hours * (Number(rate.value) || 0)) });
-  const recalc = el('button', { textContent: 'Recount hours', hidden: !pending, title: 'Use the latest clock-in records, for example after fixing a shift' });
+  const recalc = btn('Recount hours', { hidden: !pending, title: 'Use the latest clock-in records, for example after fixing or adding a shift' });
   recalc.onclick = async () => {
     const shifts = (await fetchShifts(slip.periodStart, slip.periodEnd)).filter((x) => x.email === slip.email);
-    const { hours, amount: amt, days } = payFor(shifts, Number(rate.value) || 0);
-    await saveSlip({ ...slip, hours, phpRate: round2(Number(rate.value) || 0), amount: amt, days });
+    const { hours, amount, days } = payFor(shifts, slip.phpRate || 0);
+    await saveSlip({ ...slip, hours, amount, days });
   };
-  const paid = el('button', { className: pending ? 'primary' : '', textContent: pending ? 'Mark paid' : 'Undo paid' });
+  const paid = btn(pending ? 'Mark paid' : 'Undo paid', { className: pending ? 'primary' : '' });
   paid.onclick = () => {
     if (!pending && !confirm(`Mark ${slip.name}'s payslip as not paid?`)) return;
     saveSlip(pending ? { ...slip, status: 'paid', paidAt: Timestamp.now() } : { ...slip, status: 'pending', paidAt: null });
   };
-  const remove = el('button', { className: 'danger', textContent: 'Delete', hidden: !pending });
+  const remove = btn('Delete', { className: 'danger', hidden: !pending });
   remove.onclick = async () => {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
-  const pdf = el('button', { textContent: 'VA payslip (PHP)', title: "The VA's payslip at their PHP pay rate" });
-  pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank));
-  const clientPdf = el('button', { textContent: 'Client copy (USD)', title: "Day-by-day hours at the VA's USD billing rate, for the client" });
+  const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
+  pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl));
+  const clientPdf = btn('Client copy (USD)', { title: "Day-by-day hours at the VA's USD billing rate, for the client" });
   clientPdf.onclick = () => {
     const usdRate = vas.get(slip.email)?.usdRate;
-    if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (VAs > Edit).`); return; }
-    openDocument(clientPayrollHtml(slip, usdRate));
+    if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (Client invoices > VA rates).`); return; }
+    openDocument(clientPayrollHtml(slip, usdRate, signatureUrl));
   };
 
   const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
+
+  // Daily hours and the VA's bank details, shown under the row on request.
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
+  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 6 },
+    el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
+    slip.days?.length
+      ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
+      : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" to add it.' })));
+  const details = btn('Details', { ariaExpanded: 'false' });
+  details.onclick = () => { detailsRow.hidden = !detailsRow.hidden; details.ariaExpanded = String(!detailsRow.hidden); };
 
-  // Day-by-day hours, shown under the row on request.
-  const daysRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 7 }, slip.days?.length
-    ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)} (${x.hours.toFixed(2)} h)` })))
-    : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" to add it.' })));
-  const daily = el('button', { textContent: 'Daily hours' });
-  daily.onclick = () => { daysRow.hidden = !daysRow.hidden; };
-
-  const row = el('tr', { className: 'pay-main' }, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)), cell(rate), amount,
-    cell(status), cell(el('span', { className: bank ? '' : 'muted', textContent: bankText })));
-  // The buttons get their own line under the payslip so the table fits without scrolling sideways.
-  const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 7 }, daily, ' ', save, ' ', recalc, ' ', paid, ' ', pdf, ' ', clientPdf, ' ', remove));
-  return [row, actions, daysRow];
+  const row = el('tr', { className: 'pay-main' }, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)),
+    numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status));
+  // The buttons sit on their own line under the payslip, in small groups, so the table fits without scrolling sideways.
+  const group = (...kids) => el('div', { className: 'btn-group' }, ...kids);
+  const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 6 }, el('div', { className: 'pay-buttons' },
+    group(paid), group(details, recalc), group(pdf, clientPdf), group(remove))));
+  return [row, actions, detailsRow];
 }
 
 async function saveSlip(slip) {
@@ -535,9 +614,6 @@ async function loadCompany() {
   ]);
   company = snap?.exists() ? snap.data() : {};
   payAnchor = (cycle?.exists() && cycle.data().anchor) || company.payAnchor || DEFAULT_PAY_ANCHOR;
-  $('coBank').value = company.bankName ?? '';
-  $('coAccountName').value = company.accountName ?? '';
-  $('coAccountNumber').value = company.accountNumber ?? '';
   $('coPayAnchor').value = payAnchor;
 }
 
@@ -650,16 +726,6 @@ async function approveCoe(r, button) {
   } catch (err) { showError(err); button.disabled = false; }
 }
 
-$('companyForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const next = { ...company, bankName: $('coBank').value.trim(), accountName: $('coAccountName').value.trim(), accountNumber: $('coAccountNumber').value.trim() };
-  try {
-    await setDoc(doc(db, 'settings', 'company'), next);
-    company = next;
-    $('companyNote').textContent = 'Saved.';
-  } catch (err) { showError(err); }
-};
-
 $('invForm').onsubmit = async (e) => {
   e.preventDefault();
   const client = $('invClient').value;
@@ -671,7 +737,52 @@ $('invForm').onsubmit = async (e) => {
       return { ...l, name: va.name ?? l.email, position: va.position ?? '', usdRate: va.usdRate ?? 0 };
     }).sort((a, b) => a.name.localeCompare(b.name));
     openDocument(invoiceHtml({
-      clientName: client, periodStart: $('invFrom').value, periodEnd: $('invTo').value, invoiceDate: calendarToday(BUSINESS_TZ), dueDate: new Date(`${$('invDue').value}T00:00`), lines, company, signatureUrl,
+      clientName: client, periodStart: $('invFrom').value, periodEnd: $('invTo').value, invoiceDate: calendarToday(BUSINESS_TZ), dueDate: new Date(`${$('invDue').value}T00:00`), lines, signatureUrl,
     }));
   } catch (err) { showError(err); }
 };
+
+// ---------- VA rates per client ----------
+
+const openClients = new Set(); // clients whose box is open, kept open across redraws
+const savedRates = new Set(); // VAs whose rate was saved here, so "Saved" survives the redraw that follows
+
+// One collapsible box per client listing its VAs, each with a USD rate box and Save.
+function renderInvoiceRates() {
+  const byClient = new Map();
+  for (const va of [...vas.values()].filter((v) => v.clientName && v.role !== 'admin').sort((a, b) => a.name.localeCompare(b.name))) {
+    byClient.set(va.clientName, [...(byClient.get(va.clientName) ?? []), va]);
+  }
+  show('invRatesEmpty', byClient.size === 0);
+  $('invRates').replaceChildren(...[...byClient].sort((a, b) => a[0].localeCompare(b[0])).map(([client, list]) => {
+    const box = el('details', { className: 'client-rates', open: openClients.has(client) });
+    box.ontoggle = () => { if (box.open) openClients.add(client); else openClients.delete(client); };
+    const missing = list.filter((v) => !v.usdRate).length;
+    box.append(
+      el('summary', {}, el('strong', { textContent: client }),
+        el('span', { className: 'muted', textContent: ` · ${list.length} VA${list.length === 1 ? '' : 's'}${missing ? ` · ${missing} without a rate` : ''}` })),
+      el('div', { className: 'scroll' }, el('table', {},
+        el('thead', {}, el('tr', {}, el('th', { textContent: 'VA' }), el('th', { textContent: 'Position' }), el('th', { textContent: 'USD/hr' }), el('th'))),
+        el('tbody', {}, ...list.map(rateRow)))),
+    );
+    return box;
+  }));
+}
+
+function rateRow(va) {
+  const input = el('input', { type: 'number', min: 0, max: 1000, step: 0.001, value: va.usdRate ?? '', placeholder: '0.00', ariaLabel: `USD rate for ${va.name}` });
+  const save = el('button', { type: 'button', textContent: 'Save' });
+  const note = el('span', { className: 'muted', role: 'status', textContent: savedRates.has(va.email) ? ' Saved.' : '' });
+  input.oninput = () => { note.textContent = ''; };
+  save.onclick = async () => {
+    if (input.validity.badInput || !input.checkValidity()) { alert('Type the rate as a plain number, like 8 or 8.50, without commas or a $ sign.'); return; }
+    save.disabled = true;
+    try {
+      savedRates.add(va.email);
+      await setDoc(doc(db, 'allowed', va.email), pick({ ...va, usdRate: round3(Number(input.value) || 0) }));
+      note.textContent = ' Saved.';
+    } catch (err) { savedRates.delete(va.email); showError(err); } finally { save.disabled = false; }
+  };
+  input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save.click(); } };
+  return el('tr', {}, cell(va.name), cell(va.position || ''), cell(input), cell(save, note));
+}
