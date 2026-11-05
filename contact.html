@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Arriving with #book or #apply: pick that form before the page is drawn, so the options never flash first. -->
+<script>
+  (function(){ var v = { '#book': 'viewPartner', '#apply': 'viewCareer' }[location.hash]; if (v) document.documentElement.setAttribute('data-open', v); })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Book a Consultation | Clovers Virtual Assistance</title>
 <meta name="description" content="Partner with Clovers Virtual Assistance or join the Clovers team. Tell us what you need and we'll get back to you shortly.">
@@ -201,6 +205,8 @@
   .flow-view{ display:none; opacity:0; transform:translateY(18px); transition: opacity .32s var(--ease), transform .32s var(--ease); }
   .flow-view.active{ display:block; }
   .flow-view.in{ opacity:1; transform:translateY(0); }
+  html[data-open] #viewCards{ display:none; }
+  html[data-open="viewPartner"] #viewPartner, html[data-open="viewCareer"] #viewCareer{ display:block; opacity:1; transform:none; transition:none; }
 
   /* Option cards */
   .options-grid{
@@ -852,6 +858,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
   const HASH_VIEWS = { '#book': 'viewPartner', '#apply': 'viewCareer' };
   function openFromHash(){
     const id = HASH_VIEWS[location.hash];
+    document.documentElement.removeAttribute('data-open'); // the classes below take over from the early pick
     if (!id) return;
     // Arriving from another page: show the form at once, without the fade.
     document.querySelectorAll('.flow-view').forEach(v => v.classList.toggle('active', v.id === id));
@@ -861,6 +868,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
   document.querySelectorAll('a[href="#book"], a[href="#apply"]').forEach(a => a.addEventListener('click', (e) => {
     e.preventDefault();
     a.closest('.mobile-menu')?.classList.remove('open');
+    document.documentElement.removeAttribute('data-open');
     history.replaceState(null, '', a.getAttribute('href'));
     const id = HASH_VIEWS[a.getAttribute('href')];
     if (document.getElementById(id).classList.contains('active')) document.getElementById('flow').scrollIntoView({ behavior: 'smooth', block: 'start' });
