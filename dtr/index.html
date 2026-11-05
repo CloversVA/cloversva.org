@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=22">
-  <script type="module" src="app.js?v=25"></script>
+  <script type="module" src="app.js?v=26"></script>
 </head>
 <body>
   <header class="topbar">
@@ -75,7 +75,7 @@
         <div class="nav-title" data-admin hidden>Admin</div>
         <button data-view="now" data-admin hidden>On the clock</button>
         <button data-view="timesheets" data-admin hidden>Timesheets</button>
-        <button data-view="payroll" data-admin hidden>Payroll</button>
+        <button data-view="payroll" data-admin hidden>VA invoices</button>
         <button data-view="invoices" data-admin hidden>Client invoices</button>
         <button data-view="vas" data-admin hidden>Employee demographics<span id="waitingCount" class="badge" hidden></span></button>
         <button data-view="coe" data-admin hidden>COE requests<span id="coeCount" class="badge" hidden></span></button>
@@ -322,7 +322,7 @@
 
         <section data-panel="payroll" hidden>
           <div class="card">
-            <h2>Payroll</h2>
+            <h2>VA invoices</h2>
             <ol class="steps muted">
               <li>Pick a pay period. The list starts with the one still running; the second is the one that just ended.</li>
               <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate.</li>
@@ -425,7 +425,7 @@
         <section data-panel="otAdmin" hidden>
           <div class="card">
             <h2>Overtime requests</h2>
-            <p class="muted">Approving pays the shift past 8 hours, at the VA's normal rate, up to the hours requested. Use "Recount hours" in Payroll for payslips already made.</p>
+            <p class="muted">Approving pays the shift past 8 hours, at the VA's normal rate, up to the hours requested. Use "Recount hours" in VA invoices for payslips already made.</p>
             <div class="scroll"><table><thead><tr><th>VA</th><th>Shift</th><th class="num">Worked</th><th class="num">Extra asked</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="otRows"></tbody></table></div>
             <p id="otEmpty" class="muted">No requests yet.</p>
           </div>

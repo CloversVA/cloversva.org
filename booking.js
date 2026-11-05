@@ -26,6 +26,8 @@ let booked = new Set();   // slot ids already taken
 let live = false;         // true once booked times have loaded from the database
 let chosen = null;        // Date of the picked slot
 let chosenDay = null;
+let viewMonth = null;      // YYYY-MM shown in the calendar
+let offlineNow = false;   // booked times could not be loaded
 let db = null;
 let fs = null; // the Firestore functions, loaded after the calendar is on screen
 
@@ -59,19 +61,7 @@ function render() {
     $('bkNote').className = 'bk-note warn';
   }
 
-  $('bkDays').replaceChildren(...days.map(({ day, slots }) => {
-    const free = slots.filter((s) => !booked.has(slotId(s))).length;
-    const noon = new Date(`${day}T12:00:00Z`);
-    const b = el('button', { type: 'button', className: `bk-day${day === chosenDay ? ' on' : ''}`, disabled: free === 0 },
-      el('span', { className: 'bk-dow', textContent: noon.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) }),
-      el('strong', { textContent: noon.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'UTC' }) }),
-      el('span', { className: 'bk-mon', textContent: noon.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) }),
-      el('span', { className: 'bk-free', textContent: free ? `${free} open` : 'Full' }));
-    b.ariaPressed = String(day === chosenDay);
-    b.ariaLabel = `${fmtDate(noon, 'UTC')}, ${free ? `${free} times open` : 'fully booked'}`;
-    b.onclick = () => { chosenDay = day; render(); };
-    return b;
-  }));
+  renderCalendar(days);
 
   const today = days.find((d) => d.day === chosenDay);
   $('bkDayTitle').textContent = today ? fmtDate(new Date(`${today.day}T12:00:00Z`), 'UTC') : 'No times available';
@@ -88,6 +78,47 @@ function render() {
     return b;
   }));
   updateFields();
+}
+
+// A normal month calendar (Sunday to Saturday). Only days with open call times can be clicked.
+function renderCalendar(days) {
+  const byDay = new Map(days.map((d) => [d.day, d.slots.filter((s) => !booked.has(slotId(s))).length]));
+  const months = [...new Set(days.map((d) => d.day.slice(0, 7)))];
+  if (!months.length) { $('bkCal').replaceChildren(el('p', { className: 'bk-note', textContent: 'No call times are open right now. Please email us.' })); return; }
+  if (!months.includes(viewMonth)) viewMonth = (chosenDay ?? days[0].day).slice(0, 7);
+  const [y, m] = viewMonth.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const inMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const today = dayKey(new Date(), TZ);
+  const at = months.indexOf(viewMonth);
+
+  const nav = (dir, label, text) => {
+    const b = el('button', { type: 'button', className: 'bk-nav', textContent: text, ariaLabel: label, disabled: !months[at + dir] });
+    b.onclick = () => { viewMonth = months[at + dir]; render(); };
+    return b;
+  };
+  const head = el('div', { className: 'bk-cal-head' }, nav(-1, 'Previous month', '\u2039'),
+    el('strong', { textContent: first.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) }), nav(1, 'Next month', '\u203A'));
+  const dow = el('div', { className: 'bk-grid bk-dow-row', ariaHidden: 'true' },
+    ...['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => el('span', { textContent: d })));
+  const cells = [];
+  for (let i = 0; i < first.getUTCDay(); i += 1) cells.push(el('span'));
+  for (let d = 1; d <= inMonth; d += 1) {
+    const day = `${viewMonth}-${String(d).padStart(2, '0')}`;
+    const free = byDay.get(day);
+    const open = free > 0;
+    const b = el('button', {
+      type: 'button', disabled: !open, textContent: String(d),
+      className: `bk-date${day === chosenDay ? ' on' : ''}${open ? ' open' : ''}${free === 0 ? ' full' : ''}${day === today ? ' today' : ''}`,
+    });
+    const label = fmtDate(new Date(`${day}T12:00:00Z`), 'UTC');
+    b.ariaLabel = open ? `${label}, ${free} times open` : free === 0 ? `${label}, fully booked` : `${label}, not available`;
+    b.ariaPressed = String(day === chosenDay);
+    if (free === 0) b.title = 'Fully booked';
+    b.onclick = () => { chosenDay = day; render(); };
+    cells.push(b);
+  }
+  $('bkCal').replaceChildren(head, dow, el('div', { className: 'bk-grid', role: 'group', ariaLabel: 'Days' }, ...cells));
 }
 
 function pick(at) {
@@ -112,6 +143,8 @@ function updateFields() {
     ? `Your call: ${d.et}${visitorTz !== TZ ? ` (${d.local} your time)` : ''}. ${CALL_MINUTES} minutes.`
     : 'Pick a day, then a time.';
   $('bkSummary').classList.toggle('picked', Boolean(d));
+  // The "couldn't check" note only shows until a time is picked.
+  $('bkOffline').hidden = !offlineNow || Boolean(d);
 }
 
 // Called by the form just before it sends. Holds the slot so nobody else can take it,
@@ -152,7 +185,8 @@ async function start() {
     // Not allowed yet (database rules) or no connection: people can still ask for a time, and the team confirms it.
     console.warn('Could not load booked times.', err);
     live = false;
-    $('bkOffline').hidden = false;
+    offlineNow = true;
+    updateFields();
   };
   try {
     const [{ initializeApp }, firestore] = await Promise.all([
@@ -169,7 +203,7 @@ async function start() {
   fs.onSnapshot(fs.query(fs.collection(db, 'bookedSlots'), fs.where('at', '>=', from), fs.where('at', '<=', to)), (snap) => {
     booked = new Set(snap.docs.map((d) => d.id));
     live = true;
-    $('bkOffline').hidden = true;
+    offlineNow = false;
     render();
   }, offline);
 }
