@@ -304,34 +304,23 @@
   /* ===== Booking calendar ===== */
   .label-like{ font-family:'Poppins',sans-serif; font-weight:600; font-size:13.5px; color:var(--ink-700); }
   .field.booking{ min-width:0; }
-  .bk-wrap{ display:grid; grid-template-columns:300px minmax(0,1fr); gap:24px; align-items:start; }
-  .bk-cal{ width:100%; max-width:320px; border:1px solid var(--line); border-radius:16px; padding:14px 12px 10px; background:var(--white); box-shadow:var(--shadow-sm); }
-  .bk-cal-head{ display:flex; align-items:center; justify-content:space-between; padding:0 4px 8px; }
-  .bk-cal-head strong{ font-family:'Poppins',sans-serif; font-size:15px; font-weight:600; color:var(--ink-900); }
-  .bk-navs{ display:flex; gap:2px; }
-  .bk-nav{ width:32px; height:32px; border-radius:50%; display:grid; place-items:center; color:var(--ink-700); }
-  .bk-nav:hover:not(:disabled){ background:var(--leaf-100); color:var(--forest-800); }
+  .bk-cal{ max-width:420px; border:1.5px solid var(--line); border-radius:16px; padding:14px; background:var(--white); }
+  .bk-cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .bk-cal-head strong{ font-family:'Poppins',sans-serif; font-size:16px; color:var(--forest-900); }
+  .bk-nav{ width:38px; height:38px; border-radius:50%; font-size:24px; line-height:1; color:var(--forest-800); background:var(--leaf-100); }
+  .bk-nav:hover:not(:disabled){ background:var(--leaf-300); }
   .bk-nav:disabled{ opacity:.3; cursor:default; }
-  .bk-grid{ display:grid; grid-template-columns:repeat(7, 1fr); row-gap:2px; justify-items:center; }
-  .bk-dow-row span{ font-size:11.5px; font-weight:600; color:var(--ink-500); padding:4px 0 6px; }
-  .bk-date{ width:36px; height:36px; border-radius:50%; font-size:13.5px; color:var(--ink-300); position:relative; transition:background .15s, color .15s; }
-  .bk-date.open{ color:var(--ink-900); font-weight:600; }
-  .bk-date.open:hover{ background:var(--leaf-100); color:var(--forest-800); }
-  .bk-date.today{ box-shadow:inset 0 0 0 1.5px var(--leaf-500); color:var(--forest-900); }
+  .bk-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+  .bk-dow-row span{ text-align:center; font-size:11.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-500); padding:4px 0; }
+  .bk-date{ aspect-ratio:1; border-radius:50%; font-size:14.5px; color:var(--ink-300); position:relative; }
+  .bk-date.open{ color:var(--forest-900); font-weight:600; background:var(--leaf-100); }
+  .bk-date.open:hover{ background:var(--leaf-300); }
   .bk-date.on{ background:var(--forest-800); color:var(--white); }
-  .bk-date.outside{ color:#c3cdc5; font-weight:400; }
   .bk-date.full{ text-decoration:line-through; }
-  .bk-date.open::after{ content:''; position:absolute; left:50%; bottom:4px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--leaf-500); }
-  .bk-date.on::after{ background:var(--white); }
+  .bk-date.today::after{ content:''; position:absolute; left:50%; bottom:5px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--leaf-500); }
   .bk-date:disabled{ cursor:default; }
-  .bk-slots .bk-day-title{ margin-top:0; }
-  @media (max-width: 700px){
-    .bk-wrap{ grid-template-columns:minmax(0,1fr); gap:14px; }
-    .bk-cal{ max-width:none; }
-    .bk-date{ width:40px; height:40px; }
-  }
   .bk-day-title{ font-family:'Poppins',sans-serif; font-weight:600; font-size:14.5px; color:var(--forest-900); margin-top:4px; }
-  .bk-times{ display:grid; grid-template-columns:repeat(auto-fill, minmax(112px, 1fr)); gap:8px; }
+  .bk-times{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
   .bk-time{
     display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 8px; border:1.5px solid var(--line);
     border-radius:12px; background:var(--white); font-size:11.5px; color:var(--ink-500); transition:border-color .2s, background .2s;
@@ -611,14 +600,10 @@
                 </div>
                 <div class="field full booking" id="bookingField">
                   <span class="label-like" id="bkLabel">Pick a day and time for your call</span>
-                  <span class="hint">Choose a day with a green dot, then a time. Times are in US Eastern Time; times already booked are crossed out.</span>
-                  <div class="bk-wrap">
-                    <div class="bk-cal" id="bkCal" aria-labelledby="bkLabel"></div>
-                    <div class="bk-slots">
-                      <p class="bk-day-title" id="bkDayTitle" aria-live="polite"></p>
-                      <div class="bk-times" id="bkTimes" role="group" aria-label="Available times"></div>
-                    </div>
-                  </div>
+                  <span class="hint">Choose a highlighted day, then a time. Times are in US Eastern Time; times already booked are crossed out.</span>
+                  <div class="bk-cal" id="bkCal" aria-labelledby="bkLabel"></div>
+                  <p class="bk-day-title" id="bkDayTitle" aria-live="polite"></p>
+                  <div class="bk-times" id="bkTimes" role="group" aria-label="Available times"></div>
                   <p class="bk-summary" id="bkSummary" aria-live="polite">Pick a day, then a time.</p>
                   <p class="bk-note" id="bkNote" role="status"></p>
                   <p class="bk-note warn" id="bkOffline" hidden>We couldn't check which times are already booked right now. Pick your preferred time and we'll confirm it by email.</p>
@@ -985,6 +970,6 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     control.addEventListener('change', clearIfValid);
   });
 </script>
-<script type="module" src="booking.js?v=4"></script>
+<script type="module" src="booking.js?v=5"></script>
 </body>
 </html>
