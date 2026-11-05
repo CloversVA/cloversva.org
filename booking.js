@@ -7,8 +7,8 @@ import { dayKey, zonedToDate } from './dtr/report.js?v=13';
 // ---- Call hours: change these to change what can be booked ----
 const TZ = 'America/New_York'; // call times are set in US Eastern Time
 const FIRST_CALL = '09:00';     // first start time of the day
-const LAST_CALL = '16:30';      // last start time of the day
-const CALL_MINUTES = 30;        // length of each call slot
+const LAST_CALL = '16:45';      // last start time of the day (the call ends at 5:00 PM)
+const CALL_MINUTES = 15;        // length of each call slot
 const WORK_DAYS = [1, 2, 3, 4, 5]; // Monday to Friday (0 = Sunday)
 const DAYS_AHEAD = 21;          // how far ahead people can book
 const NOTICE_HOURS = 24;        // earliest booking is this many hours from now
