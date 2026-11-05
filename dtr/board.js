@@ -55,6 +55,8 @@ export function startBoard(signedIn, track, isAdmin) {
     if (err?.code !== 'permission-denied') { showError(err); return; }
     console.warn('Comments are not allowed by the database rules yet.', err);
     document.body.classList.add('no-comments');
+    // Tell admins why the reaction and comment boxes are missing, so it can be fixed in the database rules.
+    if (admin) show('commentsOff');
   }));
 }
 

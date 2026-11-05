@@ -21,6 +21,10 @@ const masked = (acct) => (acct ? `•••• ${String(acct).slice(-4)}` : '');
 // The signature image (a data: URL) sits on the signing line; its white background blends into the page.
 const signature = (dataUrl) => (dataUrl ? `<img class="sig" src="${esc(dataUrl)}" alt="Signature">` : '');
 
+// The signing block used on certificates, payslips, statements of hours and invoices.
+const signBlock = (signatureUrl, style = '') => `<div class="sign"${style ? ` style="${style}"` : ''}>${signature(signatureUrl)}<div class="line"></div>
+  <div>${esc(COMPANY.signatory.toUpperCase())}</div><div>${esc(COMPANY.signatoryTitle)}</div><div>${esc(COMPANY.legalName)}</div></div>`;
+
 function ordinal(n) {
   const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] ?? 'th';
   return `${n}${tail}`;
@@ -68,8 +72,8 @@ function page(title, body, extraCss = '') {
 const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
 <div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(COMPANY.email)}</div></div>`;
 
-// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null.
-export function payslipHtml(slip, bank) {
+// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null; signatureUrl: the founder's signature or null.
+export function payslipHtml(slip, bank, signatureUrl = null) {
   const paid = slip.status === 'paid' && slip.paidAt;
   return page(`Payslip ${slip.periodStart} ${slip.name}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
@@ -87,8 +91,8 @@ export function payslipHtml(slip, bank) {
 </table>
 ${slip.days?.length ? `<p class="label">Daily hours (Eastern Time)</p>
 <table class="grid">
-  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th class="num">Hours (decimal)</th></tr></thead>
-  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td><td class="num">${x.hours.toFixed(2)}</td></tr>`).join('')}</tbody>
+  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th></tr></thead>
+  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td></tr>`).join('')}</tbody>
 </table>` : ''}
 <p class="label">Paid to</p>
 ${bank ? `<table class="meta">
@@ -96,12 +100,13 @@ ${bank ? `<table class="meta">
   <tr><td>Account name</td><td>: ${esc(bank.accountName)}</td></tr>
   <tr><td>Account number</td><td>: ${esc(masked(bank.accountNumber))}</td></tr>
 </table>` : '<p>No bank details on file yet.</p>'}
+${signBlock(signatureUrl)}
 ${footer}`);
 }
 
 // The client's copy of one payslip: the VA's hours day by day at their USD billing rate. Never shows PHP pay or bank details.
-// slip: payslip doc data; usdRate: the VA's current USD rate.
-export function clientPayrollHtml(slip, usdRate) {
+// slip: payslip doc data; usdRate: the VA's current USD rate; signatureUrl: the founder's signature or null.
+export function clientPayrollHtml(slip, usdRate, signatureUrl = null) {
   const amount = round3(slip.hours * usdRate);
   return page(`Hours ${slip.periodStart} ${slip.name}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
@@ -118,14 +123,15 @@ export function clientPayrollHtml(slip, usdRate) {
 </table>
 ${slip.days?.length ? `<p class="label">Daily hours (Eastern Time)</p>
 <table class="grid">
-  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th class="num">Hours (decimal)</th></tr></thead>
-  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td><td class="num">${x.hours.toFixed(2)}</td></tr>`).join('')}</tbody>
+  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th></tr></thead>
+  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td></tr>`).join('')}</tbody>
 </table>` : ''}
+${signBlock(signatureUrl)}
 ${footer}`);
 }
 
-// lines: [{name, position, usdRate, hours}], one per VA with their total for the cut-off; company: settings/company or {}.
-export function invoiceHtml({ clientName, periodStart, periodEnd, invoiceDate, dueDate, lines, company, signatureUrl }) {
+// lines: [{name, position, usdRate, hours}], one per VA with their total for the cut-off. No bank details are printed.
+export function invoiceHtml({ clientName, periodStart, periodEnd, invoiceDate, dueDate, lines, signatureUrl }) {
   const cutOff = periodText(periodStart, periodEnd);
   const rows = lines.map((l) => {
     const total = round3(l.hours * l.usdRate);
@@ -146,15 +152,9 @@ export function invoiceHtml({ clientName, periodStart, periodEnd, invoiceDate, d
   <tbody>${rows || '<tr><td colspan="6">No hours in this period.</td></tr>'}</tbody>
   <tfoot><tr><td colspan="4">TOTAL</td><td class="num">${hours.toFixed(2)}</td><td class="num">${esc(formatUsd(amount))}</td></tr></tfoot>
 </table>
-<div style="display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap">
-  <div><p class="label">Payment method</p><table class="meta">
-    <tr><td>Bank</td><td>: ${esc(company.bankName || '')}</td></tr>
-    <tr><td>Account name</td><td>: ${esc(company.accountName || '')}</td></tr>
-    <tr><td>Account number</td><td>: ${esc(company.accountNumber || '')}</td></tr></table></div>
-  <div class="sign">${signature(signatureUrl)}<div class="line"></div><div>${esc(COMPANY.signatory)}</div></div>
-</div>
+${signBlock(signatureUrl)}
 <p class="label" style="margin-top:24px">Terms and conditions</p>
-<p>Please make the payment by the due date to the account above. We accept cloud-based financial operations platforms such as Wise Transfer and Bill.com.</p>
+<p>Please make the payment by the due date. We accept cloud-based financial operations platforms such as Wise Transfer and Bill.com.</p>
 ${footer}`);
 }
 
@@ -170,8 +170,7 @@ export function coeHtml({ name, position, startDate, purpose, issuedOn, signatur
 holding the position of <u>${esc(position || '____________')}</u>. He/She has been with us since <u>${esc(since)}</u> until <u>present</u>.</p>
 <p class="body">This certification is issued upon request of the person concerned for <u>${esc(purpose)}</u>.</p>
 <p class="body">Done on this ${ordinal(today.getDate())} day of ${esc(month)}, ${today.getFullYear()} in ${esc(COMPANY.place)}.</p>
-<div class="sign">${signature(signatureUrl)}<div class="line"></div>
-  <div>${esc(COMPANY.signatory.toUpperCase())}</div><div>${esc(COMPANY.signatoryTitle)}</div><div>${esc(COMPANY.legalName)}</div></div>
+${signBlock(signatureUrl)}
 ${footer}`, `
   .sheet { min-height: 1000px; }
   .sheet::before, .sheet::after { content: ""; position: absolute; width: 150px; height: 170px; background: linear-gradient(135deg, #0a5a2e, #0e7a37); z-index: 0; }

@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="/images/favicon/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=21">
-  <script type="module" src="app.js?v=23"></script>
+  <link rel="stylesheet" href="style.css?v=22">
+  <script type="module" src="app.js?v=24"></script>
 </head>
 <body>
   <header class="topbar">
@@ -198,6 +198,7 @@
           </div>
           <div class="card">
             <h2>Announcements</h2>
+            <p id="commentsOff" class="error" hidden>Emoji reactions and comment boxes are turned on for every announcement, but they are hidden because the Firestore database rules do not allow the "comments" collection yet. Only admins see this note. Once the rule is added, reload this page.</p>
             <div id="posts"></div>
             <p id="postsEmpty" class="muted" hidden>No announcements yet.</p>
           </div>
@@ -305,6 +306,18 @@
             <div class="scroll"><table><thead><tr><th>VA</th><th>Dates</th><th>Type</th><th>Reason</th></tr></thead><tbody id="tsLeaveRows"></tbody></table></div>
             <p id="tsLeaveEmpty" class="muted">None.</p>
           </div>
+          <div class="card">
+            <h2>Add a shift manually</h2>
+            <p class="muted">For when a VA forgot to clock in. Times are in the time zone picked on the left. The shift is marked "edited" and your reason is kept in its change history.</p>
+            <form id="addShiftForm" class="row">
+              <label>VA <select id="addShiftVa" required></select></label>
+              <label>Clock in <input type="datetime-local" id="addShiftIn" required></label>
+              <label>Clock out <input type="datetime-local" id="addShiftOut" required></label>
+              <label class="grow">Reason <input id="addShiftReason" required minlength="3" maxlength="500" placeholder="e.g. forgot to clock in"></label>
+              <button class="primary">Add shift</button>
+            </form>
+            <p id="addShiftNote" class="muted" role="status"></p>
+          </div>
         </section>
 
         <section data-panel="payroll" hidden>
@@ -313,7 +326,7 @@
             <ol class="steps muted">
               <li>Pick a pay period. The list starts with the one still running; the second is the one that just ended.</li>
               <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate.</li>
-              <li>Check each row (<b>Daily hours</b> shows the breakdown), fix a rate if needed, then pay the VA using the bank details shown.</li>
+              <li>Set the PHP rate below if needed and click <b>Apply to all</b>. Check each row (<b>Details</b> shows the daily hours and the VA's bank), then pay the VA.</li>
               <li>Click <b>Mark paid</b>. The payslip locks and the VA sees it as paid.</li>
               <li>PDFs: <b>VA payslip (PHP)</b> is for the VA. <b>Client copy (USD)</b> shows the same hours day by day at the VA's USD rate, for the client. For one summary per client, use Client invoices.</li>
             </ol>
@@ -322,9 +335,14 @@
               <label>Client <select id="payClient"><option value="">All clients</option></select></label>
               <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
             </form>
+            <form id="payRateForm" class="row rate-box">
+              <label>PHP rate per hour, for all VAs <input id="payRate" type="number" min="0" max="100000" step="0.01" required placeholder="e.g. 150"></label>
+              <button class="primary">Apply to all</button>
+              <span class="muted">Updates every pending payslip shown below and each of those VAs' PHP rate. Paid payslips are not changed.</span>
+            </form>
             <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
             <div class="scroll"><table>
-              <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th>Bank</th></tr></thead>
+              <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th></tr></thead>
               <tbody id="payRows"></tbody>
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
@@ -348,7 +366,13 @@
               <label>Due date <input type="date" id="invDue" required></label>
               <button class="primary">Download invoice</button>
             </form>
-            <p class="muted">One line per VA with their total hours for the cut-off. Uses each VA's USD rate and the bank details under Company details.</p>
+            <p class="muted">One line per VA with their total hours for the cut-off, at each VA's USD rate below.</p>
+          </div>
+          <div class="card">
+            <h2>VA rates per client (USD)</h2>
+            <p class="muted">Click a client to open it. The USD rate is what the client is billed per hour; it is used on invoices and client copies.</p>
+            <div id="invRates"></div>
+            <p id="invRatesEmpty" class="muted" hidden>No VAs are assigned to a client yet (VAs &gt; Edit).</p>
           </div>
         </section>
 
@@ -436,20 +460,10 @@
           </div>
           <div class="card">
             <h2>Signature</h2>
-            <p class="muted">Printed on client invoices and approved certificates. Only admins can see it here.</p>
+            <p class="muted">Printed with your name and title (Founder) on payslips, statements of hours, client invoices and approved certificates. Only admins can see it here.</p>
             <img id="sigPreview" class="sig-preview" alt="Current signature" hidden>
             <p id="sigNone" class="muted">No signature uploaded yet.</p>
             <div class="row"><label>Upload a new signature (PNG or JPG) <input id="sigFile" type="file" accept="image/png,image/jpeg"></label><span id="sigNote" class="muted" role="status"></span></div>
-          </div>
-          <div class="card">
-            <h2>Company details</h2>
-            <p class="muted">Printed as the payment method on client invoices.</p>
-            <form id="companyForm" class="stack narrow-form">
-              <label>Bank <input id="coBank" maxlength="100"></label>
-              <label>Account name <input id="coAccountName" maxlength="100"></label>
-              <label>Account number <input id="coAccountNumber" maxlength="40" autocomplete="off"></label>
-              <div class="row"><button class="primary">Save</button><span id="companyNote" class="muted" role="status"></span></div>
-            </form>
           </div>
         </section>
       </div>
