@@ -372,7 +372,7 @@ $('addShiftForm').onsubmit = async (e) => {
       after: { clockIn: Timestamp.fromDate(clockIn), clockOut: Timestamp.fromDate(clockOut) },
     });
     await b.commit();
-    $('addShiftNote').textContent = `Added ${va.name}: ${fmt(clockIn)} to ${fmt(clockOut)}. If a payslip for that period exists, click "Recount hours" in Payroll.`;
+    $('addShiftNote').textContent = `Added ${va.name}: ${fmt(clockIn)} to ${fmt(clockOut)}. If a payslip for that period exists, click "Recount hours" in VA invoices.`;
     $('addShiftIn').value = ''; $('addShiftOut').value = ''; $('addShiftReason').value = '';
     await runTimesheet();
   } catch (err) {
