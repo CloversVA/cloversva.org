@@ -103,7 +103,7 @@ $('otForm').onsubmit = async (e) => {
 // Opens the letter (from CloversVA Admin; requester: the VA; recipient: the VA's client) and marks it sent.
 async function sendLetter(r, admin, vaLookup, vaFullName) {
   const va = vaLookup(r.email) ?? {};
-  if (!va.clientName) { alert(`Assign a client to ${r.name} first (VAs > Edit).`); return; }
+  if (!va.clientName) { alert(`Assign a client to ${r.name} first (Employee demographics > Edit).`); return; }
   const tab = window.open('', '_blank');
   try {
     openDocument(leaveLetterHtml({

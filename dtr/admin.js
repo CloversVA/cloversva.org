@@ -10,7 +10,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { refreshLeave, startAdminRequests } from './requests.js?v=14';
+import { refreshLeave, startAdminRequests } from './requests.js?v=15';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -716,7 +716,7 @@ async function approveCoe(r, button) {
     const profile = await getDoc(doc(db, 'profiles', r.email));
     const fullName = (profile.exists() && profile.data().fullName) || va.name || r.name;
     const summary = `Approve and sign this certificate?\n\nName: ${fullName}\nPosition: ${va.position || '(not set)'}\n`
-      + `Start date: ${va.startDate ? fmtDay(va.startDate) : '(not set)'}\nReason: ${r.purpose}\n\nFix any missing details under VAs > Edit first.`;
+      + `Start date: ${va.startDate ? fmtDay(va.startDate) : '(not set)'}\nReason: ${r.purpose}\n\nFix any missing details under Employee demographics > Edit first.`;
     if (!confirm(summary)) return;
     button.disabled = true;
     await updateDoc(doc(db, 'coeRequests', r.id), {
@@ -729,7 +729,7 @@ async function approveCoe(r, button) {
 $('invForm').onsubmit = async (e) => {
   e.preventDefault();
   const client = $('invClient').value;
-  if (!client) { alert('Assign a client to a VA first (VAs > Edit).'); return; }
+  if (!client) { alert('Assign a client to a VA first (Employee demographics > Edit).'); return; }
   try {
     const shifts = (await fetchShifts($('invFrom').value, $('invTo').value)).filter((s) => s.client === client);
     const lines = invoiceLines(shifts).map((l) => {
