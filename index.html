@@ -139,7 +139,7 @@
     padding:18px 40px;
     max-width:1400px; margin:0 auto;
   }
-  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
   .brand img{ height:58px; width:auto; }
   .nav-links{
     display:flex; align-items:center; gap:40px;
@@ -557,7 +557,10 @@
     .testimonial-card{ padding:30px 24px 26px; }
     .container{ padding:0 20px; }
     .nav-inner{ padding:14px 20px; }
-    .brand img{ height:44px; }
+    .brand img{ height:48px; }
+    /* Phones: the logo keeps its full size; "Speak with Our Team" moves into the menu */
+    .nav-cta .btn{ display:none; }
+    .mobile-menu a.menu-cta{ color:var(--forest-700); font-weight:600; }
     .hero-copy .eyebrow{ font-size:12px; }
     .hero-visual{ height:240px; border-radius:0 0 28px 60px; }
     .services-grid{ grid-template-columns:1fr; }
@@ -595,6 +598,7 @@
     <a href="#services">Services</a>
     <a href="#careers">Careers</a>
     <a href="dtr/">VA Login</a>
+    <a href="contact.html" class="menu-cta">Speak with Our Team</a>
   </div>
 </header>
 
