@@ -104,7 +104,7 @@
   }
   header.site.scrolled{ border-bottom:1px solid var(--line); box-shadow: 0 4px 24px rgba(5,68,34,0.06); }
   .nav-inner{ display:flex; align-items:center; justify-content:space-between; padding:18px 40px; max-width:1400px; margin:0 auto; }
-  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
   .brand img{ height:58px; width:auto; }
   .nav-links{ display:flex; align-items:center; gap:40px; font-family:'Poppins', sans-serif; font-weight:500; font-size:15px; }
   .nav-links a{ position:relative; color:var(--ink-700); padding:6px 0; transition:color .25s; }
@@ -290,6 +290,43 @@
     padding-right:42px;
   }
 
+  /* ===== Booking calendar ===== */
+  .label-like{ font-family:'Poppins',sans-serif; font-weight:600; font-size:13.5px; color:var(--ink-700); }
+  .field.booking{ min-width:0; }
+  .bk-days{ display:flex; gap:10px; overflow-x:auto; padding:4px 2px 10px; scroll-snap-type:x mandatory; }
+  .bk-day{
+    flex:0 0 78px; scroll-snap-align:start; display:flex; flex-direction:column; align-items:center; gap:1px;
+    padding:10px 6px; border:1.5px solid var(--line); border-radius:14px; background:var(--cream); color:var(--ink-700);
+    font-size:12px; transition:border-color .2s, background .2s, transform .2s;
+  }
+  .bk-day strong{ font-family:'Poppins',sans-serif; font-size:22px; line-height:1.15; color:var(--forest-900); }
+  .bk-day .bk-dow{ font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .bk-day .bk-free{ margin-top:4px; font-size:11px; color:var(--forest-600); font-weight:600; }
+  .bk-day:hover:not(:disabled){ border-color:var(--leaf-500); transform:translateY(-2px); }
+  .bk-day.on{ background:var(--forest-800); border-color:var(--forest-800); color:var(--white); }
+  .bk-day.on strong, .bk-day.on .bk-free{ color:var(--white); }
+  .bk-day:disabled{ opacity:.45; cursor:not-allowed; }
+  .bk-day:disabled .bk-free{ color:var(--ink-500); }
+  .bk-day-title{ font-family:'Poppins',sans-serif; font-weight:600; font-size:14.5px; color:var(--forest-900); margin-top:4px; }
+  .bk-times{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+  .bk-time{
+    display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 8px; border:1.5px solid var(--line);
+    border-radius:12px; background:var(--white); font-size:11.5px; color:var(--ink-500); transition:border-color .2s, background .2s;
+  }
+  .bk-time strong{ font-size:15px; color:var(--forest-900); font-weight:600; }
+  .bk-time:hover:not(:disabled){ border-color:var(--leaf-500); background:var(--leaf-100); }
+  .bk-time.on{ background:var(--forest-800); border-color:var(--forest-800); color:rgba(255,255,255,.85); }
+  .bk-time.on strong{ color:var(--white); }
+  .bk-time.taken{ background:var(--cream-deep); cursor:not-allowed; color:var(--red-600); }
+  .bk-time.taken strong{ color:var(--ink-300); text-decoration:line-through; }
+  .bk-summary{ font-size:14px; color:var(--ink-500); margin-top:6px; }
+  .bk-summary.picked{ color:var(--forest-800); font-weight:600; }
+  .bk-note{ font-size:13.5px; color:var(--ink-500); }
+  .bk-note:empty{ display:none; }
+  .bk-note.warn{ color:var(--red-600); }
+  .field.booking.invalid .bk-summary{ color:var(--red-600); font-weight:600; }
+  .success-detail{ font-weight:600; color:var(--forest-800); }
+
   .form-error{
     display:flex; align-items:flex-start; gap:8px;
     color:var(--red-600); font-size:14px; line-height:1.55;
@@ -374,7 +411,10 @@
   @media (max-width: 560px){
     .container{ padding:0 20px; }
     .nav-inner{ padding:14px 20px; }
-    .brand img{ height:44px; }
+    .brand img{ height:48px; }
+    /* Phones: the logo keeps its full size; "Book a Consultation" moves into the menu */
+    .nav-cta .btn{ display:none; }
+    .mobile-menu a.menu-cta{ color:var(--forest-700); font-weight:600; }
     .contact-hero{ padding:56px 0 24px; }
     .logo-stage{ width:160px; height:160px; }
     .logo-stage img.brand-logo{ width:130px; }
@@ -409,6 +449,7 @@
     <a href="index.html#about">About</a>
     <a href="index.html#services">Services</a>
     <a href="index.html#careers">Careers</a>
+    <a href="#flow" class="menu-cta">Book a Consultation</a>
   </div>
 </header>
 
@@ -483,7 +524,7 @@
           <div class="form-card">
             <div class="form-card-head">
               <h2>Request a Partner Consultation</h2>
-              <p>Tell us about your business and we'll follow up with a plan tailored to you.</p>
+              <p>Tell us about your business and pick a time for a free call. We'll follow up with a plan tailored to you.</p>
             </div>
 
             <form id="partnerForm" novalidate>
@@ -491,6 +532,10 @@
               <input type="hidden" name="subject" value="New Partner Consultation">
               <input type="hidden" name="from_name" value="Clovers Website — Partner Consultation">
               <input type="checkbox" name="botcheck" class="honeypot" tabindex="-1" autocomplete="off">
+              <!-- Filled in when the form is sent: the visitor's email (for replies and the automatic reply) and the call time. -->
+              <input type="hidden" name="email" id="p_replyto">
+              <input type="hidden" name="Consultation Time (Eastern)" id="bkTimeEt">
+              <input type="hidden" name="Consultation Time (client's local time)" id="bkTimeLocal">
 
               <div class="field-grid">
                 <div class="field">
@@ -541,6 +586,16 @@
                     <option>Just Exploring</option>
                   </select>
                 </div>
+                <div class="field full booking" id="bookingField">
+                  <span class="label-like" id="bkLabel">Pick a day and time for your call</span>
+                  <span class="hint">Times are in US Eastern Time. Times already booked by someone else are greyed out.</span>
+                  <div class="bk-days" id="bkDays" role="group" aria-labelledby="bkLabel"></div>
+                  <p class="bk-day-title" id="bkDayTitle" aria-live="polite"></p>
+                  <div class="bk-times" id="bkTimes" role="group" aria-label="Available times"></div>
+                  <p class="bk-summary" id="bkSummary" aria-live="polite">Pick a day, then a time.</p>
+                  <p class="bk-note" id="bkNote" role="status"></p>
+                  <p class="bk-note warn" id="bkOffline" hidden>We couldn't check which times are already booked right now. Pick your preferred time and we'll confirm it by email.</p>
+                </div>
                 <div class="field full">
                   <label for="p_details">Tell us about your business needs</label>
                   <textarea id="p_details" name="Business Needs" rows="5" required></textarea>
@@ -548,7 +603,7 @@
               </div>
 
               <button type="submit" class="btn btn-primary btn-block">
-                Request a Partner Consultation
+                Book My Consultation
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
 
@@ -657,6 +712,7 @@
           </div>
           <h2>Thank You!</h2>
           <p>We've successfully received your submission. Our team will review your information and get back to you shortly.</p>
+          <p class="success-detail" id="successDetail" hidden></p>
           <a href="index.html" class="btn btn-primary">Return Home</a>
         </div>
       </div>
@@ -806,6 +862,22 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
 
     if (!validateForm(form)) return;
 
+    // Consultation requests: hold the chosen call time first, so two people can't book the same slot.
+    let booking = null;
+    if (form.id === 'partnerForm') {
+      form.querySelector('#p_replyto').value = form.querySelector('#p_email').value.trim();
+      if (window.cloversBooking) {
+        try {
+          booking = await window.cloversBooking.reserve();
+        } catch (err) {
+          errorText.textContent = err.message.endsWith('.') ? err.message : `${err.message}.`;
+          errorBox.hidden = false;
+          return;
+        }
+        form.querySelector('input[name="subject"]').value = `New Consultation Booking: ${booking.et}`;
+      }
+    }
+
     const originalHTML = submitBtn.innerHTML;
     submitBtn.disabled = true;
     submitBtn.classList.add('is-loading');
@@ -825,6 +897,13 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
       if (response.ok && result.success) {
         form.reset();
         form.querySelectorAll('.field.invalid').forEach(f => f.classList.remove('invalid'));
+        const detail = document.getElementById('successDetail');
+        detail.hidden = !booking;
+        if (booking) {
+          detail.textContent = `Your consultation is booked for ${booking.et}. A confirmation email is on its way to you.`;
+          window.cloversBooking.reset();
+          form.querySelector('input[name="subject"]').value = 'New Partner Consultation';
+        }
         showView('viewSuccess');
       } else {
         console.error('Web3Forms submission failed:', { status: response.status, result });
@@ -833,6 +912,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     } catch (err) {
       if (!(err instanceof Error) || !err.message) console.error('Web3Forms network/request error:', err);
       errorText.innerHTML = err && err.message ? `We couldn't send this (${err.message}).` : fallbackText;
+      if (booking) errorText.innerHTML += ' Your call time is being held for you; please email <a href="mailto:support@cloversva.org">support@cloversva.org</a> so we can confirm it.';
       errorBox.hidden = false;
       errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } finally {
@@ -852,5 +932,6 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     control.addEventListener('change', clearIfValid);
   });
 </script>
+<script type="module" src="booking.js?v=1"></script>
 </body>
 </html>

@@ -7,6 +7,8 @@ copy code, data, or settings between the two.
 ## What's here
 
 - `index.html`, `contact.html` — public marketing site, plain HTML/CSS.
+- `booking.js` — consultation calendar on `contact.html`. Booked call times are stored
+  in Firestore `bookedSlots` (time only, no personal data); details go out by Web3Forms.
 - `images/` — logos, icons, and the brochure PDF.
 - `CNAME` — custom domain (`cloversva.org`) for GitHub Pages. Don't change it.
 - `dtr/` — the **VA Time Tracker** (DTR = daily time record), served at
