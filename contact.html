@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Book a Consultation | Clovers Virtual Assistance</title>
-<meta name="description" content="Partner with Clovers Virtual Assistance or join our team. Tell us what you need and we'll get back to you shortly.">
+<meta name="description" content="Partner with Clovers Virtual Assistance or join the Clovers team. Tell us what you need and we'll get back to you shortly.">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="48x48" href="/images/favicon/favicon-48.png">
 <link rel="icon" type="image/png" sizes="96x96" href="/images/favicon/favicon-96.png">
@@ -111,7 +111,11 @@
   .nav-links a::after{ content:''; position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--leaf-500); transition:width .3s var(--ease); }
   .nav-links a:hover{ color:var(--forest-900); }
   .nav-links a:hover::after{ width:100%; }
-  .nav-cta{ display:flex; align-items:center; gap:18px; }
+  .nav-cta{ display:flex; align-items:center; gap:12px; }
+  .nav-btn{ padding:11px 20px !important; font-size:14px !important; white-space:nowrap; }
+  .mobile-menu a.menu-cta{ color:var(--forest-700); font-weight:600; }
+  @media (max-width:1240px) and (min-width:901px){ .nav-links{ gap:22px !important; } .nav-btn{ padding:10px 14px !important; font-size:13.5px !important; } }
+
   .burger{ display:none; flex-direction:column; gap:5px; padding:8px; }
   .burger span{ width:24px; height:2px; background:var(--forest-900); border-radius:2px; transition:.3s; }
   .mobile-menu{ display:none; flex-direction:column; gap:2px; background:var(--white); border-top:1px solid var(--line); padding:12px 32px 24px; }
@@ -193,6 +197,7 @@
 
   /* ===== FLOW SECTION (cards / forms / success) ===== */
   .flow-section{ padding: 30px 0 130px; }
+  #flow{ scroll-margin-top:90px; }
   .flow-view{ display:none; opacity:0; transform:translateY(18px); transition: opacity .32s var(--ease), transform .32s var(--ease); }
   .flow-view.active{ display:block; }
   .flow-view.in{ opacity:1; transform:translateY(0); }
@@ -293,23 +298,34 @@
   /* ===== Booking calendar ===== */
   .label-like{ font-family:'Poppins',sans-serif; font-weight:600; font-size:13.5px; color:var(--ink-700); }
   .field.booking{ min-width:0; }
-  .bk-cal{ max-width:420px; border:1.5px solid var(--line); border-radius:16px; padding:14px; background:var(--white); }
-  .bk-cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-  .bk-cal-head strong{ font-family:'Poppins',sans-serif; font-size:16px; color:var(--forest-900); }
-  .bk-nav{ width:38px; height:38px; border-radius:50%; font-size:24px; line-height:1; color:var(--forest-800); background:var(--leaf-100); }
-  .bk-nav:hover:not(:disabled){ background:var(--leaf-300); }
+  .bk-wrap{ display:grid; grid-template-columns:300px minmax(0,1fr); gap:24px; align-items:start; }
+  .bk-cal{ width:100%; max-width:320px; border:1px solid var(--line); border-radius:16px; padding:14px 12px 10px; background:var(--white); box-shadow:var(--shadow-sm); }
+  .bk-cal-head{ display:flex; align-items:center; justify-content:space-between; padding:0 4px 8px; }
+  .bk-cal-head strong{ font-family:'Poppins',sans-serif; font-size:15px; font-weight:600; color:var(--ink-900); }
+  .bk-navs{ display:flex; gap:2px; }
+  .bk-nav{ width:32px; height:32px; border-radius:50%; display:grid; place-items:center; color:var(--ink-700); }
+  .bk-nav:hover:not(:disabled){ background:var(--leaf-100); color:var(--forest-800); }
   .bk-nav:disabled{ opacity:.3; cursor:default; }
-  .bk-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
-  .bk-dow-row span{ text-align:center; font-size:11.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-500); padding:4px 0; }
-  .bk-date{ aspect-ratio:1; border-radius:50%; font-size:14.5px; color:var(--ink-300); position:relative; }
-  .bk-date.open{ color:var(--forest-900); font-weight:600; background:var(--leaf-100); }
-  .bk-date.open:hover{ background:var(--leaf-300); }
+  .bk-grid{ display:grid; grid-template-columns:repeat(7, 1fr); row-gap:2px; justify-items:center; }
+  .bk-dow-row span{ font-size:11.5px; font-weight:600; color:var(--ink-500); padding:4px 0 6px; }
+  .bk-date{ width:36px; height:36px; border-radius:50%; font-size:13.5px; color:var(--ink-300); position:relative; transition:background .15s, color .15s; }
+  .bk-date.open{ color:var(--ink-900); font-weight:600; }
+  .bk-date.open:hover{ background:var(--leaf-100); color:var(--forest-800); }
+  .bk-date.today{ box-shadow:inset 0 0 0 1.5px var(--leaf-500); color:var(--forest-900); }
   .bk-date.on{ background:var(--forest-800); color:var(--white); }
+  .bk-date.outside{ color:#c3cdc5; font-weight:400; }
   .bk-date.full{ text-decoration:line-through; }
-  .bk-date.today::after{ content:''; position:absolute; left:50%; bottom:5px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--leaf-500); }
+  .bk-date.open::after{ content:''; position:absolute; left:50%; bottom:4px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--leaf-500); }
+  .bk-date.on::after{ background:var(--white); }
   .bk-date:disabled{ cursor:default; }
+  .bk-slots .bk-day-title{ margin-top:0; }
+  @media (max-width: 700px){
+    .bk-wrap{ grid-template-columns:minmax(0,1fr); gap:14px; }
+    .bk-cal{ max-width:none; }
+    .bk-date{ width:40px; height:40px; }
+  }
   .bk-day-title{ font-family:'Poppins',sans-serif; font-weight:600; font-size:14.5px; color:var(--forest-900); margin-top:4px; }
-  .bk-times{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+  .bk-times{ display:grid; grid-template-columns:repeat(auto-fill, minmax(112px, 1fr)); gap:8px; }
   .bk-time{
     display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 8px; border:1.5px solid var(--line);
     border-radius:12px; background:var(--white); font-size:11.5px; color:var(--ink-500); transition:border-color .2s, background .2s;
@@ -404,6 +420,7 @@
   @media (max-width: 900px){
     .nav-links{ display:none; }
     .burger{ display:flex; }
+    .nav-cta .nav-btn{ display:none; }
     .options-grid{ grid-template-columns:1fr; }
     .field-grid{ grid-template-columns:1fr; }
     .form-card{ padding:38px 26px; }
@@ -413,9 +430,6 @@
     .container{ padding:0 20px; }
     .nav-inner{ padding:14px 20px; }
     .brand img{ height:48px; }
-    /* Phones: the logo keeps its full size; "Book a Consultation" moves into the menu */
-    .nav-cta .btn{ display:none; }
-    .mobile-menu a.menu-cta{ color:var(--forest-700); font-weight:600; }
     .contact-hero{ padding:56px 0 24px; }
     .logo-stage{ width:160px; height:160px; }
     .logo-stage img.brand-logo{ width:130px; }
@@ -439,7 +453,8 @@
       <a href="index.html#careers">Careers</a>
     </nav>
     <div class="nav-cta">
-      <a href="#flow" class="btn btn-primary" style="padding:12px 22px; font-size:14px;">Book a Consultation</a>
+      <a href="#book" class="btn btn-primary nav-btn">Book a Consultation</a>
+      <a href="#apply" class="btn btn-ghost nav-btn">Join the Clovers Team</a>
       <button class="burger" id="burgerBtn" aria-label="Open menu">
         <span></span><span></span><span></span>
       </button>
@@ -450,7 +465,8 @@
     <a href="index.html#about">About</a>
     <a href="index.html#services">Services</a>
     <a href="index.html#careers">Careers</a>
-    <a href="#flow" class="menu-cta">Book a Consultation</a>
+    <a href="#book" class="menu-cta">Book a Consultation</a>
+    <a href="#apply" class="menu-cta">Join the Clovers Team</a>
   </div>
 </header>
 
@@ -503,7 +519,7 @@
             <div class="option-icon">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 15C12 15 8 13 8 8C8 4 12 2 12 2C12 2 16 4 16 8C16 13 12 15 12 15Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 13C8 13 5 14 4 18C8 17 9 14 9 14" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M16 13C16 13 19 14 20 18C16 17 15 14 15 14" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="8" r="1.6" fill="white"/></svg>
             </div>
-            <h3>Join Our Team</h3>
+            <h3>Join the Clovers Team</h3>
             <p>Become part of the Clovers Virtual Assistance family and build a rewarding remote career while supporting businesses around the world.</p>
             <button type="button" class="btn btn-primary" data-target="viewCareer">
               Apply Now
@@ -589,10 +605,14 @@
                 </div>
                 <div class="field full booking" id="bookingField">
                   <span class="label-like" id="bkLabel">Pick a day and time for your call</span>
-                  <span class="hint">Choose a highlighted day, then a time. Times are in US Eastern Time; times already booked are crossed out.</span>
-                  <div class="bk-cal" id="bkCal" aria-labelledby="bkLabel"></div>
-                  <p class="bk-day-title" id="bkDayTitle" aria-live="polite"></p>
-                  <div class="bk-times" id="bkTimes" role="group" aria-label="Available times"></div>
+                  <span class="hint">Choose a day with a green dot, then a time. Times are in US Eastern Time; times already booked are crossed out.</span>
+                  <div class="bk-wrap">
+                    <div class="bk-cal" id="bkCal" aria-labelledby="bkLabel"></div>
+                    <div class="bk-slots">
+                      <p class="bk-day-title" id="bkDayTitle" aria-live="polite"></p>
+                      <div class="bk-times" id="bkTimes" role="group" aria-label="Available times"></div>
+                    </div>
+                  </div>
                   <p class="bk-summary" id="bkSummary" aria-live="polite">Pick a day, then a time.</p>
                   <p class="bk-note" id="bkNote" role="status"></p>
                   <p class="bk-note warn" id="bkOffline" hidden>We couldn't check which times are already booked right now. Pick your preferred time and we'll confirm it by email.</p>
@@ -627,7 +647,7 @@
 
           <div class="form-card">
             <div class="form-card-head">
-              <h2>Apply to Join Our Team</h2>
+              <h2>Apply to Join the Clovers Team</h2>
               <p>Share a few details about your experience and we'll be in touch.</p>
             </div>
 
@@ -772,7 +792,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-top:2px; flex-shrink:0;"><path d="M22 16.92V19.92C22 20.47 21.55 20.92 21 20.92C10.4 20.92 2 12.52 2 1.92C2 1.37 2.45 0.92 3 0.92H6C6.55 0.92 7 1.37 7 1.92C7 3.42 7.25 4.87 7.72 6.22C7.86 6.62 7.76 7.07 7.45 7.38L5.9 8.93C7.28 11.72 9.28 13.72 12.07 15.1L13.62 13.55C13.93 13.24 14.38 13.14 14.78 13.28C16.13 13.75 17.58 14 19.08 14C19.63 14 20.08 14.45 20.08 15V16.92H22Z" fill="#81be39"/></svg>
           <span>+63 920 156 8952</span>
         </div>
-        <a href="#flow" class="btn btn-primary" style="margin-top:8px; padding:12px 22px; font-size:13.5px;">Book a Consultation</a>
+        <a href="#book" class="btn btn-primary" style="margin-top:8px; padding:12px 22px; font-size:13.5px;">Book a Consultation</a>
       </div>
     </div>
     <div class="footer-bottom">
@@ -826,6 +846,30 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
   document.querySelectorAll('[data-target]').forEach(el => {
     el.addEventListener('click', () => showView(el.getAttribute('data-target')));
   });
+
+  // "Book a Consultation" (#book) and "Join the Clovers Team" (#apply) open their form straight away,
+  // from this page's buttons and from links on other pages (contact.html#book).
+  const HASH_VIEWS = { '#book': 'viewPartner', '#apply': 'viewCareer' };
+  function openFromHash(){
+    const id = HASH_VIEWS[location.hash];
+    if (!id) return;
+    // Arriving from another page: show the form at once, without the fade.
+    document.querySelectorAll('.flow-view').forEach(v => v.classList.toggle('active', v.id === id));
+    document.querySelectorAll('.flow-view').forEach(v => v.classList.toggle('in', v.id === id));
+    document.getElementById('flow').scrollIntoView({ block: 'start' });
+  }
+  document.querySelectorAll('a[href="#book"], a[href="#apply"]').forEach(a => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    a.closest('.mobile-menu')?.classList.remove('open');
+    history.replaceState(null, '', a.getAttribute('href'));
+    const id = HASH_VIEWS[a.getAttribute('href')];
+    if (document.getElementById(id).classList.contains('active')) document.getElementById('flow').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else showView(id);
+  }));
+  // Going back to the two options clears #book / #apply, so a reload shows the options again.
+  document.querySelectorAll('[data-target="viewCards"]').forEach(b => b.addEventListener('click', () => history.replaceState(null, '', location.pathname)));
+  window.addEventListener('hashchange', openFromHash);
+  openFromHash();
 
   // ---- Web3Forms submission ----
   function setFieldInvalid(field, invalid){
@@ -933,6 +977,6 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     control.addEventListener('change', clearIfValid);
   });
 </script>
-<script type="module" src="booking.js?v=2"></script>
+<script type="module" src="booking.js?v=3"></script>
 </body>
 </html>

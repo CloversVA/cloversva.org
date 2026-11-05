@@ -155,7 +155,11 @@
   }
   .nav-links a:hover{ color:var(--forest-900); }
   .nav-links a:hover::after{ width:100%; }
-  .nav-cta{ display:flex; align-items:center; gap:18px; }
+  .nav-cta{ display:flex; align-items:center; gap:12px; }
+  .nav-btn{ padding:11px 20px !important; font-size:14px !important; white-space:nowrap; }
+  .mobile-menu a.menu-cta{ color:var(--forest-700); font-weight:600; }
+  @media (max-width:1240px) and (min-width:901px){ .nav-links{ gap:22px !important; } .nav-btn{ padding:10px 14px !important; font-size:13.5px !important; } }
+
   .burger{ display:none; flex-direction:column; gap:5px; padding:8px; background:none; }
   .burger span{ width:24px; height:2px; background:var(--forest-900); border-radius:2px; transition:.3s; }
   .mobile-menu{
@@ -530,6 +534,7 @@
     .testimonial-grid{ grid-template-columns:1fr; }
     .nav-links{ display:none; }
     .burger{ display:flex; }
+    .nav-cta .nav-btn{ display:none; }
     .hero{ min-height:auto; display:block; }
     .hero-grid{ display:block; }
     .hero-copy{ padding:36px 0 28px 0; max-width:100%; }
@@ -558,9 +563,6 @@
     .container{ padding:0 20px; }
     .nav-inner{ padding:14px 20px; }
     .brand img{ height:48px; }
-    /* Phones: the logo keeps its full size; "Speak with Our Team" moves into the menu */
-    .nav-cta .btn{ display:none; }
-    .mobile-menu a.menu-cta{ color:var(--forest-700); font-weight:600; }
     .hero-copy .eyebrow{ font-size:12px; }
     .hero-visual{ height:240px; border-radius:0 0 28px 60px; }
     .services-grid{ grid-template-columns:1fr; }
@@ -586,7 +588,8 @@
       <a href="dtr/">VA Login</a>
     </nav>
     <div class="nav-cta">
-      <a href="contact.html" class="btn btn-primary" style="padding:12px 22px; font-size:14px;">Speak with Our Team</a>
+      <a href="contact.html#book" class="btn btn-primary nav-btn">Book a Consultation</a>
+      <a href="contact.html#apply" class="btn btn-ghost nav-btn">Join the Clovers Team</a>
       <button class="burger" id="burgerBtn" aria-label="Open menu">
         <span></span><span></span><span></span>
       </button>
@@ -598,7 +601,8 @@
     <a href="#services">Services</a>
     <a href="#careers">Careers</a>
     <a href="dtr/">VA Login</a>
-    <a href="contact.html" class="menu-cta">Speak with Our Team</a>
+    <a href="contact.html#book" class="menu-cta">Book a Consultation</a>
+    <a href="contact.html#apply" class="menu-cta">Join the Clovers Team</a>
   </div>
 </header>
 
@@ -766,7 +770,7 @@
         </li>
       </ol>
       <div class="steps-cta reveal">
-        <a href="contact.html" class="btn btn-primary">Book a Call <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a href="contact.html#book" class="btn btn-primary">Book a Call <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
     </div>
   </section>

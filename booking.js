@@ -80,7 +80,8 @@ function render() {
   updateFields();
 }
 
-// A normal month calendar (Sunday to Saturday). Only days with open call times can be clicked.
+// A compact month calendar (Sunday to Saturday), like Google Calendar's: days from the months before and after
+// fill the first and last weeks in grey. Only days with open call times can be clicked.
 function renderCalendar(days) {
   const byDay = new Map(days.map((d) => [d.day, d.slots.filter((s) => !booked.has(slotId(s))).length]));
   const months = [...new Set(days.map((d) => d.day.slice(0, 7)))];
@@ -88,33 +89,39 @@ function renderCalendar(days) {
   if (!months.includes(viewMonth)) viewMonth = (chosenDay ?? days[0].day).slice(0, 7);
   const [y, m] = viewMonth.split('-').map(Number);
   const first = new Date(Date.UTC(y, m - 1, 1));
-  const inMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const today = dayKey(new Date(), TZ);
   const at = months.indexOf(viewMonth);
 
-  const nav = (dir, label, text) => {
-    const b = el('button', { type: 'button', className: 'bk-nav', textContent: text, ariaLabel: label, disabled: !months[at + dir] });
+  const nav = (dir, label, path) => {
+    const b = el('button', { type: 'button', className: 'bk-nav', ariaLabel: label, disabled: !months[at + dir] });
+    b.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="${path}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     b.onclick = () => { viewMonth = months[at + dir]; render(); };
     return b;
   };
-  const head = el('div', { className: 'bk-cal-head' }, nav(-1, 'Previous month', '\u2039'),
-    el('strong', { textContent: first.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) }), nav(1, 'Next month', '\u203A'));
-  const dow = el('div', { className: 'bk-grid bk-dow-row', ariaHidden: 'true' },
-    ...['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => el('span', { textContent: d })));
+  const head = el('div', { className: 'bk-cal-head' },
+    el('strong', { textContent: first.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) }),
+    el('div', { className: 'bk-navs' }, nav(-1, 'Previous month', 'M15 6L9 12L15 18'), nav(1, 'Next month', 'M9 6L15 12L9 18')));
+  const dow = el('div', { className: 'bk-grid bk-dow-row', ariaHidden: 'true' }, ...['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => el('span', { textContent: d })));
+
+  // Always six weeks, starting on the Sunday on or before the 1st.
   const cells = [];
-  for (let i = 0; i < first.getUTCDay(); i += 1) cells.push(el('span'));
-  for (let d = 1; d <= inMonth; d += 1) {
-    const day = `${viewMonth}-${String(d).padStart(2, '0')}`;
+  const startMs = first.getTime() - first.getUTCDay() * 86_400_000;
+  for (let i = 0; i < 42; i += 1) {
+    const date = new Date(startMs + i * 86_400_000);
+    const day = date.toISOString().slice(0, 10);
+    const outside = day.slice(0, 7) !== viewMonth;
     const free = byDay.get(day);
-    const open = free > 0;
+    const open = free > 0 && !outside;
     const b = el('button', {
-      type: 'button', disabled: !open, textContent: String(d),
-      className: `bk-date${day === chosenDay ? ' on' : ''}${open ? ' open' : ''}${free === 0 ? ' full' : ''}${day === today ? ' today' : ''}`,
+      type: 'button', disabled: !open, textContent: String(date.getUTCDate()),
+      className: ['bk-date', open && 'open', outside && 'outside', free === 0 && 'full', day === today && 'today', day === chosenDay && !outside && 'on']
+        .filter(Boolean).join(' '),
     });
     const label = fmtDate(new Date(`${day}T12:00:00Z`), 'UTC');
     b.ariaLabel = open ? `${label}, ${free} times open` : free === 0 ? `${label}, fully booked` : `${label}, not available`;
     b.ariaPressed = String(day === chosenDay);
     if (free === 0) b.title = 'Fully booked';
+    if (open) b.title = `${free} time${free === 1 ? '' : 's'} open`;
     b.onclick = () => { chosenDay = day; render(); };
     cells.push(b);
   }
