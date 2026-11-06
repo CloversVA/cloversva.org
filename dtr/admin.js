@@ -19,7 +19,7 @@ import {
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
-// payUsdRate: what the VA is paid per hour in USD ("Hourly per VA"). usdRate: what the client is billed per hour.
+// payUsdRate: what the VA is paid per hour in USD ("USD/hr (VA)"). usdRate: what the client is billed per hour.
 // phpRate: the VA's peso pay per hour, used on payslips (VA invoices sets it as payUsdRate x the exchange rate).
 const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'payUsdRate', 'usdRate', 'startDate'];
 const pick = (o) => Object.fromEntries(VA_FIELDS.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
@@ -254,7 +254,7 @@ $('vaForm').onsubmit = async (e) => {
       await setDoc(doc(db, 'allowed', editingVa.email), record);
     } catch (err) {
       if (err.code !== 'permission-denied' || !record.payUsdRate) throw err;
-      alert('Nothing was saved: the database rules do not accept the new "Hourly per VA (USD)" rate yet. '
+      alert('Nothing was saved: the database rules do not accept the new "USD/hr (VA)" rate yet. '
         + 'The Firestore rules for "allowed" need to allow a field called payUsdRate. Clear that box to save the other details.');
       return;
     }
@@ -608,7 +608,7 @@ $('payRateForm').onsubmit = async (e) => {
   } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
-// PHP rate from each VA's Hourly per VA (USD pay rate) x exchange rate, for every pending payslip shown.
+// PHP rate from each VA's USD/hr (VA) pay rate x exchange rate, for every pending payslip shown.
 const FX_KEY = 'cloversva.payFx';
 try { const saved = localStorage.getItem(FX_KEY); if (saved) $('payFx').value = saved; } catch { /* private window: start empty */ }
 
@@ -622,13 +622,13 @@ $('payFxForm').onsubmit = async (e) => {
   if (!pending.length) { alert('There are no pending payslips to update. Create payslips first, or pick another period.'); return; }
   const withUsd = pending.filter((s) => vas.get(s.email)?.payUsdRate > 0);
   const noUsd = pending.filter((s) => !(vas.get(s.email)?.payUsdRate > 0)).map((s) => s.name);
-  if (!withUsd.length) { alert('None of these VAs has an Hourly per VA (USD) rate yet. Set it under Employee demographics > Edit first.'); return; }
+  if (!withUsd.length) { alert('None of these VAs has a USD/hr (VA) rate yet. Set it under Employee demographics > Edit first.'); return; }
   const lines = withUsd.map((s) => {
     const usd = vas.get(s.email).payUsdRate;
     return `${s.name}: ${formatUsd(usd)} × ${fx} = ${formatPhp(round2(usd * fx))}/hr`;
   });
-  if (!confirm(`Set each VA's PHP rate from their Hourly per VA (USD) × ${fx}?\n\n${lines.join('\n')}`
-    + (noUsd.length ? `\n\nNot changed (no Hourly per VA rate): ${noUsd.join(', ')}` : '')
+  if (!confirm(`Set each VA's PHP rate from their USD/hr (VA) × ${fx}?\n\n${lines.join('\n')}`
+    + (noUsd.length ? `\n\nNot changed (no USD/hr (VA) rate): ${noUsd.join(', ')}` : '')
     + '\n\nThose VAs\' PHP rates are updated too, so future payslips use them.')) return;
   const button = e.target.querySelector('button');
   button.disabled = true;
