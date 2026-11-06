@@ -192,7 +192,26 @@ function renderMe() {
   $('pUsdRate').textContent = me.usdRate ? `${formatUsd(me.usdRate)} per hour` : 'Not set';
   $('pStart').textContent = me.startDate ? fmtDay(me.startDate) : 'Not set';
   $('myRate').textContent = me.phpRate ? `${formatPhp(me.phpRate)} per hour` : 'Not set yet';
+  $('myUsdRate').textContent = me.usdRate ? `${formatUsd(me.usdRate)} per hour` : 'Not set yet';
   renderCurrentPeriod();
+  renderPayslips();
+}
+
+// Payslip rows. Payslips don't store a USD rate, so the VA's current USD rate is shown.
+let mySlips = null;
+function renderPayslips() {
+  if (!mySlips) return;
+  show('myPayslipsEmpty', mySlips.length === 0);
+  const usd = me.usdRate ? formatUsd(me.usdRate) : '-';
+  $('myPayslipRows').replaceChildren(...mySlips.map((s) => {
+    const btn = el('button', { textContent: 'Payslip PDF' });
+    btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank, signatureUrl));
+    const status = s.status === 'paid'
+      ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate(), BUSINESS_TZ)) : ''}` })
+      : el('span', { className: 'pill pending', textContent: 'Pending' });
+    return el('tr', {}, cell(`${fmtDay(s.periodStart)} to ${fmtDay(s.periodEnd)}`), numCell(s.hours.toFixed(2)),
+      numCell(formatPhp(s.phpRate)), numCell(usd), numCell(formatPhp(s.amount)), cell(status), cell(btn));
+  }));
 }
 
 // ---------- This pay period (an estimate until payroll makes the payslip) ----------
@@ -260,18 +279,10 @@ function startVa() {
 
   getDoc(doc(db, 'settings', 'signature')).then((snap) => { signatureUrl = snap.exists() ? snap.data().dataUrl : null; })
     .catch(() => { signatureUrl = null; }); // not allowed for VAs yet: payslips print without it
+  mySlips = null; // don't show the previous person's payslips after a sign-out and sign-in
   track(onSnapshot(query(collection(db, 'payslips'), where('email', '==', me.email)), (snap) => {
-    const slips = snap.docs.map((d) => d.data()).sort((a, b) => b.periodStart.localeCompare(a.periodStart));
-    show('myPayslipsEmpty', slips.length === 0);
-    $('myPayslipRows').replaceChildren(...slips.map((s) => {
-      const btn = el('button', { textContent: 'Payslip PDF' });
-      btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank, signatureUrl));
-      const status = s.status === 'paid'
-        ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate(), BUSINESS_TZ)) : ''}` })
-        : el('span', { className: 'pill pending', textContent: 'Pending' });
-      return el('tr', {}, cell(`${fmtDay(s.periodStart)} to ${fmtDay(s.periodEnd)}`), numCell(s.hours.toFixed(2)),
-        numCell(formatPhp(s.phpRate)), numCell(formatPhp(s.amount)), cell(status), cell(btn));
-    }));
+    mySlips = snap.docs.map((d) => d.data()).sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+    renderPayslips();
   }, showError));
 
   track(onSnapshot(query(collection(db, 'coeRequests'), where('email', '==', me.email)), (snap) => {

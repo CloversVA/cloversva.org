@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=23">
-  <script type="module" src="app.js?v=29"></script>
+  <script type="module" src="app.js?v=30"></script>
 </head>
 <body>
   <header class="topbar">
@@ -111,6 +111,7 @@
             <dl class="details">
               <dt>Hours so far</dt><dd id="curHours"></dd>
               <dt>Your rate</dt><dd id="myRate"></dd>
+              <dt>USD rate</dt><dd id="myUsdRate"></dd>
               <dt>Estimated pay</dt><dd id="curPay"></dd>
             </dl>
             <p class="muted">You are paid every two weeks, after the period ends. A shift still in progress counts once you clock out. Your day-by-day shifts are on the Time clock page.</p>
@@ -119,7 +120,7 @@
             <h2>My payslips</h2>
             <p class="muted">One payslip per finished pay period. The PDF lists your hours day by day (Eastern Time).</p>
             <div class="scroll"><table>
-              <thead><tr><th>Pay period</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Amount</th><th>Payout</th><th></th></tr></thead>
+              <thead><tr><th>Pay period</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">USD/hr</th><th class="num">Amount</th><th>Payout</th><th></th></tr></thead>
               <tbody id="myPayslipRows"></tbody>
             </table></div>
             <p id="myPayslipsEmpty" class="muted">No payslips yet. They appear here once your admin prepares payroll.</p>
