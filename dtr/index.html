@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=30">
-  <script type="module" src="app.js?v=45"></script>
+  <script type="module" src="app.js?v=46"></script>
 </head>
 <body>
   <header class="topbar">
@@ -351,12 +351,12 @@
             </form>
             <form id="payFxForm" class="row rate-box">
               <label>Exchange rate (PHP per 1 USD) <input id="payFx" type="number" min="1" max="1000" step="0.0001" required placeholder="e.g. 58.50"></label>
-              <button class="primary">Multiply by each VA's USD rate</button>
-              <span class="muted">Each pending payslip shown below gets PHP rate = that VA's USD rate &times; this number (for example $5.00 &times; 58.50 = &#8369;292.50/hr), and that VA's PHP rate is updated too. VAs without a USD rate and paid payslips are not changed.</span>
+              <button class="primary">Multiply by each VA's Hourly per VA</button>
+              <span class="muted">Each pending payslip shown below gets PHP rate = that VA's Hourly per VA (USD, from Employee demographics) &times; this number (for example $1.05 &times; 58.50 = &#8369;61.43/hr), and that VA's PHP rate is updated too. VAs without an Hourly per VA rate and paid payslips are not changed.</span>
             </form>
             <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
             <div class="scroll"><table>
-              <thead><tr><th>VA / Client</th><th class="num">Hours</th><th class="num">USD/hr</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>VA / Client</th><th class="num">Hours</th><th class="num">Hourly per VA (USD)</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
               <tbody id="payRows"></tbody>
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
@@ -409,7 +409,7 @@
               <span class="muted">Full account numbers for everyone listed below. Keep the file private and delete it when you're done.</span>
             </div>
             <div class="scroll"><table>
-              <thead><tr><th>Name</th><th>Client</th><th>Position</th><th class="num">Hourly per VA</th><th class="num">USD/hr</th><th>Role</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Client</th><th>Position</th><th class="num">Hourly per VA (USD)</th><th class="num">USD/hr (client)</th><th>Role</th><th>Status</th><th></th></tr></thead>
               <tbody id="vaRows"></tbody>
             </table></div>
           </div>
@@ -523,7 +523,8 @@
       <label>Client / clinic / company <input id="vaClient" maxlength="100" list="clientList"></label>
       <datalist id="clientList"></datalist>
       <label>Position <input id="vaPosition" maxlength="100"></label>
-      <label>Hourly rate, PHP (paid to the VA) <input id="vaPhp" type="number" min="0" max="100000" step="0.01"></label>
+      <label>Hourly per VA, USD (paid to the VA) <input id="vaPayUsd" type="number" min="0" max="1000" step="0.001"></label>
+      <label>Hourly rate, PHP (paid to the VA; VA invoices sets it as Hourly per VA &times; the exchange rate) <input id="vaPhp" type="number" min="0" max="100000" step="0.01"></label>
       <label>Hourly rate, USD (billed to the client) <input id="vaUsd" type="number" min="0" max="1000" step="0.001"></label>
       <label>Start date <input id="vaStart" type="date"></label>
       <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
