@@ -307,7 +307,8 @@ async function deletePost(p) {
 // ---------- Photos, videos and files on posts ----------
 
 // Older posts: the file was split into pieces saved in the database ("announcementMedia"), since the free plan has
-// no file storage. Good-vibes posts instead point at a video kept on the website (media.src, a file in /images).
+// no file storage. Good-vibes posts instead point at a short clip kept on the website (media.src, a file in /images),
+// shown like a GIF.
 const mediaUrls = new Map(); // post id -> Promise of a blob: URL
 
 function loadMedia(id, media) {
@@ -346,6 +347,14 @@ function mediaBlock(id, media) {
   }
   const tall = media.tall ? ' tall' : '';
   const siteFile = /^[\w-]+\.mp4$/.test(media.src ?? '') ? `../images/${media.src}` : null;
+  // Good-vibes clips play like a GIF: on their own, silent, looping, with no buttons.
+  if (siteFile) {
+    const gif = el('video', { className: `post-media post-gif${tall}`, src: siteFile, poster: media.poster || '',
+      autoplay: true, muted: true, loop: true, playsInline: true, preload: 'auto', disablePictureInPicture: true });
+    for (const a of ['autoplay', 'muted', 'loop', 'playsinline']) gif.setAttribute(a, ''); // iPhones need the attributes too
+    gif.setAttribute('aria-label', media.name ? `Animation: ${media.name.replace(/\.mp4$/, '').replace(/-/g, ' ')}` : 'Animation');
+    return gif;
+  }
   const play = el('button', { className: 'play', textContent: '\u25B6 Play video' });
   const box = el('div', { className: `post-media post-video${tall}` },
     media.poster ? el('img', { src: media.poster, alt: '' }) : null, play);
@@ -353,7 +362,7 @@ function mediaBlock(id, media) {
     play.disabled = true;
     play.textContent = 'Loading...';
     try {
-      const video = el('video', { className: `post-media${tall}`, controls: true, playsInline: true, src: siteFile ?? await loadMedia(id, media) });
+      const video = el('video', { className: `post-media${tall}`, controls: true, playsInline: true, src: await loadMedia(id, media) });
       box.replaceWith(video);
       video.play().catch(() => {});
     } catch (err) { play.disabled = false; play.textContent = '\u25B6 Play video'; showError(err); }
@@ -437,7 +446,7 @@ const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice
 
 // ---------- Admin ----------
 
-// One-click "good vibes" posts: a short message and a video that lives on the website, so nothing is uploaded.
+// One-click "good vibes" posts: a short message and an animation (a looping clip) that lives on the website, so nothing is uploaded.
 const VIBES = {
   soon: {
     title: 'Payday is on the way, Team Trust! \u{1F340}',
@@ -454,7 +463,7 @@ const VIBES = {
 for (const button of document.querySelectorAll('[data-vibe]')) {
   button.onclick = async () => {
     const v = VIBES[button.dataset.vibe];
-    if (!confirm(`Post "${v.title}" with its video to the Announcement Wall for everyone?`)) return;
+    if (!confirm(`Post "${v.title}" with its animation to the Announcement Wall for everyone?`)) return;
     button.disabled = true;
     try {
       await setDoc(doc(collection(db, 'announcements')), {
