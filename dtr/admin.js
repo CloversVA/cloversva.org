@@ -597,6 +597,44 @@ $('payRateForm').onsubmit = async (e) => {
   } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
+// PHP rate from each VA's own USD rate: USD rate x exchange rate, for every pending payslip shown.
+const FX_KEY = 'cloversva.payFx';
+try { const saved = localStorage.getItem(FX_KEY); if (saved) $('payFx').value = saved; } catch { /* private window: start empty */ }
+
+$('payFxForm').onsubmit = async (e) => {
+  e.preventDefault();
+  if ($('payFx').validity.badInput) { alert('Type the exchange rate as a plain number, like 58.50, without commas or a ₱ sign.'); return; }
+  const fx = Number($('payFx').value);
+  if (!(fx > 0)) { alert('Type how many pesos one US dollar is, like 58.50.'); return; }
+  const client = $('payClient').value;
+  const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
+  if (!pending.length) { alert('There are no pending payslips to update. Create payslips first, or pick another period.'); return; }
+  const withUsd = pending.filter((s) => vas.get(s.email)?.usdRate > 0);
+  const noUsd = pending.filter((s) => !(vas.get(s.email)?.usdRate > 0)).map((s) => s.name);
+  if (!withUsd.length) { alert('None of these VAs has a USD rate yet. Set them under Client invoices > VA rates first.'); return; }
+  const lines = withUsd.map((s) => {
+    const usd = vas.get(s.email).usdRate;
+    return `${s.name}: ${formatUsd(usd)} × ${fx} = ${formatPhp(round2(usd * fx))}/hr`;
+  });
+  if (!confirm(`Set each VA's PHP rate from their USD rate × ${fx}?\n\n${lines.join('\n')}`
+    + (noUsd.length ? `\n\nNot changed (no USD rate): ${noUsd.join(', ')}` : '')
+    + '\n\nThose VAs\' PHP rates are updated too, so future payslips use them.')) return;
+  const button = e.target.querySelector('button');
+  button.disabled = true;
+  try {
+    const b = writeBatch(db);
+    for (const slip of withUsd) {
+      const va = vas.get(slip.email);
+      const rate = round2(va.usdRate * fx);
+      b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, phpRate: rate, amount: round2(slip.hours * rate), ...stamp() });
+      b.set(doc(db, 'allowed', va.email), pick({ ...va, phpRate: rate }));
+    }
+    await b.commit();
+    try { localStorage.setItem(FX_KEY, String(fx)); } catch { /* not saved: fine */ }
+    await loadPayroll();
+  } catch (err) { showError(err); } finally { button.disabled = false; }
+};
+
 function payrollRow(slip, bank) {
   const pending = slip.status === 'pending';
   const btn = (textContent, props = {}) => el('button', { type: 'button', textContent, ...props });
@@ -624,7 +662,7 @@ function payrollRow(slip, bank) {
 
   // Daily hours and the VA's bank details, shown under the row on request.
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
-  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 6 },
+  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 7 },
     el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
     slip.days?.length
       ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
@@ -636,8 +674,9 @@ function payrollRow(slip, bank) {
   const who = el('div', { className: 'pay-who' }, el('strong', { textContent: slip.name }),
     el('span', { className: 'muted', textContent: slip.clientName || 'No client' }));
   const buttons = el('div', { className: 'pay-buttons' }, paid, details, pdf, remove);
+  const usdRate = vas.get(slip.email)?.usdRate;
   const row = el('tr', { className: 'pay-main' }, cell(who), numCell(slip.hours.toFixed(2)),
-    numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status), cell(buttons));
+    numCell(usdRate ? formatUsd(usdRate) : '-'), numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status), cell(buttons));
   return [row, detailsRow];
 }
 
