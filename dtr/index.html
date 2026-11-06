@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=22">
-  <script type="module" src="app.js?v=26"></script>
+  <script type="module" src="app.js?v=27"></script>
 </head>
 <body>
   <header class="topbar">
@@ -390,6 +390,10 @@
               <label>Role <select id="newRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
               <button class="primary">Add</button>
             </form>
+            <div class="row">
+              <button type="button" id="bankXlsxBtn">Download bank details (Excel)</button>
+              <span class="muted">Full account numbers for everyone listed below. Keep the file private and delete it when you're done.</span>
+            </div>
             <div class="scroll"><table>
               <thead><tr><th>Name</th><th>Client</th><th>Position</th><th class="num">PHP/hr</th><th class="num">USD/hr</th><th>Role</th><th>Status</th><th></th></tr></thead>
               <tbody id="vaRows"></tbody>

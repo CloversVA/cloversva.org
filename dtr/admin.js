@@ -229,6 +229,36 @@ $('vaForm').onsubmit = async (e) => {
   } catch (err) { showError(err); }
 };
 
+// Excel list of every VA's bank details, for sending pay. Admins can read the "bank" collection (Payroll uses it too).
+$('bankXlsxBtn').onclick = async () => {
+  const btn = $('bankXlsxBtn');
+  btn.disabled = true;
+  try {
+    const people = [...vas.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const banks = await Promise.all(people.map(async (va) => {
+      const snap = await getDoc(doc(db, 'bank', va.email));
+      return snap.exists() ? snap.data() : null;
+    }));
+    const rows = [['Name', 'Email', 'Client', 'Position', 'Role', 'Status', 'Bank', 'Account name', 'Account number']];
+    people.forEach((va, i) => {
+      const b = banks[i];
+      rows.push([va.name, va.email, va.clientName || '', va.position || '', va.role === 'admin' ? 'Admin' : 'VA',
+        va.active ? 'Active' : 'Deactivated', b?.bankName ?? 'No bank details yet', b?.accountName ?? '', String(b?.accountNumber ?? '')]);
+    });
+    const XLSX = await loadXlsx();
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    // Keep account numbers as text so Excel doesn't drop leading zeros or show them as 1.23E+12.
+    for (let r = 1; r < rows.length; r += 1) {
+      const ref = XLSX.utils.encode_cell({ r, c: 8 });
+      if (sheet[ref]) { sheet[ref].t = 's'; sheet[ref].z = '@'; }
+    }
+    sheet['!cols'] = [24, 30, 18, 18, 8, 12, 22, 26, 22].map((wch) => ({ wch }));
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, 'Bank details');
+    XLSX.writeFile(book, `bank-details-${dayKey(new Date(), BUSINESS_TZ)}.xlsx`);
+  } catch (err) { showError(err); } finally { btn.disabled = false; }
+};
+
 // ---------- Timesheets ----------
 
 let tsShifts = [];
