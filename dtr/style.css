@@ -230,7 +230,6 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 .pay-buttons { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 2px 0 6px; }
 .btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
 .btn-group:empty, .btn-group:has(> button:only-child[hidden]) { display: none; }
-.btn-group:last-child { margin-left: auto; }
 .pay-buttons button { padding: 5px 11px; font-size: .85rem; margin: 0; }
 .pay-bank { margin: 0 0 6px; }
 .pay-actions td { border-bottom: 1px solid var(--line); }
@@ -245,4 +244,3 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 /* Timesheets: manual shift form */
 .row > label.grow { flex: 1 1 220px; }
 .row > label.grow input { width: 100%; }
-@media (max-width: 600px) { .btn-group:last-child { margin-left: 0; } }
