@@ -994,7 +994,7 @@ function renderInvoiceRates() {
       el('summary', {}, el('strong', { textContent: client }),
         el('span', { className: 'muted', textContent: ` · ${list.length} VA${list.length === 1 ? '' : 's'}${missing ? ` · ${missing} without a rate` : ''}` })),
       el('div', { className: 'scroll' }, el('table', {},
-        el('thead', {}, el('tr', {}, el('th', { textContent: 'VA' }), el('th', { textContent: 'Position' }), el('th', { textContent: 'USD/hr' }), el('th'))),
+        el('thead', {}, el('tr', {}, el('th', { textContent: 'VA' }), el('th', { textContent: 'Position' }), el('th', { className: 'num', textContent: 'USD/hr' }), el('th'))),
         el('tbody', {}, ...list.map(rateRow)))),
     );
     return box;
@@ -1002,25 +1002,58 @@ function renderInvoiceRates() {
 }
 
 function rateRow(va) {
-  const input = el('input', { type: 'number', min: 0, max: 1000, step: 0.001, value: clientRateOf(va.email) || '', placeholder: '0.00', ariaLabel: `Client USD rate for ${va.name}` });
-  const save = el('button', { type: 'button', textContent: 'Save' });
+  const rate = clientRateOf(va.email);
+  const edit = el('button', { type: 'button', textContent: 'Edit' });
+  edit.onclick = () => openRateEditor(va);
   const note = el('span', { className: 'muted', role: 'status', textContent: savedRates.has(va.email) ? ' Saved.' : '' });
-  input.oninput = () => { note.textContent = ''; };
-  save.onclick = async () => {
-    if (input.validity.badInput || !input.checkValidity()) { alert('Type the rate as a plain number, like 8 or 8.50, without commas or a $ sign.'); return; }
-    save.disabled = true;
-    try {
-      savedRates.add(va.email);
-      // Saved only for Client invoices; the VA's rate in Employee demographics is not changed.
-      await setDoc(CLIENT_RATES_DOC(), { rates: { [va.email]: round3(Number(input.value) || 0) } }, { merge: true });
-      note.textContent = ' Saved.';
-    } catch (err) {
-      savedRates.delete(va.email);
-      if (err.code === 'permission-denied') {
-        alert('Not saved: the database rules do not let admins save settings/clientRates yet. Send your developer the "match /settings" part of the Firestore rules.');
-      } else showError(err);
-    } finally { save.disabled = false; }
-  };
-  input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save.click(); } };
-  return el('tr', {}, cell(va.name), cell(va.position || ''), cell(input), cell(save, note));
+  return el('tr', {}, cell(va.name), cell(va.position || ''), numCell(rate ? formatUsd(rate) : 'Not set'), cell(edit, note));
 }
+
+let editingRateVa = null;
+
+function openRateEditor(va) {
+  editingRateVa = va;
+  savedRates.clear();
+  $('rateDialogName').textContent = va.name;
+  $('rateDialogEmail').textContent = va.email;
+  $('rateClient').value = va.clientName ?? '';
+  $('ratePosition').value = va.position ?? '';
+  $('rateUsd').value = clientRateOf(va.email) || '';
+  $('rateDialog').showModal();
+}
+
+$('rateCancel').onclick = () => $('rateDialog').close();
+
+$('rateForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const input = $('rateUsd');
+  if (input.validity.badInput || !input.checkValidity()) { alert('Type the rate as a plain number, like 8 or 8.50, without commas or a $ sign.'); return; }
+  const va = vas.get(editingRateVa.email) ?? editingRateVa; // latest record, in case it changed while open
+  const clientName = $('rateClient').value.trim();
+  const position = $('ratePosition').value.trim();
+  const rate = round3(Number(input.value) || 0);
+  if (!clientName && !confirm(`Remove ${va.name} from their client? They will no longer appear on that client's invoices.`)) return;
+  const save = e.target.querySelector('button.primary');
+  save.disabled = true;
+  try {
+    if (rate !== clientRateOf(va.email)) {
+      try {
+        // Saved only for Client invoices; the VA's rate in Employee demographics is not changed.
+        await setDoc(CLIENT_RATES_DOC(), { rates: { [va.email]: rate } }, { merge: true });
+      } catch (err) {
+        if (err.code === 'permission-denied') {
+          alert('Not saved: the database rules do not let admins save settings/clientRates yet. Send your developer the "match /settings" part of the Firestore rules.');
+          return;
+        }
+        throw err;
+      }
+    }
+    if (clientName !== (va.clientName ?? '') || position !== (va.position ?? '')) {
+      await setDoc(doc(db, 'allowed', va.email), pick({ ...va, clientName, position }));
+    }
+    savedRates.add(va.email);
+    if (clientName) openClients.add(clientName);
+    $('rateDialog').close();
+    renderInvoiceRates();
+  } catch (err) { showError(err); } finally { save.disabled = false; }
+};
