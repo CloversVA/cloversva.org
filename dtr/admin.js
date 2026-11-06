@@ -196,6 +196,14 @@ function openVaEditor(va) {
     const rows = [['Date of birth', p.birthDate ? fmtDay(p.birthDate) : ''], ['Address', p.address], ['Phone', p.phone]];
     $('vaProfile').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v || '-' })]));
   }).catch(showError);
+  $('vaBank').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
+  getDoc(doc(db, 'bank', va.email)).then((snap) => {
+    if (editingVa !== va) return; // another VA was opened meanwhile
+    const b = snap.exists() ? snap.data() : null;
+    if (!b) { $('vaBank').replaceChildren(el('dd', { className: 'muted', textContent: 'No bank details yet.' })); return; }
+    const rows = [['Bank', b.bankName], ['Account name', b.accountName], ['Account number', b.accountNumber]];
+    $('vaBank').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v || '-' })]));
+  }).catch(showError);
 }
 
 $('vaCancel').onclick = () => $('vaDialog').close();
