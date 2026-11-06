@@ -44,7 +44,7 @@ h3 { font-size: .95rem; margin: 20px 0 8px; }
 .who-text { display: flex; flex-direction: column; line-height: 1.25; }
 .who-text span { color: var(--muted); font-size: .85rem; }
 
-main { max-width: 1160px; margin: 0 auto; padding: 16px; }
+main { max-width: 1600px; margin: 0 auto; padding: 16px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 2px rgb(0 0 0 / .03); }
 .narrow { max-width: 440px; margin-left: auto; margin-right: auto; }
 .center { text-align: center; }

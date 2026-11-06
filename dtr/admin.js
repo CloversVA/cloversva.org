@@ -172,6 +172,7 @@ $('addForm').onsubmit = async (e) => {
 
 let editingVa = null;
 let editingProfile = null;
+let editingBank; // the VA's bank record while the editor is open
 
 function openVaEditor(va) {
   editingVa = va;
@@ -196,14 +197,20 @@ function openVaEditor(va) {
     const rows = [['Date of birth', p.birthDate ? fmtDay(p.birthDate) : ''], ['Address', p.address], ['Phone', p.phone]];
     $('vaProfile').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v || '-' })]));
   }).catch(showError);
-  $('vaBank').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
+  // Bank details: the VA enters these, and admins can correct them here.
+  editingBank = undefined; // undefined = still loading, null = none on file
+  const bankInputs = ['vaBankName', 'vaBankAccountName', 'vaBankAccountNumber'];
+  bankInputs.forEach((id) => { $(id).value = ''; $(id).disabled = true; });
+  $('vaBankNote').textContent = 'Loading...';
   getDoc(doc(db, 'bank', va.email)).then((snap) => {
     if (editingVa !== va) return; // another VA was opened meanwhile
-    const b = snap.exists() ? snap.data() : null;
-    if (!b) { $('vaBank').replaceChildren(el('dd', { className: 'muted', textContent: 'No bank details yet.' })); return; }
-    const rows = [['Bank', b.bankName], ['Account name', b.accountName], ['Account number', b.accountNumber]];
-    $('vaBank').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v || '-' })]));
-  }).catch(showError);
+    editingBank = snap.exists() ? snap.data() : null;
+    $('vaBankName').value = editingBank?.bankName ?? '';
+    $('vaBankAccountName').value = editingBank?.accountName ?? '';
+    $('vaBankAccountNumber').value = editingBank?.accountNumber ?? '';
+    bankInputs.forEach((id) => { $(id).disabled = false; });
+    $('vaBankNote').textContent = editingBank ? 'Entered by the VA. Change them here if they need correcting.' : 'No bank details yet. You can fill them in for the VA.';
+  }).catch((err) => { $('vaBankNote').textContent = 'Could not load bank details.'; showError(err); });
 }
 
 $('vaCancel').onclick = () => $('vaDialog').close();
@@ -217,6 +224,18 @@ $('vaForm').onsubmit = async (e) => {
   }
   if (!(Number($('vaPhp').value) > 0) && $('vaRole').value === 'va'
     && !confirm(`${$('vaName').value} has no PHP hourly rate, so their payslips will show ₱0.00. Save anyway?`)) return;
+  const bank = {
+    bankName: $('vaBankName').value.trim(),
+    accountName: $('vaBankAccountName').value.trim(),
+    accountNumber: $('vaBankAccountNumber').value.trim(),
+  };
+  const bankFilled = Object.values(bank).filter(Boolean).length;
+  const bankChanged = editingBank !== undefined
+    && ['bankName', 'accountName', 'accountNumber'].some((k) => bank[k] !== (editingBank?.[k] ?? ''));
+  if (bankChanged && bankFilled < 3) {
+    alert('Fill in all three bank details (bank, account name and account number), or leave all three as they were.');
+    return;
+  }
   const record = {
     name: $('vaName').value.trim(),
     role: $('vaRole').value,
@@ -232,6 +251,17 @@ $('vaForm').onsubmit = async (e) => {
     const fullName = $('vaFullName').value.trim();
     if (editingProfile && fullName && fullName !== editingProfile.fullName) {
       await updateDoc(doc(db, 'profiles', editingVa.email), { fullName });
+    }
+    if (bankChanged) {
+      try {
+        await setDoc(doc(db, 'bank', editingVa.email), bank);
+      } catch (err) {
+        if (err.code !== 'permission-denied') throw err;
+        alert('The other details were saved, but the bank details were not: the database does not allow admins to change bank details yet. '
+          + 'The Firestore security rules need updating first.');
+        return;
+      }
+      payBanks.set(editingVa.email, bank); // so Payroll shows the new details without a reload
     }
     $('vaDialog').close();
   } catch (err) { showError(err); }
