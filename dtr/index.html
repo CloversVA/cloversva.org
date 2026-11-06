@@ -164,6 +164,15 @@
         </section>
 
         <section data-panel="board" hidden>
+          <div class="card" data-admin hidden>
+            <h2>Post an announcement</h2>
+            <form id="postForm" class="stack narrow-form">
+              <label>Title <input id="postTitle" maxlength="120" required></label>
+              <label>Message <textarea id="postBody" maxlength="2000" rows="3"></textarea></label>
+              <label>Photo, video or file such as a PDF, Word or Excel document (optional, up to 15 MB) <input id="postMedia" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip"></label>
+              <div class="row"><button class="primary">Post</button><span id="postNote" class="muted" role="status"></span></div>
+            </form>
+          </div>
           <div id="celebrationsCard" class="card" hidden>
             <h2>Birthdays and holidays</h2>
             <div id="celebrations"></div>
@@ -176,15 +185,6 @@
             <p>Please join me in welcoming <strong>Ms. Margarita Khassandra</strong> to Clovers Virtual Assistance Services! 🍀💚</p>
             <p>As part of <strong>Team Trust</strong>, we look forward to your contributions, collaboration, and commitment to our shared goals.</p>
             <p>Welcome aboard, Ms. Margarita! Here's to growing and achieving success together!</p>
-          </div>
-          <div class="card" data-admin hidden>
-            <h2>Post an announcement</h2>
-            <form id="postForm" class="stack narrow-form">
-              <label>Title <input id="postTitle" maxlength="120" required></label>
-              <label>Message <textarea id="postBody" maxlength="2000" rows="3"></textarea></label>
-              <label>Photo, video or file such as a PDF, Word or Excel document (optional, up to 15 MB) <input id="postMedia" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip"></label>
-              <div class="row"><button class="primary">Post</button><span id="postNote" class="muted" role="status"></span></div>
-            </form>
           </div>
           <div class="card">
             <h2>Daylight saving time reminder</h2>
