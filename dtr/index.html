@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=30">
-  <script type="module" src="app.js?v=50"></script>
+  <script type="module" src="app.js?v=51"></script>
 </head>
 <body>
   <header class="topbar">
@@ -384,7 +384,7 @@
           </div>
           <div class="card">
             <h2>VA rates per client (USD)</h2>
-            <p class="muted">Click a client to open it. The USD rate is what the client is billed per hour; it is used on invoices and client copies. Saving a rate here does not change the VA's USD/hr in Employee demographics. Until you save one here, it starts from that VA's Employee demographics rate.</p>
+            <p class="muted">Click a client to open it, then click <b>Edit</b> next to a VA to change their client, position or USD rate. The USD rate is what the client is billed per hour; it is used on invoices and client copies. Saving a rate here does not change the VA's USD/hr in Employee demographics. Until you save one here, it starts from that VA's Employee demographics rate.</p>
             <div id="invRates"></div>
             <p id="invRatesEmpty" class="muted" hidden>No VAs are assigned to a client yet (Employee demographics &gt; Edit).</p>
           </div>
@@ -538,6 +538,21 @@
       <div class="row">
         <button class="primary" value="save">Save</button>
         <button type="button" id="vaCancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="rateDialog">
+    <form id="rateForm" method="dialog">
+      <h2>Edit <span id="rateDialogName"></span></h2>
+      <p class="muted" id="rateDialogEmail"></p>
+      <label>Client / clinic / company <input id="rateClient" maxlength="100" list="clientList"></label>
+      <label>Position <input id="ratePosition" maxlength="100"></label>
+      <label>USD rate billed to the client, per hour <input id="rateUsd" type="number" min="0" max="1000" step="0.001" placeholder="0.00"></label>
+      <p class="muted">The USD rate is used only on client invoices and client copies; it does not change the VA's USD/hr in Employee demographics. Client and position are the same as in Employee demographics, so changing them here changes them there too.</p>
+      <div class="row">
+        <button class="primary" value="save">Save</button>
+        <button type="button" id="rateCancel">Cancel</button>
       </div>
     </form>
   </dialog>
