@@ -220,19 +220,17 @@ fieldset.choice label { display: flex; flex-direction: row; gap: 8px; align-item
 .post-video { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; }
 .post-video img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .85; }
 .post-video .play { position: relative; border-radius: 999px; padding: 10px 22px; background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-.pay-main td { border-bottom: 0; padding-bottom: 2px; }
-.pay-actions td { white-space: normal; padding-top: 2px; }
-.pay-actions button { margin: 2px 0; }
 
 /* Payroll: one rate box for everyone, and the row buttons in small groups */
 .rate-box { background: var(--leaf-soft); border: 1px solid var(--leaf-mid); border-radius: 10px; padding: 10px 12px; }
 .rate-box > span { flex: 1 1 260px; font-size: .85rem; align-self: center; }
-.pay-buttons { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 2px 0 6px; }
-.btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
-.btn-group:empty, .btn-group:has(> button:only-child[hidden]) { display: none; }
-.pay-buttons button { padding: 5px 11px; font-size: .85rem; margin: 0; }
+.pay-main td { vertical-align: middle; padding-left: 5px; padding-right: 5px; }
+.pay-main td:first-child { white-space: normal; min-width: 9em; }
+.pay-main td:last-child { white-space: normal; }
+.pay-buttons { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; justify-content: flex-end; min-width: 10em; }
+.pay-buttons button[hidden] { display: none; }
+.pay-buttons button { padding: 4px 9px; font-size: .8rem; margin: 0; white-space: nowrap; }
 .pay-bank { margin: 0 0 6px; }
-.pay-actions td { border-bottom: 1px solid var(--line); }
 
 /* Client invoices: one collapsible box of VA rates per client */
 .client-rates { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: var(--card); }

@@ -611,26 +611,20 @@ function payrollRow(slip, bank) {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
-  // Both PDFs tag leave, absence and holiday days. The tab is opened first so pop-up blockers allow it.
+  // The PDF tags leave, absence and holiday days. The tab is opened first so pop-up blockers allow it.
   const withLeaves = async (make) => {
     const w = window.open('', '_blank');
     const info = await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd);
     openDocument(make({ ...info, startDate: vas.get(slip.email)?.startDate ?? '' }), w);
   };
-  const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
+  const pdf = btn('VA payslip', { title: "The VA's payslip at their PHP pay rate, as a PDF" });
   pdf.onclick = () => withLeaves((leaves) => payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl, leaves));
-  const clientPdf = btn('Client Copy', { title: "Day-by-day hours at the VA's USD billing rate, for the client" });
-  clientPdf.onclick = () => {
-    const usdRate = vas.get(slip.email)?.usdRate;
-    if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (Client invoices > VA rates).`); return; }
-    withLeaves((leaves) => clientPayrollHtml(slip, usdRate, signatureUrl, leaves));
-  };
 
   const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
 
   // Daily hours and the VA's bank details, shown under the row on request.
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
-  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 5 },
+  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 6 },
     el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
     slip.days?.length
       ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
@@ -638,16 +632,13 @@ function payrollRow(slip, bank) {
   const details = btn('Details', { ariaExpanded: 'false' });
   details.onclick = () => { detailsRow.hidden = !detailsRow.hidden; details.ariaExpanded = String(!detailsRow.hidden); };
 
-  // Name and client stacked in the first column, so they line up with the buttons below.
+  // Everything for one payslip on one line: who, the numbers, the status, then the buttons.
   const who = el('div', { className: 'pay-who' }, el('strong', { textContent: slip.name }),
     el('span', { className: 'muted', textContent: slip.clientName || 'No client' }));
+  const buttons = el('div', { className: 'pay-buttons' }, paid, details, pdf, remove);
   const row = el('tr', { className: 'pay-main' }, cell(who), numCell(slip.hours.toFixed(2)),
-    numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status));
-  // The buttons sit on their own line under the payslip, in small groups, so the table fits without scrolling sideways.
-  const group = (...kids) => el('div', { className: 'btn-group' }, ...kids);
-  const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 5 }, el('div', { className: 'pay-buttons' },
-    group(paid), group(details), group(pdf, clientPdf), group(remove))));
-  return [row, actions, detailsRow];
+    numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status), cell(buttons));
+  return [row, detailsRow];
 }
 
 async function saveSlip(slip) {
@@ -738,6 +729,25 @@ $('payZipBtn').onclick = async () => {
       (done, total) => { button.textContent = `Making PDFs... ${done} of ${total}`; });
     if (noUsd.length) alert(`Downloaded. No client copy for ${noUsd.join(', ')}: set their USD rate first (Client invoices > VA rates).`);
   } catch (err) { showError(err); } finally { button.disabled = false; button.textContent = label; }
+};
+
+// Marks every pending payslip shown (all clients, or the one picked) as paid, after one confirmation.
+$('payAllPaidBtn').onclick = async () => {
+  const client = $('payClient').value;
+  const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
+  if (!pending.length) { alert('There are no pending payslips to mark as paid in this period.'); return; }
+  const total = round2(pending.reduce((sum, s) => sum + s.amount, 0));
+  if (!confirm(`Mark ${pending.length} payslip${pending.length === 1 ? '' : 's'}${client ? ` for ${client}` : ''} as paid (total ${formatPhp(total)})?`
+    + ' The VAs will see them as paid. You can undo one with "Undo paid".')) return;
+  const button = $('payAllPaidBtn');
+  button.disabled = true;
+  try {
+    const b = writeBatch(db);
+    const paidAt = Timestamp.now();
+    for (const slip of pending) b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, status: 'paid', paidAt, ...stamp() });
+    await b.commit();
+    await loadPayroll();
+  } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
 // Recounts every pending payslip shown (all clients, or the one picked) from the latest time clock records,
