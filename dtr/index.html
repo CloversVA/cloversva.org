@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=30">
-  <script type="module" src="app.js?v=48"></script>
+  <script type="module" src="app.js?v=49"></script>
 </head>
 <body>
   <header class="topbar">
@@ -523,8 +523,7 @@
       <label>Client / clinic / company <input id="vaClient" maxlength="100" list="clientList"></label>
       <datalist id="clientList"></datalist>
       <label>Position <input id="vaPosition" maxlength="100"></label>
-      <label>USD/hr (VA), paid to the VA <input id="vaPayUsd" type="number" min="0" max="1000" step="0.001"></label>
-      <label>Hourly rate, PHP (paid to the VA; VA invoices sets it as USD/hr (VA) &times; the exchange rate) <input id="vaPhp" type="number" min="0" max="100000" step="0.01"></label>
+      <label>Hourly rate, PHP (paid to the VA) <input id="vaPhp" type="number" min="0" max="100000" step="0.01"></label>
       <label>Hourly rate, USD (billed to the client) <input id="vaUsd" type="number" min="0" max="1000" step="0.001"></label>
       <label>Start date <input id="vaStart" type="date"></label>
       <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>

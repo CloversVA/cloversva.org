@@ -193,7 +193,6 @@ function openVaEditor(va) {
   $('vaPosition').value = va.position ?? '';
   $('vaPhp').value = va.phpRate ?? '';
   $('vaUsd').value = va.usdRate ?? '';
-  $('vaPayUsd').value = payUsdOf(va.email) || '';
   $('vaStart').value = va.startDate ?? '';
   $('vaRole').value = va.role;
   $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
@@ -230,7 +229,7 @@ $('vaCancel').onclick = () => $('vaDialog').close();
 $('vaForm').onsubmit = async (e) => {
   e.preventDefault();
   // A rate typed with a comma or currency sign used to be saved silently as 0.
-  if ($('vaPhp').validity.badInput || $('vaUsd').validity.badInput || $('vaPayUsd').validity.badInput) {
+  if ($('vaPhp').validity.badInput || $('vaUsd').validity.badInput) {
     alert('Type each rate as a plain number, like 400 or 1000.50, without commas or ₱/$ signs.');
     return;
   }
@@ -260,17 +259,6 @@ $('vaForm').onsubmit = async (e) => {
   };
   try {
     await setDoc(doc(db, 'allowed', editingVa.email), record);
-    const payUsd = round3(Number($('vaPayUsd').value) || 0);
-    if (payUsd !== payUsdOf(editingVa.email)) {
-      try {
-        await setDoc(PAY_RATES_DOC(), { rates: { [editingVa.email]: payUsd } }, { merge: true });
-      } catch (err) {
-        if (err.code !== 'permission-denied') throw err;
-        alert('The other details were saved, but not the USD/hr (VA) rate: the database rules do not let admins save '
-          + 'settings/vaPayRates yet. Send your developer the "match /settings" part of the Firestore rules.');
-        return;
-      }
-    }
     const fullName = $('vaFullName').value.trim();
     if (editingProfile && fullName && fullName !== editingProfile.fullName) {
       await updateDoc(doc(db, 'profiles', editingVa.email), { fullName });
