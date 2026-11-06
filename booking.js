@@ -6,10 +6,11 @@ import { dayKey, zonedToDate } from './dtr/report.js?v=13';
 
 // ---- Call hours: change these to change what can be booked ----
 const TZ = 'America/New_York'; // call times are set in US Eastern Time
+const TEAM_TZ = 'Asia/Manila';  // the booking email to the team shows the time in Philippine Time
 const FIRST_CALL = '09:00';     // first start time of the day
 const LAST_CALL = '16:45';      // last start time of the day (the call ends at 5:00 PM)
 const CALL_MINUTES = 15;        // length of each call slot
-const WORK_DAYS = [1, 2, 3, 4, 5]; // Monday to Friday (0 = Sunday)
+const WORK_DAYS = [0, 1, 2, 3, 4, 5, 6]; // every day, weekends included (0 = Sunday)
 const DAYS_AHEAD = 90;          // how far ahead people can book (about 3 months)
 const NOTICE_HOURS = 24;        // earliest booking is this many hours from now
 
@@ -131,13 +132,14 @@ function pick(at) {
 
 function describe(at) {
   const et = `${fmtDate(at, TZ)}, ${fmtTime(at, TZ)} ${tzName(at, TZ)}`;
+  const ph = `${fmtDate(at, TEAM_TZ)}, ${fmtTime(at, TEAM_TZ)} PHT (Manila)`;
   const local = `${fmtDate(at, visitorTz)}, ${fmtTime(at, visitorTz)} ${tzName(at, visitorTz)}`;
-  return { et, local };
+  return { et, ph, local };
 }
 
 function updateFields() {
   const d = chosen ? describe(chosen) : null;
-  $('bkTimeEt').value = d?.et ?? '';
+  $('bkTimePh').value = d?.ph ?? '';
   $('bkTimeLocal').value = d ? `${d.local} (${visitorTz})` : '';
   $('bkSummary').textContent = d
     ? `Your call: ${d.et}${visitorTz !== TZ ? ` (${d.local} your time)` : ''}. ${CALL_MINUTES} minutes.`
