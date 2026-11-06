@@ -5,7 +5,7 @@ import {
 import {
   Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=28';
+import { startAdmin } from './admin.js?v=31';
 import { setMyBirthday, startBoard } from './board.js?v=23';
 import { startVaFiles } from './files.js?v=13';
 import { myOvertime, overtimeCell, payslipDayInfo, startVaRequests } from './requests.js?v=19';
