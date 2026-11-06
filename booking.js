@@ -10,7 +10,7 @@ const TEAM_TZ = 'Asia/Manila';  // the booking email to the team shows the time 
 const FIRST_CALL = '09:00';     // first start time of the day
 const LAST_CALL = '16:45';      // last start time of the day (the call ends at 5:00 PM)
 const CALL_MINUTES = 15;        // length of each call slot
-const WORK_DAYS = [1, 2, 3, 4, 5]; // Monday to Friday (0 = Sunday)
+const WORK_DAYS = [0, 1, 2, 3, 4, 5, 6]; // every day, weekends included (0 = Sunday)
 const DAYS_AHEAD = 90;          // how far ahead people can book (about 3 months)
 const NOTICE_HOURS = 24;        // earliest booking is this many hours from now
 
