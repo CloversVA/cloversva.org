@@ -19,9 +19,13 @@ import {
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
-// payUsdRate: what the VA is paid per hour in USD ("USD/hr (VA)"). usdRate: what the client is billed per hour.
-// phpRate: the VA's peso pay per hour, used on payslips (VA invoices sets it as payUsdRate x the exchange rate).
-const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'payUsdRate', 'usdRate', 'startDate'];
+// usdRate: what the client is billed per hour. phpRate: the VA's peso pay per hour, used on payslips.
+// The VA's pay in USD ("USD/hr (VA)") is kept in settings/vaPayRates instead of on the VA's record, because the
+// database rules only accept these fields on "allowed". VA invoices sets phpRate = USD/hr (VA) x the exchange rate.
+const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'usdRate', 'startDate'];
+const PAY_RATES_DOC = () => doc(db, 'settings', 'vaPayRates');
+let payUsdRates = {}; // email -> USD/hr (VA)
+const payUsdOf = (email) => Number(payUsdRates[email]) || 0;
 const pick = (o) => Object.fromEntries(VA_FIELDS.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
 let me = null;
@@ -55,6 +59,12 @@ export function startAdmin(signedIn, track) {
     fillAddShiftVas();
     renderInvoiceRates();
     refreshLeave();
+  }, showError));
+
+  track(onSnapshot(PAY_RATES_DOC(), (snap) => {
+    payUsdRates = snap.exists() ? (snap.data().rates ?? {}) : {};
+    renderVas();
+    if (paySlips.length) renderPayroll();
   }, showError));
 
   track(onSnapshot(collection(db, 'coeRequests'), renderCoeRequests, showError));
@@ -157,7 +167,7 @@ function renderVas() {
     toggle.onclick = () => setDoc(doc(db, 'allowed', va.email), pick({ ...va, active: !va.active })).catch(showError);
     const who = el('div', {}, el('div', { textContent: va.name }), el('div', { className: 'muted', textContent: va.email }));
     return el('tr', {}, cell(who), cell(va.clientName || ''), cell(va.position || ''),
-      numCell(va.payUsdRate ? formatUsd(va.payUsdRate) : ''), numCell(va.usdRate ? formatUsd(va.usdRate) : ''),
+      numCell(payUsdOf(va.email) ? formatUsd(payUsdOf(va.email)) : ''), numCell(va.usdRate ? formatUsd(va.usdRate) : ''),
       cell(va.role === 'admin' ? 'Admin' : 'VA'), cell(va.active ? 'Active' : 'Deactivated'), cell(edit, ' ', toggle));
   }));
 }
@@ -183,7 +193,7 @@ function openVaEditor(va) {
   $('vaPosition').value = va.position ?? '';
   $('vaPhp').value = va.phpRate ?? '';
   $('vaUsd').value = va.usdRate ?? '';
-  $('vaPayUsd').value = va.payUsdRate ?? '';
+  $('vaPayUsd').value = payUsdOf(va.email) || '';
   $('vaStart').value = va.startDate ?? '';
   $('vaRole').value = va.role;
   $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
@@ -245,18 +255,21 @@ $('vaForm').onsubmit = async (e) => {
     clientName: $('vaClient').value.trim(),
     position: $('vaPosition').value.trim(),
     phpRate: round2(Number($('vaPhp').value) || 0),
-    payUsdRate: round3(Number($('vaPayUsd').value) || 0),
     usdRate: round3(Number($('vaUsd').value) || 0),
     startDate: $('vaStart').value,
   };
   try {
-    try {
-      await setDoc(doc(db, 'allowed', editingVa.email), record);
-    } catch (err) {
-      if (err.code !== 'permission-denied' || !record.payUsdRate) throw err;
-      alert('Nothing was saved: the database rules do not accept the new "USD/hr (VA)" rate yet. '
-        + 'The Firestore rules for "allowed" need to allow a field called payUsdRate. Clear that box to save the other details.');
-      return;
+    await setDoc(doc(db, 'allowed', editingVa.email), record);
+    const payUsd = round3(Number($('vaPayUsd').value) || 0);
+    if (payUsd !== payUsdOf(editingVa.email)) {
+      try {
+        await setDoc(PAY_RATES_DOC(), { rates: { [editingVa.email]: payUsd } }, { merge: true });
+      } catch (err) {
+        if (err.code !== 'permission-denied') throw err;
+        alert('The other details were saved, but not the USD/hr (VA) rate: the database rules do not let admins save '
+          + 'settings/vaPayRates yet. Send your developer the "match /settings" part of the Firestore rules.');
+        return;
+      }
     }
     const fullName = $('vaFullName').value.trim();
     if (editingProfile && fullName && fullName !== editingProfile.fullName) {
@@ -620,11 +633,11 @@ $('payFxForm').onsubmit = async (e) => {
   const client = $('payClient').value;
   const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
   if (!pending.length) { alert('There are no pending payslips to update. Create payslips first, or pick another period.'); return; }
-  const withUsd = pending.filter((s) => vas.get(s.email)?.payUsdRate > 0);
-  const noUsd = pending.filter((s) => !(vas.get(s.email)?.payUsdRate > 0)).map((s) => s.name);
+  const withUsd = pending.filter((s) => payUsdOf(s.email) > 0);
+  const noUsd = pending.filter((s) => !(payUsdOf(s.email) > 0)).map((s) => s.name);
   if (!withUsd.length) { alert('None of these VAs has a USD/hr (VA) rate yet. Set it under Employee demographics > Edit first.'); return; }
   const lines = withUsd.map((s) => {
-    const usd = vas.get(s.email).payUsdRate;
+    const usd = payUsdOf(s.email);
     return `${s.name}: ${formatUsd(usd)} × ${fx} = ${formatPhp(round2(usd * fx))}/hr`;
   });
   if (!confirm(`Set each VA's PHP rate from their USD/hr (VA) × ${fx}?\n\n${lines.join('\n')}`
@@ -636,9 +649,9 @@ $('payFxForm').onsubmit = async (e) => {
     const b = writeBatch(db);
     for (const slip of withUsd) {
       const va = vas.get(slip.email);
-      const rate = round2(va.payUsdRate * fx);
+      const rate = round2(payUsdOf(slip.email) * fx);
       b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, phpRate: rate, amount: round2(slip.hours * rate), ...stamp() });
-      b.set(doc(db, 'allowed', va.email), pick({ ...va, phpRate: rate }));
+      if (va) b.set(doc(db, 'allowed', va.email), pick({ ...va, phpRate: rate }));
     }
     await b.commit();
     try { localStorage.setItem(FX_KEY, String(fx)); } catch { /* not saved: fine */ }
@@ -685,7 +698,7 @@ function payrollRow(slip, bank) {
   const who = el('div', { className: 'pay-who' }, el('strong', { textContent: slip.name }),
     el('span', { className: 'muted', textContent: slip.clientName || 'No client' }));
   const buttons = el('div', { className: 'pay-buttons' }, paid, details, pdf, remove);
-  const payUsd = vas.get(slip.email)?.payUsdRate;
+  const payUsd = payUsdOf(slip.email);
   const row = el('tr', { className: 'pay-main' }, cell(who), numCell(slip.hours.toFixed(2)),
     numCell(payUsd ? formatUsd(payUsd) : '-'), numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status), cell(buttons));
   return [row, detailsRow];
