@@ -60,6 +60,8 @@ function page(title, body, extraCss = '') {
   .sign .sig { display: block; height: 80px; margin: 0 0 -46px 10px; mix-blend-mode: multiply; position: relative; }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #fde9c8; color: #7a4a00; font-size: 12px; font-weight: 600; }
   tr.leave td { background: #fff8ec; }
+  tr.absent td { background: #fdeeee; }
+  tr.absent .tag { background: #f8d4d4; color: #8a1c1c; }
   .toolbar { text-align: center; padding: 12px; background: #eef6e2; }
   .toolbar button { font: 600 14px Poppins, sans-serif; padding: 8px 18px; border-radius: 8px; border: 0; background: #0a5a2e; color: #fff; cursor: pointer; }
   @media print { .toolbar { display: none; } }
@@ -74,26 +76,52 @@ function page(title, body, extraCss = '') {
 const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
 <div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(COMPANY.email)}</div></div>`;
 
-// The day-by-day table on payslips, with approved leave and absence days tagged.
-// leaves: [{ day, label }] from leaveDaysFor(); days with no hours and no leave are left out.
-function dailyTable(slip, leaves = []) {
+// The day-by-day table on payslips. info = { leaves, holidays, startDate } (see payslipDayInfo in requests.js):
+// - approved leave/absence days get their request's tag;
+// - any other weekday with no clock-in is tagged "Absent (no clock-in)", or "Holiday" if it is on the holiday list.
+// Weekdays before the VA's start date or after yesterday (Eastern Time) are not marked. Payslips with typed-in hours
+// (no daily breakdown) only show leave days, since there is nothing to compare against.
+function dailyTable(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
   const rows = new Map((slip.days ?? []).map((x) => [x.day, { hours: x.hours, tag: '' }]));
   for (const l of leaves) rows.set(l.day, { hours: rows.get(l.day)?.hours ?? 0, tag: l.label });
+  let absent = 0;
+  let holidayCount = 0;
+  if (slip.days?.length || !slip.hours) {
+    const today = dayKey(new Date(), 'America/New_York');
+    const holidayOn = new Map(holidays.map((h) => [h.day, h.name]));
+    for (let day = slip.periodStart; day <= slip.periodEnd && day < today; day = nextDay(day)) {
+      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+      if (weekday === 0 || weekday === 6 || rows.has(day) || (startDate && day < startDate)) continue;
+      if (holidayOn.has(day)) { rows.set(day, { hours: 0, tag: `Holiday: ${holidayOn.get(day)}` }); holidayCount += 1; }
+      else { rows.set(day, { hours: 0, tag: 'Absent (no clock-in)', absent: true }); absent += 1; }
+    }
+  }
   if (!rows.size) return '';
-  const list = [...rows].sort(([a], [b]) => a.localeCompare(b));
-  const leaveCount = leaves.length;
+  const list = [...rows].sort(([x], [y]) => x.localeCompare(y));
+  const notes = [
+    leaves.length ? `Approved leave and absence days: <b>${leaves.length}</b>` : '',
+    absent ? `Absent with no clock-in: <b>${absent}</b>` : '',
+    holidayCount ? `Holidays with no clock-in: <b>${holidayCount}</b>` : '',
+  ].filter(Boolean);
   return `<p class="label">Daily hours (Eastern Time)</p>
 <table class="grid">
   <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th>Note</th></tr></thead>
-  <tbody>${list.map(([day, r]) => `<tr${r.tag ? ' class="leave"' : ''}><td>${esc(longDate(fromDay(day)))}</td>
+  <tbody>${list.map(([day, r]) => `<tr${r.tag ? ` class="${r.absent ? 'absent' : 'leave'}"` : ''}><td>${esc(longDate(fromDay(day)))}</td>
     <td class="num">${r.hours ? esc(hmFromHours(r.hours)) : '-'}</td><td>${r.tag ? `<span class="tag">${esc(r.tag)}</span>` : ''}</td></tr>`).join('')}</tbody>
 </table>
-${leaveCount ? `<p>Leave and absence days in this period: <b>${leaveCount}</b> (unpaid, not counted in the hours above).</p>` : ''}`;
+${notes.length ? `<p>${notes.join(' &middot; ')}. These days have no clocked hours, so they are not counted in the hours or amount above.</p>` : ''}`;
 }
 
-// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null; leaves: see dailyTable().
+// The next calendar day, as YYYY-MM-DD.
+function nextDay(day) {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null; info: see dailyTable().
 // The VA's payslip is not signed (signatureUrl is ignored); the client copy and invoice still are.
-export function payslipHtml(slip, bank, signatureUrl = null, leaves = []) {
+export function payslipHtml(slip, bank, signatureUrl = null, info = {}) {
   const paid = slip.status === 'paid' && slip.paidAt;
   return page(`Payslip ${slip.periodStart} ${slip.name}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
@@ -109,7 +137,7 @@ export function payslipHtml(slip, bank, signatureUrl = null, leaves = []) {
     <td class="num">${slip.hours.toFixed(2)}</td><td class="num">${esc(formatPhp(slip.phpRate))}</td><td class="num">${esc(formatPhp(slip.amount))}</td></tr></tbody>
   <tfoot><tr><td>TOTAL</td><td class="num">${slip.hours.toFixed(2)}</td><td></td><td class="num">${esc(formatPhp(slip.amount))}</td></tr></tfoot>
 </table>
-${dailyTable(slip, leaves)}
+${dailyTable(slip, info)}
 <p class="label">Paid to</p>
 ${bank ? `<table class="meta">
   <tr><td>Bank</td><td>: ${esc(bank.bankName)}</td></tr>
@@ -121,7 +149,7 @@ ${footer}`);
 
 // The client's copy of one payslip: the VA's hours day by day at their USD billing rate. Never shows PHP pay or bank details.
 // slip: payslip doc data; usdRate: the VA's current USD rate; signatureUrl: the founder's signature or null.
-export function clientPayrollHtml(slip, usdRate, signatureUrl = null, leaves = []) {
+export function clientPayrollHtml(slip, usdRate, signatureUrl = null, info = {}) {
   const amount = round3(slip.hours * usdRate);
   return page(`Hours ${slip.periodStart} ${slip.name}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
@@ -136,7 +164,7 @@ export function clientPayrollHtml(slip, usdRate, signatureUrl = null, leaves = [
     <td class="num">${slip.hours.toFixed(2)}</td><td class="num">${esc(formatUsd(usdRate))}</td><td class="num">${esc(formatUsd(amount))}</td></tr></tbody>
   <tfoot><tr><td>TOTAL</td><td class="num">${slip.hours.toFixed(2)}</td><td></td><td class="num">${esc(formatUsd(amount))}</td></tr></tfoot>
 </table>
-${dailyTable(slip, leaves)}
+${dailyTable(slip, info)}
 ${signBlock(signatureUrl)}
 ${footer}`);
 }

@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=16';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=17';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
 import {
@@ -10,7 +10,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { leaveDaysFor, refreshLeave, startAdminRequests } from './requests.js?v=17';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=18';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -586,11 +586,11 @@ function payrollRow(slip, bank) {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
-  // Both PDFs tag the VA's approved leave and absence days. The tab is opened first so pop-up blockers allow it.
+  // Both PDFs tag leave, absence and holiday days. The tab is opened first so pop-up blockers allow it.
   const withLeaves = async (make) => {
     const w = window.open('', '_blank');
-    const leaves = await leaveDaysFor(slip.email, slip.periodStart, slip.periodEnd).catch((err) => { console.warn(err); return []; });
-    openDocument(make(leaves), w);
+    const info = await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd);
+    openDocument(make({ ...info, startDate: vas.get(slip.email)?.startDate ?? '' }), w);
   };
   const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
   pdf.onclick = () => withLeaves((leaves) => payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl, leaves));

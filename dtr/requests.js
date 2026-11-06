@@ -4,7 +4,7 @@
 import {
   collection, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { leaveLetterHtml } from './docs.js?v=16';
+import { leaveLetterHtml } from './docs.js?v=17';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, LEAVE_NOTICE_DAYS, MAX_SHIFT_HOURS, addDays, dayKey, formatHM, leaveNoticeOk,
@@ -25,6 +25,18 @@ export async function leaveDaysFor(email, periodStart, periodEnd) {
     }
   }
   return [...days].sort(([a], [b]) => a.localeCompare(b)).map(([day, label]) => ({ day, label }));
+}
+
+// Everything the payslip day list needs besides the hours: approved leave/absence days and holidays in the period.
+// Either lookup failing just leaves those tags out.
+export async function payslipDayInfo(email, periodStart, periodEnd) {
+  const [leaves, holidays] = await Promise.all([
+    leaveDaysFor(email, periodStart, periodEnd).catch((err) => { console.warn(err); return []; }),
+    getDocs(collection(db, 'holidays'))
+      .then((snap) => snap.docs.map((d) => d.data()).filter((h) => h.day >= periodStart && h.day <= periodEnd))
+      .catch((err) => { console.warn(err); return []; }),
+  ]);
+  return { leaves, holidays };
 }
 
 const datesText = (r) => (r.startDay === r.endDay ? fmtDay(r.startDay) : `${fmtDay(r.startDay)} to ${fmtDay(r.endDay)}`);
