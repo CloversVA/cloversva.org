@@ -546,7 +546,7 @@
               <input type="checkbox" name="botcheck" class="honeypot" tabindex="-1" autocomplete="off">
               <!-- Filled in when the form is sent: the visitor's email (for replies and the automatic reply) and the call time. -->
               <input type="hidden" name="email" id="p_replyto">
-              <input type="hidden" name="Consultation Time (Eastern)" id="bkTimeEt">
+              <input type="hidden" name="Consultation Time (Philippine Time)" id="bkTimePh">
               <input type="hidden" name="Consultation Time (client's local time)" id="bkTimeLocal">
 
               <div class="field-grid">
@@ -912,7 +912,7 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
           errorBox.hidden = false;
           return;
         }
-        form.querySelector('input[name="subject"]').value = `New Consultation Booking: ${booking.et}`;
+        form.querySelector('input[name="subject"]').value = `New Consultation Booking: ${booking.ph}`;
       }
     }
 
@@ -970,6 +970,6 @@ aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none
     control.addEventListener('change', clearIfValid);
   });
 </script>
-<script type="module" src="booking.js?v=5"></script>
+<script type="module" src="booking.js?v=6"></script>
 </body>
 </html>
