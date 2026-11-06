@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=23">
-  <script type="module" src="app.js?v=33"></script>
+  <script type="module" src="app.js?v=34"></script>
 </head>
 <body>
   <header class="topbar">
@@ -327,7 +327,7 @@
             <h2>VA invoices</h2>
             <ol class="steps muted">
               <li>Pick a pay period. The list starts with the one still running; the second is the one that just ended.</li>
-              <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate.</li>
+              <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate. Fixed or added a shift, or approved overtime, afterwards? Click <b>Recount hours</b> to update the pending payslips.</li>
               <li>Set the PHP rate below if needed and click <b>Apply to all</b>. Check each row (<b>Details</b> shows the daily hours and the VA's bank), then pay the VA.</li>
               <li>Click <b>Mark paid</b>. The payslip locks and the VA sees it as paid.</li>
               <li>Need a payslip for one person, such as yourself? Use <b>Add one payslip</b>. Approved leave and absence days are tagged on both PDFs.</li>
@@ -337,6 +337,7 @@
               <label>Pay period <select id="payPeriod"></select></label>
               <label>Client <select id="payClient"><option value="">All clients</option></select></label>
               <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
+              <button type="button" id="payRecountBtn" title="Use the latest clock-in records for every pending payslip shown, for example after fixing or adding a shift">Recount hours</button>
             </form>
             <form id="payOneForm" class="row">
               <label>Add one payslip for <select id="payOnePerson"></select></label>

@@ -562,14 +562,6 @@ function payrollRow(slip, bank) {
   const pending = slip.status === 'pending';
   const btn = (textContent, props = {}) => el('button', { type: 'button', textContent, ...props });
 
-  const recalc = btn('Recount hours', { hidden: !pending, title: 'Use the latest clock-in records, for example after fixing or adding a shift' });
-  recalc.onclick = async () => {
-    if (slip.hours > 0 && !slip.days?.length
-      && !confirm(`${slip.name}'s hours have no daily breakdown (for example, they were typed in). Replace them with the hours from the time clock?`)) return;
-    const shifts = (await fetchShifts(slip.periodStart, slip.periodEnd)).filter((x) => x.email === slip.email);
-    const { hours, amount, days } = payFor(shifts, slip.phpRate || 0);
-    await saveSlip({ ...slip, hours, amount, days });
-  };
   const paid = btn(pending ? 'Mark paid' : 'Undo paid', { className: pending ? 'primary' : '' });
   paid.onclick = () => {
     if (!pending && !confirm(`Mark ${slip.name}'s payslip as not paid?`)) return;
@@ -603,7 +595,7 @@ function payrollRow(slip, bank) {
     el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
     slip.days?.length
       ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
-      : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" to add it.' })));
+      : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" at the top to add it.' })));
   const details = btn('Details', { ariaExpanded: 'false' });
   details.onclick = () => { detailsRow.hidden = !detailsRow.hidden; details.ariaExpanded = String(!detailsRow.hidden); };
 
@@ -612,7 +604,7 @@ function payrollRow(slip, bank) {
   // The buttons sit on their own line under the payslip, in small groups, so the table fits without scrolling sideways.
   const group = (...kids) => el('div', { className: 'btn-group' }, ...kids);
   const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 6 }, el('div', { className: 'pay-buttons' },
-    group(paid), group(details, recalc), group(pdf, clientPdf), group(remove))));
+    group(paid), group(details), group(pdf, clientPdf), group(remove))));
   return [row, actions, detailsRow];
 }
 
@@ -677,6 +669,35 @@ $('payCreateBtn').onclick = async () => {
       + (skipped.length ? ` Skipped ${skipped.join(', ')}: they already have a payslip covering some of these days.` : '')
       + (openCount ? ` ${openCount} shift(s) in this period are still open and were not counted; close them, then use "Recount hours".` : ''));
   } catch (err) { showError(err); }
+};
+
+// Recounts every pending payslip shown (all clients, or the one picked) from the latest time clock records,
+// for example after fixing or adding a shift or approving overtime. Paid payslips are never changed.
+$('payRecountBtn').onclick = async () => {
+  const client = $('payClient').value;
+  const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
+  if (!pending.length) { alert('There are no pending payslips to recount in this period.'); return; }
+  const noBreakdown = pending.filter((s) => s.hours > 0 && !s.days?.length);
+  const replaceTyped = noBreakdown.length > 0 && confirm(`${noBreakdown.map((s) => s.name).join(', ')}: hours have no daily breakdown `
+    + '(for example, they were typed in). Replace those with the time clock hours too?\n\nOK = replace them. Cancel = leave them as they are.');
+  const button = $('payRecountBtn');
+  button.disabled = true;
+  try {
+    const shifts = await fetchShifts($('payFrom').value, $('payTo').value);
+    const b = writeBatch(db);
+    let changed = 0;
+    for (const slip of pending) {
+      if (noBreakdown.includes(slip) && !replaceTyped) continue;
+      const { hours, amount, days } = payFor(shifts.filter((x) => x.email === slip.email), slip.phpRate || 0);
+      b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, hours, amount, days, ...stamp() });
+      changed += 1;
+    }
+    if (changed) await b.commit();
+    await loadPayroll();
+    const open = shifts.filter((x) => !x.clockOut).length;
+    alert(`Recounted ${changed} pending payslip${changed === 1 ? '' : 's'}.`
+      + (open ? ` ${open} shift(s) in this period are still open and were not counted.` : ''));
+  } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
 // One payslip for one person (VA or admin), from their time clock hours or from hours typed in.
