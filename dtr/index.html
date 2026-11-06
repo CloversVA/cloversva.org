@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=25">
-  <script type="module" src="app.js?v=37"></script>
+  <script type="module" src="app.js?v=38"></script>
 </head>
 <body>
   <header class="topbar">
@@ -267,7 +267,11 @@
         <section data-panel="now" hidden>
           <div class="card">
             <h2>On the clock now</h2>
-            <div class="scroll"><table><thead><tr><th>VA</th><th>Since</th><th>So far</th></tr></thead><tbody id="nowRows"></tbody></table></div>
+            <div class="scroll"><table><thead id="nowHead"><tr>
+              <th aria-sort="ascending"><button type="button" class="sort" data-sort="name">VA (Last name, First name)</button></th>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="since">Since</button></th>
+              <th aria-sort="none"><button type="button" class="sort" data-sort="length">So far</button></th>
+            </tr></thead><tbody id="nowRows"></tbody></table></div>
             <p id="nowEmpty" class="muted">Nobody is clocked in.</p>
           </div>
         </section>

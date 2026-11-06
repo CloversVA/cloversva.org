@@ -28,13 +28,11 @@ export function startAdmin(signedIn, track) {
   me = signedIn;
 
   track(onSnapshot(collection(db, 'status'), (snap) => {
-    $('nowRows').replaceChildren(...snap.docs.map((d) => {
-      const since = d.data({ serverTimestamps: 'estimate' }).clockIn.toDate();
-      const timer = el('span', { textContent: formatDuration(Date.now() - since) });
-      timer.dataset.since = since.getTime();
-      return el('tr', {}, cell(d.data().name), cell(fmt(since)), cell(timer));
-    }));
-    show('nowEmpty', snap.empty);
+    nowList = snap.docs.map((d) => {
+      const data = d.data({ serverTimestamps: 'estimate' });
+      return { name: lastFirst(vas.get(d.id)?.name ?? data.name), since: data.clockIn.toDate() };
+    });
+    renderNow();
   }, showError));
 
   track(onSnapshot(collection(db, 'requests'), renderRequests, showError));
@@ -297,6 +295,47 @@ $('bankXlsxBtn').onclick = async () => {
     XLSX.writeFile(book, `bank-details-${dayKey(new Date(), BUSINESS_TZ)}.xlsx`);
   } catch (err) { showError(err); } finally { btn.disabled = false; }
 };
+
+// ---------- On the clock ----------
+
+// "Margarita Khassandra Manio" -> "Manio, Margarita Khassandra". The last word is taken as the last name,
+// together with any Filipino/Spanish particles before it ("Juan dela Cruz" -> "dela Cruz, Juan").
+const PARTICLES = new Set(['de', 'del', 'dela', 'della', 'delos', 'los', 'la', 'las', 'san', 'sta.', 'sta', 'santa', 'santo', 'van', 'von', 'di', 'da']);
+function lastFirst(name = '') {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2 || name.includes(',')) return name.trim();
+  let i = words.length - 1;
+  while (i > 1 && PARTICLES.has(words[i - 1].toLowerCase())) i -= 1;
+  return `${words.slice(i).join(' ')}, ${words.slice(0, i).join(' ')}`;
+}
+
+let nowList = [];
+let nowSort = { key: 'name', dir: 1 };
+
+function renderNow() {
+  const by = {
+    name: (a, b) => a.name.localeCompare(b.name),
+    since: (a, b) => a.since - b.since,
+    length: (a, b) => b.since - a.since, // clocked in earlier = longer so far
+  }[nowSort.key];
+  const rows = [...nowList].sort((a, b) => by(a, b) * nowSort.dir);
+  $('nowRows').replaceChildren(...rows.map((r) => {
+    const timer = el('span', { textContent: formatDuration(Date.now() - r.since) });
+    timer.dataset.since = r.since.getTime();
+    return el('tr', {}, cell(r.name), cell(fmt(r.since)), cell(timer));
+  }));
+  show('nowEmpty', rows.length === 0);
+  document.querySelectorAll('#nowHead button.sort').forEach((b) => {
+    b.closest('th').setAttribute('aria-sort', b.dataset.sort !== nowSort.key ? 'none' : nowSort.dir === 1 ? 'ascending' : 'descending');
+  });
+}
+
+document.querySelectorAll('#nowHead button.sort').forEach((b) => {
+  b.onclick = () => {
+    nowSort = { key: b.dataset.sort, dir: nowSort.key === b.dataset.sort ? -nowSort.dir : 1 };
+    renderNow();
+  };
+});
 
 // ---------- Timesheets ----------
 
