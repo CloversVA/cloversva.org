@@ -62,6 +62,8 @@ function page(title, body, extraCss = '') {
   tr.leave td { background: #fff8ec; }
   tr.absent td { background: #fdeeee; }
   tr.absent .tag { background: #f8d4d4; color: #8a1c1c; }
+  tr.before td { background: #f3f4f2; color: #5b6660; }
+  tr.before .tag { background: #e2e5e0; color: #3d4741; }
   .toolbar { text-align: center; padding: 12px; background: #eef6e2; }
   .toolbar button { font: 600 14px Poppins, sans-serif; padding: 8px 18px; border-radius: 8px; border: 0; background: #0a5a2e; color: #fff; cursor: pointer; }
   @media print { .toolbar { display: none; } }
@@ -79,7 +81,7 @@ const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSIN
 // The day-by-day table on payslips. info = { leaves, holidays, startDate } (see payslipDayInfo in requests.js):
 // - approved leave/absence days get their request's tag;
 // - any other weekday with no clock-in is tagged "Absent (no clock-in)", or "Holiday" if it is on the holiday list.
-// Weekdays before the VA's start date or after yesterday (Eastern Time) are not marked. Payslips with typed-in hours
+// Weekdays before the VA's start date are tagged "Before start date"; days after yesterday (Eastern Time) are not marked. Payslips with typed-in hours
 // (no daily breakdown) only show leave days, since there is nothing to compare against.
 function dailyTable(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
   const rows = new Map((slip.days ?? []).map((x) => [x.day, { hours: x.hours, tag: '' }]));
@@ -91,9 +93,10 @@ function dailyTable(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
     const holidayOn = new Map(holidays.map((h) => [h.day, h.name]));
     for (let day = slip.periodStart; day <= slip.periodEnd && day < today; day = nextDay(day)) {
       const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
-      if (weekday === 0 || weekday === 6 || rows.has(day) || (startDate && day < startDate)) continue;
+      if (weekday === 0 || weekday === 6 || rows.has(day)) continue;
+      if (startDate && day < startDate) { rows.set(day, { hours: 0, tag: 'Before start date', kind: 'before' }); continue; }
       if (holidayOn.has(day)) { rows.set(day, { hours: 0, tag: `Holiday: ${holidayOn.get(day)}` }); holidayCount += 1; }
-      else { rows.set(day, { hours: 0, tag: 'Absent (no clock-in)', absent: true }); absent += 1; }
+      else { rows.set(day, { hours: 0, tag: 'Absent (no clock-in)', kind: 'absent' }); absent += 1; }
     }
   }
   if (!rows.size) return '';
@@ -106,11 +109,19 @@ function dailyTable(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
   return `<p class="label">Daily hours (Eastern Time)</p>
 <table class="grid">
   <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th>Note</th></tr></thead>
-  <tbody>${list.map(([day, r]) => `<tr${r.tag ? ` class="${r.absent ? 'absent' : 'leave'}"` : ''}><td>${esc(longDate(fromDay(day)))}</td>
+  <tbody>${list.map(([day, r]) => `<tr${r.tag ? ` class="${r.kind ?? 'leave'}"` : ''}><td>${esc(longDate(fromDay(day)))}</td>
     <td class="num">${r.hours ? esc(hmFromHours(r.hours)) : '-'}</td><td>${r.tag ? `<span class="tag">${esc(r.tag)}</span>` : ''}</td></tr>`).join('')}</tbody>
 </table>
+${startsLate(slip, startDate) ? `<p>Start date: <b>${esc(longDate(fromDay(startDate)))}</b>. Weekdays before it are marked "Before start date", not absent.</p>` : ''}
 ${notes.length ? `<p>${notes.join(' &middot; ')}. These days have no clocked hours, so they are not counted in the hours or amount above.</p>` : ''}`;
 }
+
+// True when the VA started (was hired) after the first day of this pay period.
+const startsLate = (slip, startDate) => Boolean(startDate) && startDate > slip.periodStart;
+
+// The start date line for the top of a payslip, only when the VA started during (or after) this pay period.
+const startRow = (slip, startDate) => (startsLate(slip, startDate)
+  ? `<td class="label">Start date</td><td>${esc(longDate(fromDay(startDate)))}</td>` : '<td></td><td></td>');
 
 // The next calendar day, as YYYY-MM-DD.
 function nextDay(day) {
@@ -129,7 +140,7 @@ export function payslipHtml(slip, bank, signatureUrl = null, info = {}) {
 <table class="meta">
   <tr><td class="label">Employee</td><td>${esc(slip.name)}</td><td class="label">Pay period</td><td>${esc(periodText(slip.periodStart, slip.periodEnd))}</td></tr>
   <tr><td class="label">Position</td><td>${esc(slip.position || '-')}</td><td class="label">Status</td><td>${paid ? `Paid on ${esc(longDate(slip.paidAt))}` : 'Pending payout'}</td></tr>
-  <tr><td class="label">Client</td><td>${esc(slip.clientName || '-')}</td><td></td><td></td></tr>
+  <tr><td class="label">Client</td><td>${esc(slip.clientName || '-')}</td>${startRow(slip, info.startDate)}</tr>
 </table>
 <table class="grid">
   <thead><tr><th>Description</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount (PHP)</th></tr></thead>
@@ -157,6 +168,7 @@ export function clientPayrollHtml(slip, usdRate, signatureUrl = null, info = {})
 <table class="meta">
   <tr><td class="label">VA</td><td>${esc(slip.name)}</td><td class="label">Pay period</td><td>${esc(periodText(slip.periodStart, slip.periodEnd))}</td></tr>
   <tr><td class="label">Position</td><td>${esc(slip.position || '-')}</td><td class="label">Client</td><td>${esc(slip.clientName || '-')}</td></tr>
+${startsLate(slip, info.startDate) ? `<tr><td></td><td></td>${startRow(slip, info.startDate)}</tr>` : ''}
 </table>
 <table class="grid">
   <thead><tr><th>Description</th><th class="num">Hours</th><th class="num">Rate (USD/hr)</th><th class="num">Amount (USD)</th></tr></thead>
