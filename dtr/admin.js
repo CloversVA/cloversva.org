@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=15';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=16';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
 import {
@@ -10,7 +10,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { refreshLeave, startAdminRequests } from './requests.js?v=16';
+import { leaveDaysFor, refreshLeave, startAdminRequests } from './requests.js?v=17';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -52,6 +52,7 @@ export function startAdmin(signedIn, track) {
     $('payClient').replaceChildren(el('option', { value: '', textContent: 'All clients' }), ...clients.map((c) => el('option', { value: c, textContent: c })));
     if (clients.includes(payClient)) $('payClient').value = payClient;
     fillAddShiftVas();
+    fillPayOne();
     renderInvoiceRates();
     refreshLeave();
   }, showError));
@@ -563,6 +564,8 @@ function payrollRow(slip, bank) {
 
   const recalc = btn('Recount hours', { hidden: !pending, title: 'Use the latest clock-in records, for example after fixing or adding a shift' });
   recalc.onclick = async () => {
+    if (slip.hours > 0 && !slip.days?.length
+      && !confirm(`${slip.name}'s hours have no daily breakdown (for example, they were typed in). Replace them with the hours from the time clock?`)) return;
     const shifts = (await fetchShifts(slip.periodStart, slip.periodEnd)).filter((x) => x.email === slip.email);
     const { hours, amount, days } = payFor(shifts, slip.phpRate || 0);
     await saveSlip({ ...slip, hours, amount, days });
@@ -577,13 +580,19 @@ function payrollRow(slip, bank) {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
+  // Both PDFs tag the VA's approved leave and absence days. The tab is opened first so pop-up blockers allow it.
+  const withLeaves = async (make) => {
+    const w = window.open('', '_blank');
+    const leaves = await leaveDaysFor(slip.email, slip.periodStart, slip.periodEnd).catch((err) => { console.warn(err); return []; });
+    openDocument(make(leaves), w);
+  };
   const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
-  pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl));
+  pdf.onclick = () => withLeaves((leaves) => payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl, leaves));
   const clientPdf = btn('Client copy (USD)', { title: "Day-by-day hours at the VA's USD billing rate, for the client" });
   clientPdf.onclick = () => {
     const usdRate = vas.get(slip.email)?.usdRate;
     if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (Client invoices > VA rates).`); return; }
-    openDocument(clientPayrollHtml(slip, usdRate, signatureUrl));
+    withLeaves((leaves) => clientPayrollHtml(slip, usdRate, signatureUrl, leaves));
   };
 
   const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
@@ -668,6 +677,49 @@ $('payCreateBtn').onclick = async () => {
       + (skipped.length ? ` Skipped ${skipped.join(', ')}: they already have a payslip covering some of these days.` : '')
       + (openCount ? ` ${openCount} shift(s) in this period are still open and were not counted; close them, then use "Recount hours".` : ''));
   } catch (err) { showError(err); }
+};
+
+// One payslip for one person (VA or admin), from their time clock hours or from hours typed in.
+function fillPayOne() {
+  const current = $('payOnePerson').value;
+  const list = [...vas.values()].filter((v) => v.active).sort((a, b) => a.name.localeCompare(b.name));
+  $('payOnePerson').replaceChildren(el('option', { value: '', textContent: 'Choose a person' }),
+    ...list.map((v) => el('option', { value: v.email, textContent: `${v.name}${v.role === 'admin' ? ' (admin)' : ''}` })));
+  if (vas.has(current)) $('payOnePerson').value = current;
+}
+
+$('payOneForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const from = $('payFrom').value; const to = $('payTo').value;
+  const va = vas.get($('payOnePerson').value);
+  if (!va) { alert('Choose who the payslip is for.'); return; }
+  if ($('payOneHours').validity.badInput) { alert('Type the hours as a plain number, like 80 or 37.5.'); return; }
+  const typed = $('payOneHours').value.trim();
+  const button = e.target.querySelector('button');
+  button.disabled = true;
+  try {
+    const all = (await getDocs(query(collection(db, 'payslips'), where('email', '==', va.email)))).docs.map((d) => d.data());
+    if (all.some((x) => periodsOverlap({ start: from, end: to }, { start: x.periodStart, end: x.periodEnd }))) {
+      alert(`${va.name} already has a payslip covering some of these days.`);
+      return;
+    }
+    const rate = va.phpRate || 0;
+    let pay;
+    if (typed) {
+      const hours = round2(Number(typed));
+      pay = { hours, amount: round2(hours * rate), days: [] };
+    } else {
+      pay = payFor((await fetchShifts(from, to)).filter((x) => x.email === va.email), rate);
+      if (pay.hours === 0) { alert(`${va.name} has no clocked hours in this period. Type the hours in the Hours box instead.`); return; }
+    }
+    if (!rate && !confirm(`${va.name} has no PHP hourly rate, so the payslip will show ₱0.00. Set it under Employee demographics > Edit. Create it anyway?`)) return;
+    await setDoc(doc(db, 'payslips', slipId(from, va.email)), {
+      email: va.email, name: va.name, clientName: va.clientName || '', position: va.position || '',
+      periodStart: from, periodEnd: to, phpRate: rate, ...pay, status: 'pending', ...stamp(),
+    });
+    e.target.reset();
+    await loadPayroll();
+  } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
 // ---------- Client invoices ----------

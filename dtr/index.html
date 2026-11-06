@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=23">
-  <script type="module" src="app.js?v=32"></script>
+  <script type="module" src="app.js?v=33"></script>
 </head>
 <body>
   <header class="topbar">
@@ -330,12 +330,19 @@
               <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate.</li>
               <li>Set the PHP rate below if needed and click <b>Apply to all</b>. Check each row (<b>Details</b> shows the daily hours and the VA's bank), then pay the VA.</li>
               <li>Click <b>Mark paid</b>. The payslip locks and the VA sees it as paid.</li>
+              <li>Need a payslip for one person, such as yourself? Use <b>Add one payslip</b>. Approved leave and absence days are tagged on both PDFs.</li>
               <li>PDFs: <b>VA payslip (PHP)</b> is for the VA. <b>Client copy (USD)</b> shows the same hours day by day at the VA's USD rate, for the client. For one summary per client, use Client invoices.</li>
             </ol>
             <form id="payForm" class="row">
               <label>Pay period <select id="payPeriod"></select></label>
               <label>Client <select id="payClient"><option value="">All clients</option></select></label>
               <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
+            </form>
+            <form id="payOneForm" class="row">
+              <label>Add one payslip for <select id="payOnePerson"></select></label>
+              <label>Hours (optional) <input id="payOneHours" type="number" min="0" max="1000" step="0.01" placeholder="from time clock"></label>
+              <button>Add payslip</button>
+              <span class="muted">For one person, admins included (for example, yourself). Leave Hours empty to use their time clock hours for this period.</span>
             </form>
             <form id="payRateForm" class="row rate-box">
               <label>PHP rate per hour, for all VAs <input id="payRate" type="number" min="0" max="100000" step="0.01" required placeholder="e.g. 150"></label>
