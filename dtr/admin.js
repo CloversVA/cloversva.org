@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=16';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=18';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
 import {
@@ -10,7 +10,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { leaveDaysFor, refreshLeave, startAdminRequests } from './requests.js?v=17';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=19';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -528,6 +528,20 @@ function renderPayroll() {
   $('payEmpty').textContent = client && paySlips.length ? `No payslips for ${client} in this period.` : 'No payslips for this period yet.';
   const total = round2(slips.reduce((sum, s) => sum + s.amount, 0));
   $('payTotal').textContent = slips.length ? `Total${client ? ` for ${client}` : ''}: ${formatPhp(total)}` : '';
+  // Active people (admins included) with no payslip this period, so nobody is missed.
+  const have = new Set(paySlips.map((s) => s.email));
+  const missing = [...vas.values()].filter((v) => v.active && !have.has(v.email) && (!client || v.clientName === client))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  show('payMissingBox', missing.length > 0);
+  $('payMissing').replaceChildren(...missing.map((v) => {
+    const add = el('button', { type: 'button', textContent: 'Add payslip' });
+    add.onclick = () => {
+      $('payOnePerson').value = v.email;
+      $('payOneForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('payOneHours').focus({ preventScroll: true });
+    };
+    return el('li', {}, el('span', { textContent: `${v.name}${v.role === 'admin' ? ' (admin)' : ''}` }), ' ', add);
+  }));
   $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, payBanks.get(s.email))));
   // Show the rate the pending payslips share, so the box starts from what is in use.
   const rates = [...new Set(slips.filter((s) => s.status === 'pending').map((s) => s.phpRate))];
@@ -572,11 +586,11 @@ function payrollRow(slip, bank) {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
-  // Both PDFs tag the VA's approved leave and absence days. The tab is opened first so pop-up blockers allow it.
+  // Both PDFs tag leave, absence and holiday days. The tab is opened first so pop-up blockers allow it.
   const withLeaves = async (make) => {
     const w = window.open('', '_blank');
-    const leaves = await leaveDaysFor(slip.email, slip.periodStart, slip.periodEnd).catch((err) => { console.warn(err); return []; });
-    openDocument(make(leaves), w);
+    const info = await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd);
+    openDocument(make({ ...info, startDate: vas.get(slip.email)?.startDate ?? '' }), w);
   };
   const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
   pdf.onclick = () => withLeaves((leaves) => payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl, leaves));
