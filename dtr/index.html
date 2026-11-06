@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="/images/favicon/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=26">
-  <script type="module" src="app.js?v=39"></script>
+  <link rel="stylesheet" href="style.css?v=27">
+  <script type="module" src="app.js?v=40"></script>
 </head>
 <body>
   <header class="topbar">
@@ -334,21 +334,14 @@
               <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate. Fixed or added a shift, or approved overtime, afterwards? Click <b>Recount hours</b> to update the pending payslips.</li>
               <li>Set the PHP rate below if needed and click <b>Apply to all</b>. Check each row (<b>Details</b> shows the daily hours and the VA's bank), then pay the VA.</li>
               <li>Click <b>Mark paid</b>. The payslip locks and the VA sees it as paid.</li>
-              <li>Need a payslip for one person, such as yourself? Use <b>Add one payslip</b>. Approved leave and absence days are tagged on both PDFs.</li>
-              <li>PDFs: <b>VA payslip (PHP)</b> is for the VA. <b>Client copy (USD)</b> shows the same hours day by day at the VA's USD rate, for the client. For one summary per client, use Client invoices.</li>
+              <li>PDFs: <b>VA payslip (PHP)</b> is for the VA. <b>Client Copy</b> shows the same hours day by day at the VA's USD rate, for the client. <b>Download Client Copy</b> saves the client copies of every payslip shown in one .zip. For one summary per client, use Client invoices.</li>
             </ol>
             <form id="payForm" class="row">
               <label>Pay period <select id="payPeriod"></select></label>
               <label>Client <select id="payClient"><option value="">All clients</option></select></label>
               <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
-              <button type="button" id="payZipBtn" title="All payslips shown below as PDF files in one .zip: VA payslips and client copies">Download all (PDF)</button>
+              <button type="button" id="payZipBtn" title="The client copy of every payslip shown below, as PDF files in one .zip">Download Client Copy</button>
               <button type="button" id="payRecountBtn" title="Use the latest clock-in records for every pending payslip shown, for example after fixing or adding a shift">Recount hours</button>
-            </form>
-            <form id="payOneForm" class="row">
-              <label>Add one payslip for <select id="payOnePerson"></select></label>
-              <label>Hours (optional) <input id="payOneHours" type="number" min="0" max="1000" step="0.01" placeholder="from time clock"></label>
-              <button>Add payslip</button>
-              <span class="muted">For one person, admins included (for example, yourself). Leave Hours empty to use their time clock hours for this period.</span>
             </form>
             <form id="payRateForm" class="row rate-box">
               <label>PHP rate per hour, for all VAs <input id="payRate" type="number" min="0" max="100000" step="0.01" required placeholder="e.g. 150"></label>
@@ -362,11 +355,6 @@
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
             <p id="payTotal" class="total"></p>
-            <div id="payMissingBox" class="pay-missing" hidden>
-              <h3>No payslip yet for this period</h3>
-              <p class="muted">They had no clocked hours, or joined later. Click <b>Add payslip</b>, then type their hours (or leave Hours empty to use the time clock).</p>
-              <ul id="payMissing"></ul>
-            </div>
           </div>
         </section>
 

@@ -51,7 +51,6 @@ export function startAdmin(signedIn, track) {
     $('payClient').replaceChildren(el('option', { value: '', textContent: 'All clients' }), ...clients.map((c) => el('option', { value: c, textContent: c })));
     if (clients.includes(payClient)) $('payClient').value = payClient;
     fillAddShiftVas();
-    fillPayOne();
     renderInvoiceRates();
     refreshLeave();
   }, showError));
@@ -568,20 +567,6 @@ function renderPayroll() {
   $('payEmpty').textContent = client && paySlips.length ? `No payslips for ${client} in this period.` : 'No payslips for this period yet.';
   const total = round2(slips.reduce((sum, s) => sum + s.amount, 0));
   $('payTotal').textContent = slips.length ? `Total${client ? ` for ${client}` : ''}: ${formatPhp(total)}` : '';
-  // Active people (admins included) with no payslip this period, so nobody is missed.
-  const have = new Set(paySlips.map((s) => s.email));
-  const missing = [...vas.values()].filter((v) => v.active && !have.has(v.email) && (!client || v.clientName === client))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  show('payMissingBox', missing.length > 0);
-  $('payMissing').replaceChildren(...missing.map((v) => {
-    const add = el('button', { type: 'button', textContent: 'Add payslip' });
-    add.onclick = () => {
-      $('payOnePerson').value = v.email;
-      $('payOneForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      $('payOneHours').focus({ preventScroll: true });
-    };
-    return el('li', {}, el('span', { textContent: `${v.name}${v.role === 'admin' ? ' (admin)' : ''}` }), ' ', add);
-  }));
   $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, payBanks.get(s.email))));
   // Show the rate the pending payslips share, so the box starts from what is in use.
   const rates = [...new Set(slips.filter((s) => s.status === 'pending').map((s) => s.phpRate))];
@@ -634,7 +619,7 @@ function payrollRow(slip, bank) {
   };
   const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
   pdf.onclick = () => withLeaves((leaves) => payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl, leaves));
-  const clientPdf = btn('Client copy (USD)', { title: "Day-by-day hours at the VA's USD billing rate, for the client" });
+  const clientPdf = btn('Client Copy', { title: "Day-by-day hours at the VA's USD billing rate, for the client" });
   clientPdf.onclick = () => {
     const usdRate = vas.get(slip.email)?.usdRate;
     if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (Client invoices > VA rates).`); return; }
@@ -728,30 +713,28 @@ $('payCreateBtn').onclick = async () => {
   } catch (err) { showError(err); }
 };
 
-// Every payslip shown (all clients, or the one picked) as PDFs in one .zip: the VA payslips, plus the client copies
-// for VAs who have a USD rate. Made in the browser, the same as clicking each PDF button one by one.
+// The client copy of every payslip shown (all clients, or the one picked) as PDFs in one .zip, one folder per client.
+// Made in the browser, the same as clicking each Client Copy button one by one. VAs without a USD rate are skipped.
 $('payZipBtn').onclick = async () => {
   const client = $('payClient').value;
   const slips = client ? paySlips.filter((s) => s.clientName === client) : paySlips;
   if (!slips.length) { alert('There are no payslips in this period to download. Create payslips first.'); return; }
+  const noUsd = slips.filter((s) => !vas.get(s.email)?.usdRate).map((s) => s.name);
+  if (noUsd.length === slips.length) { alert('None of these VAs has a USD rate yet. Set them under Client invoices > VA rates first.'); return; }
   const button = $('payZipBtn');
   const label = button.textContent;
   button.disabled = true;
   try {
     const period = `${$('payFrom').value} to ${$('payTo').value}`;
     const docs = [];
-    const noUsd = [];
     for (const slip of slips) {
-      const info = { ...(await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd)), startDate: vas.get(slip.email)?.startDate ?? '' };
-      const name = safeFileName(slip.name);
-      docs.push({ path: `VA payslips/${name} - payslip ${period}.pdf`,
-        html: payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, payBanks.get(slip.email), signatureUrl, info) });
       const usdRate = vas.get(slip.email)?.usdRate;
-      if (usdRate) docs.push({ path: `Client copies/${safeFileName(slip.clientName || 'No client')}/${name} - hours ${period}.pdf`,
+      if (!usdRate) continue;
+      const info = { ...(await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd)), startDate: vas.get(slip.email)?.startDate ?? '' };
+      docs.push({ path: `${safeFileName(slip.clientName || 'No client')}/${safeFileName(slip.name)} - client copy ${period}.pdf`,
         html: clientPayrollHtml(slip, usdRate, signatureUrl, info) });
-      else noUsd.push(slip.name);
     }
-    await downloadPdfZip(`Payslips ${period}${client ? ` ${safeFileName(client)}` : ''}.zip`, docs,
+    await downloadPdfZip(`Client copies ${period}${client ? ` ${safeFileName(client)}` : ''}.zip`, docs,
       (done, total) => { button.textContent = `Making PDFs... ${done} of ${total}`; });
     if (noUsd.length) alert(`Downloaded. No client copy for ${noUsd.join(', ')}: set their USD rate first (Client invoices > VA rates).`);
   } catch (err) { showError(err); } finally { button.disabled = false; button.textContent = label; }
@@ -783,49 +766,6 @@ $('payRecountBtn').onclick = async () => {
     const open = shifts.filter((x) => !x.clockOut).length;
     alert(`Recounted ${changed} pending payslip${changed === 1 ? '' : 's'}.`
       + (open ? ` ${open} shift(s) in this period are still open and were not counted.` : ''));
-  } catch (err) { showError(err); } finally { button.disabled = false; }
-};
-
-// One payslip for one person (VA or admin), from their time clock hours or from hours typed in.
-function fillPayOne() {
-  const current = $('payOnePerson').value;
-  const list = [...vas.values()].filter((v) => v.active).sort((a, b) => a.name.localeCompare(b.name));
-  $('payOnePerson').replaceChildren(el('option', { value: '', textContent: 'Choose a person' }),
-    ...list.map((v) => el('option', { value: v.email, textContent: `${v.name}${v.role === 'admin' ? ' (admin)' : ''}` })));
-  if (vas.has(current)) $('payOnePerson').value = current;
-}
-
-$('payOneForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const from = $('payFrom').value; const to = $('payTo').value;
-  const va = vas.get($('payOnePerson').value);
-  if (!va) { alert('Choose who the payslip is for.'); return; }
-  if ($('payOneHours').validity.badInput) { alert('Type the hours as a plain number, like 80 or 37.5.'); return; }
-  const typed = $('payOneHours').value.trim();
-  const button = e.target.querySelector('button');
-  button.disabled = true;
-  try {
-    const all = (await getDocs(query(collection(db, 'payslips'), where('email', '==', va.email)))).docs.map((d) => d.data());
-    if (all.some((x) => periodsOverlap({ start: from, end: to }, { start: x.periodStart, end: x.periodEnd }))) {
-      alert(`${va.name} already has a payslip covering some of these days.`);
-      return;
-    }
-    const rate = va.phpRate || 0;
-    let pay;
-    if (typed) {
-      const hours = round2(Number(typed));
-      pay = { hours, amount: round2(hours * rate), days: [] };
-    } else {
-      pay = payFor((await fetchShifts(from, to)).filter((x) => x.email === va.email), rate);
-      if (pay.hours === 0) { alert(`${va.name} has no clocked hours in this period. Type the hours in the Hours box instead.`); return; }
-    }
-    if (!rate && !confirm(`${va.name} has no PHP hourly rate, so the payslip will show ₱0.00. Set it under Employee demographics > Edit. Create it anyway?`)) return;
-    await setDoc(doc(db, 'payslips', slipId(from, va.email)), {
-      email: va.email, name: va.name, clientName: va.clientName || '', position: va.position || '',
-      periodStart: from, periodEnd: to, phpRate: rate, ...pay, status: 'pending', ...stamp(),
-    });
-    e.target.reset();
-    await loadPayroll();
   } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
