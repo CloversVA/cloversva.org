@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="/images/favicon/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=24">
-  <script type="module" src="app.js?v=34"></script>
+  <link rel="stylesheet" href="style.css?v=25">
+  <script type="module" src="app.js?v=35"></script>
 </head>
 <body>
   <header class="topbar">
@@ -357,6 +357,11 @@
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
             <p id="payTotal" class="total"></p>
+            <div id="payMissingBox" class="pay-missing" hidden>
+              <h3>No payslip yet for this period</h3>
+              <p class="muted">They had no clocked hours, or joined later. Click <b>Add payslip</b>, then type their hours (or leave Hours empty to use the time clock).</p>
+              <ul id="payMissing"></ul>
+            </div>
           </div>
         </section>
 

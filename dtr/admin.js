@@ -528,6 +528,20 @@ function renderPayroll() {
   $('payEmpty').textContent = client && paySlips.length ? `No payslips for ${client} in this period.` : 'No payslips for this period yet.';
   const total = round2(slips.reduce((sum, s) => sum + s.amount, 0));
   $('payTotal').textContent = slips.length ? `Total${client ? ` for ${client}` : ''}: ${formatPhp(total)}` : '';
+  // Active people (admins included) with no payslip this period, so nobody is missed.
+  const have = new Set(paySlips.map((s) => s.email));
+  const missing = [...vas.values()].filter((v) => v.active && !have.has(v.email) && (!client || v.clientName === client))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  show('payMissingBox', missing.length > 0);
+  $('payMissing').replaceChildren(...missing.map((v) => {
+    const add = el('button', { type: 'button', textContent: 'Add payslip' });
+    add.onclick = () => {
+      $('payOnePerson').value = v.email;
+      $('payOneForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('payOneHours').focus({ preventScroll: true });
+    };
+    return el('li', {}, el('span', { textContent: `${v.name}${v.role === 'admin' ? ' (admin)' : ''}` }), ' ', add);
+  }));
   $('payRows').replaceChildren(...slips.flatMap((s) => payrollRow(s, payBanks.get(s.email))));
   // Show the rate the pending payslips share, so the box starts from what is in use.
   const rates = [...new Set(slips.filter((s) => s.status === 'pending').map((s) => s.phpRate))];
