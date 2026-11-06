@@ -72,7 +72,8 @@ function page(title, body, extraCss = '') {
 const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
 <div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(COMPANY.email)}</div></div>`;
 
-// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null; signatureUrl: the founder's signature or null.
+// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null.
+// The VA's payslip is not signed (signatureUrl is ignored); the client copy and invoice still are.
 export function payslipHtml(slip, bank, signatureUrl = null) {
   const paid = slip.status === 'paid' && slip.paidAt;
   return page(`Payslip ${slip.periodStart} ${slip.name}`, `
@@ -100,7 +101,6 @@ ${bank ? `<table class="meta">
   <tr><td>Account name</td><td>: ${esc(bank.accountName)}</td></tr>
   <tr><td>Account number</td><td>: ${esc(masked(bank.accountNumber))}</td></tr>
 </table>` : '<p>No bank details on file yet.</p>'}
-${signBlock(signatureUrl)}
 ${footer}`);
 }
 
