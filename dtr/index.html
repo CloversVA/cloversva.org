@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=23">
-  <script type="module" src="app.js?v=30"></script>
+  <script type="module" src="app.js?v=31"></script>
 </head>
 <body>
   <header class="topbar">
@@ -518,8 +518,11 @@
       <h3>Personal information (entered by the VA)</h3>
       <label id="vaFullNameLabel" hidden>Full name (only admins can change it) <input id="vaFullName" maxlength="100"></label>
       <dl class="details" id="vaProfile"></dl>
-      <h3>Bank details (entered by the VA)</h3>
-      <dl class="details" id="vaBank"></dl>
+      <h3>Bank details</h3>
+      <p id="vaBankNote" class="muted"></p>
+      <label>Bank or e-wallet <input id="vaBankName" maxlength="100" placeholder="e.g. BDO, BPI, GCash"></label>
+      <label>Account name <input id="vaBankAccountName" maxlength="100"></label>
+      <label>Account number <input id="vaBankAccountNumber" maxlength="40" inputmode="numeric" autocomplete="off"></label>
       <div class="row">
         <button class="primary" value="save">Save</button>
         <button type="button" id="vaCancel">Cancel</button>
