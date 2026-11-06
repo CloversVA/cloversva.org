@@ -306,10 +306,9 @@ async function deletePost(p) {
 
 // ---------- Photos, videos and files on posts ----------
 
-// The free plan has no file storage, so a file is split into pieces small enough for one database record each
-// (base64 makes each piece 4/3 bigger, staying under the 1 MB record limit).
-const MEDIA_MAX_MB = 15;
-const CHUNK_BYTES = 675_000;
+// Older posts: the file was split into pieces saved in the database ("announcementMedia"), since the free plan has
+// no file storage. Good-vibes posts instead point at a short clip kept on the website (media.src, a file in /images),
+// shown like a GIF.
 const mediaUrls = new Map(); // post id -> Promise of a blob: URL
 
 function loadMedia(id, media) {
@@ -346,14 +345,24 @@ function mediaBlock(id, media) {
     loadMedia(id, media).then((url) => { img.src = url; }).catch(showError);
     return img;
   }
+  const tall = media.tall ? ' tall' : '';
+  const siteFile = /^[\w-]+\.mp4$/.test(media.src ?? '') ? `../images/${media.src}` : null;
+  // Good-vibes clips play like a GIF: on their own, silent, looping, with no buttons.
+  if (siteFile) {
+    const gif = el('video', { className: `post-media post-gif${tall}`, src: siteFile, poster: media.poster || '',
+      autoplay: true, muted: true, loop: true, playsInline: true, preload: 'auto', disablePictureInPicture: true });
+    for (const a of ['autoplay', 'muted', 'loop', 'playsinline']) gif.setAttribute(a, ''); // iPhones need the attributes too
+    gif.setAttribute('aria-label', media.name ? `Animation: ${media.name.replace(/\.mp4$/, '').replace(/-/g, ' ')}` : 'Animation');
+    return gif;
+  }
   const play = el('button', { className: 'play', textContent: '\u25B6 Play video' });
-  const box = el('div', { className: 'post-media post-video' },
+  const box = el('div', { className: `post-media post-video${tall}` },
     media.poster ? el('img', { src: media.poster, alt: '' }) : null, play);
   play.onclick = async () => {
     play.disabled = true;
     play.textContent = 'Loading...';
     try {
-      const video = el('video', { className: 'post-media', controls: true, playsInline: true, src: await loadMedia(id, media) });
+      const video = el('video', { className: `post-media${tall}`, controls: true, playsInline: true, src: await loadMedia(id, media) });
       box.replaceWith(video);
       video.play().catch(() => {});
     } catch (err) { play.disabled = false; play.textContent = '\u25B6 Play video'; showError(err); }
@@ -362,48 +371,6 @@ function mediaBlock(id, media) {
 }
 
 const sizeLabel = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
-
-const base64Of = (blob) => new Promise((resolve, reject) => {
-  const r = new FileReader();
-  r.onload = () => resolve(r.result.slice(r.result.indexOf(',') + 1));
-  r.onerror = () => reject(new Error('That file could not be read.'));
-  r.readAsDataURL(blob);
-});
-
-// A small still from about a second in, shown before the video is played. Null if the browser can't read the video.
-function videoPoster(file) {
-  return new Promise((resolve) => {
-    const video = el('video', { muted: true, preload: 'auto', src: URL.createObjectURL(file) });
-    const done = (result) => { URL.revokeObjectURL(video.src); resolve(result); };
-    setTimeout(() => done(null), 8000);
-    video.onerror = () => done(null);
-    video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration / 2 || 0); };
-    video.onseeked = () => {
-      const scale = Math.min(1, 640 / video.videoWidth);
-      const canvas = el('canvas', { width: Math.round(video.videoWidth * scale), height: Math.round(video.videoHeight * scale) });
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      done(canvas.toDataURL('image/jpeg', 0.7));
-    };
-  });
-}
-
-// Saves the pieces first, so nobody sees a post whose file is still uploading.
-async function uploadMedia(postId, file) {
-  const kind = file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'file';
-  const chunks = Math.ceil(file.size / CHUNK_BYTES);
-  try {
-    for (let i = 0; i < chunks; i += 1) {
-      $('postNote').textContent = `Uploading ${Math.round((i / chunks) * 100)}%...`;
-      const data = await base64Of(file.slice(i * CHUNK_BYTES, (i + 1) * CHUNK_BYTES));
-      await setDoc(doc(db, 'announcementMedia', `${postId}_${i}`), { post: postId, i, data });
-    }
-  } catch (err) {
-    for (let i = 0; i < chunks; i += 1) deleteDoc(doc(db, 'announcementMedia', `${postId}_${i}`)).catch(() => {});
-    throw err;
-  }
-  const poster = kind === 'video' ? await videoPoster(file) : null;
-  return { kind, mime: file.type || 'application/octet-stream', name: file.name.slice(0, 200), size: file.size, chunks, poster };
-}
 
 // ---------- Greeting banner and "new announcement" alert ----------
 
@@ -479,24 +446,34 @@ const joinNames = (names) => (names.length < 2 ? names.join('') : `${names.slice
 
 // ---------- Admin ----------
 
-$('postForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const file = $('postMedia').files[0];
-  if (file && file.size > MEDIA_MAX_MB * 1024 * 1024) {
-    $('postNote').textContent = `That file is ${(file.size / 1048576).toFixed(1)} MB. The limit is ${MEDIA_MAX_MB} MB; trim or compress it and try again.`;
-    return;
-  }
-  const button = e.target.querySelector('button');
-  button.disabled = true;
-  try {
-    const ref = doc(collection(db, 'announcements'));
-    const post = { title: $('postTitle').value.trim(), body: $('postBody').value.trim(), by: me.email, byName: me.name, at: serverTimestamp() };
-    if (file) post.media = await uploadMedia(ref.id, file);
-    await setDoc(ref, post);
-    e.target.reset();
-    $('postNote').textContent = 'Posted.';
-  } catch (err) { $('postNote').textContent = ''; showError(err); } finally { button.disabled = false; }
+// One-click "good vibes" posts: a short message and an animation (a looping clip) that lives on the website, so nothing is uploaded.
+const VIBES = {
+  soon: {
+    title: 'Payday is on the way, Team Trust! \u{1F340}',
+    body: 'Hang in there, team! Your hard work is about to pay off. Just a few more days: keep shining, stay lucky, and finish the week strong. \u{1F49A}',
+    video: 'payday-on-the-way.mp4', poster: 'payday-on-the-way.jpg',
+  },
+  paid: {
+    title: 'May sahod na, Team Trust! \u{1F389}',
+    body: 'Salamat sa sipag at tiyaga, team! Your pay for this cut-off has been sent. Enjoy your well-deserved sahod! \u{1F340}',
+    video: 'payday-paid.mp4', poster: 'payday-paid.jpg',
+  },
 };
+
+for (const button of document.querySelectorAll('[data-vibe]')) {
+  button.onclick = async () => {
+    const v = VIBES[button.dataset.vibe];
+    if (!confirm(`Post "${v.title}" with its animation to the Announcement Wall for everyone?`)) return;
+    button.disabled = true;
+    try {
+      await setDoc(doc(collection(db, 'announcements')), {
+        title: v.title, body: v.body, by: me.email, byName: me.name, at: serverTimestamp(),
+        media: { kind: 'video', mime: 'video/mp4', name: v.video, size: 0, chunks: 0, src: v.video, poster: `../images/${v.poster}`, tall: true },
+      });
+      $('postNote').textContent = 'Posted.';
+    } catch (err) { $('postNote').textContent = ''; showError(err); } finally { button.disabled = false; }
+  };
+}
 
 function renderHolidayAdmin() {
   const from = addDays(dayKey(new Date(), PH_TZ), -30);
