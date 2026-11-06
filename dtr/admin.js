@@ -4,6 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=18';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
+import { downloadPdfZip, safeFileName } from './pdfzip.js?v=1';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
@@ -644,7 +645,7 @@ function payrollRow(slip, bank) {
 
   // Daily hours and the VA's bank details, shown under the row on request.
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
-  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 6 },
+  const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 5 },
     el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
     slip.days?.length
       ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
@@ -652,11 +653,14 @@ function payrollRow(slip, bank) {
   const details = btn('Details', { ariaExpanded: 'false' });
   details.onclick = () => { detailsRow.hidden = !detailsRow.hidden; details.ariaExpanded = String(!detailsRow.hidden); };
 
-  const row = el('tr', { className: 'pay-main' }, cell(slip.name), cell(slip.clientName || ''), numCell(slip.hours.toFixed(2)),
+  // Name and client stacked in the first column, so they line up with the buttons below.
+  const who = el('div', { className: 'pay-who' }, el('strong', { textContent: slip.name }),
+    el('span', { className: 'muted', textContent: slip.clientName || 'No client' }));
+  const row = el('tr', { className: 'pay-main' }, cell(who), numCell(slip.hours.toFixed(2)),
     numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status));
   // The buttons sit on their own line under the payslip, in small groups, so the table fits without scrolling sideways.
   const group = (...kids) => el('div', { className: 'btn-group' }, ...kids);
-  const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 6 }, el('div', { className: 'pay-buttons' },
+  const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 5 }, el('div', { className: 'pay-buttons' },
     group(paid), group(details), group(pdf, clientPdf), group(remove))));
   return [row, actions, detailsRow];
 }
@@ -722,6 +726,35 @@ $('payCreateBtn').onclick = async () => {
       + (skipped.length ? ` Skipped ${skipped.join(', ')}: they already have a payslip covering some of these days.` : '')
       + (openCount ? ` ${openCount} shift(s) in this period are still open and were not counted; close them, then use "Recount hours".` : ''));
   } catch (err) { showError(err); }
+};
+
+// Every payslip shown (all clients, or the one picked) as PDFs in one .zip: the VA payslips, plus the client copies
+// for VAs who have a USD rate. Made in the browser, the same as clicking each PDF button one by one.
+$('payZipBtn').onclick = async () => {
+  const client = $('payClient').value;
+  const slips = client ? paySlips.filter((s) => s.clientName === client) : paySlips;
+  if (!slips.length) { alert('There are no payslips in this period to download. Create payslips first.'); return; }
+  const button = $('payZipBtn');
+  const label = button.textContent;
+  button.disabled = true;
+  try {
+    const period = `${$('payFrom').value} to ${$('payTo').value}`;
+    const docs = [];
+    const noUsd = [];
+    for (const slip of slips) {
+      const info = { ...(await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd)), startDate: vas.get(slip.email)?.startDate ?? '' };
+      const name = safeFileName(slip.name);
+      docs.push({ path: `VA payslips/${name} - payslip ${period}.pdf`,
+        html: payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, payBanks.get(slip.email), signatureUrl, info) });
+      const usdRate = vas.get(slip.email)?.usdRate;
+      if (usdRate) docs.push({ path: `Client copies/${safeFileName(slip.clientName || 'No client')}/${name} - hours ${period}.pdf`,
+        html: clientPayrollHtml(slip, usdRate, signatureUrl, info) });
+      else noUsd.push(slip.name);
+    }
+    await downloadPdfZip(`Payslips ${period}${client ? ` ${safeFileName(client)}` : ''}.zip`, docs,
+      (done, total) => { button.textContent = `Making PDFs... ${done} of ${total}`; });
+    if (noUsd.length) alert(`Downloaded. No client copy for ${noUsd.join(', ')}: set their USD rate first (Client invoices > VA rates).`);
+  } catch (err) { showError(err); } finally { button.disabled = false; button.textContent = label; }
 };
 
 // Recounts every pending payslip shown (all clients, or the one picked) from the latest time clock records,

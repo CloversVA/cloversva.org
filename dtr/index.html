@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="/images/favicon/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=25">
-  <script type="module" src="app.js?v=38"></script>
+  <link rel="stylesheet" href="style.css?v=26">
+  <script type="module" src="app.js?v=39"></script>
 </head>
 <body>
   <header class="topbar">
@@ -341,6 +341,7 @@
               <label>Pay period <select id="payPeriod"></select></label>
               <label>Client <select id="payClient"><option value="">All clients</option></select></label>
               <button type="button" id="payCreateBtn" class="primary">Create payslips</button>
+              <button type="button" id="payZipBtn" title="All payslips shown below as PDF files in one .zip: VA payslips and client copies">Download all (PDF)</button>
               <button type="button" id="payRecountBtn" title="Use the latest clock-in records for every pending payslip shown, for example after fixing or adding a shift">Recount hours</button>
             </form>
             <form id="payOneForm" class="row">
@@ -356,7 +357,7 @@
             </form>
             <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
             <div class="scroll"><table>
-              <thead><tr><th>VA</th><th>Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th></tr></thead>
+              <thead><tr><th>VA / Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th></tr></thead>
               <tbody id="payRows"></tbody>
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
