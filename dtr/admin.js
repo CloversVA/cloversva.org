@@ -19,7 +19,9 @@ import {
 
 const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under Company details
 
-const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'usdRate', 'startDate'];
+// payUsdRate: what the VA is paid per hour in USD ("Hourly per VA"). usdRate: what the client is billed per hour.
+// phpRate: the VA's peso pay per hour, used on payslips (VA invoices sets it as payUsdRate x the exchange rate).
+const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'payUsdRate', 'usdRate', 'startDate'];
 const pick = (o) => Object.fromEntries(VA_FIELDS.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
 let me = null;
@@ -155,7 +157,7 @@ function renderVas() {
     toggle.onclick = () => setDoc(doc(db, 'allowed', va.email), pick({ ...va, active: !va.active })).catch(showError);
     const who = el('div', {}, el('div', { textContent: va.name }), el('div', { className: 'muted', textContent: va.email }));
     return el('tr', {}, cell(who), cell(va.clientName || ''), cell(va.position || ''),
-      numCell(va.phpRate ? formatPhp(va.phpRate) : ''), numCell(va.usdRate ? formatUsd(va.usdRate) : ''),
+      numCell(va.payUsdRate ? formatUsd(va.payUsdRate) : ''), numCell(va.usdRate ? formatUsd(va.usdRate) : ''),
       cell(va.role === 'admin' ? 'Admin' : 'VA'), cell(va.active ? 'Active' : 'Deactivated'), cell(edit, ' ', toggle));
   }));
 }
@@ -181,6 +183,7 @@ function openVaEditor(va) {
   $('vaPosition').value = va.position ?? '';
   $('vaPhp').value = va.phpRate ?? '';
   $('vaUsd').value = va.usdRate ?? '';
+  $('vaPayUsd').value = va.payUsdRate ?? '';
   $('vaStart').value = va.startDate ?? '';
   $('vaRole').value = va.role;
   $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
@@ -217,7 +220,7 @@ $('vaCancel').onclick = () => $('vaDialog').close();
 $('vaForm').onsubmit = async (e) => {
   e.preventDefault();
   // A rate typed with a comma or currency sign used to be saved silently as 0.
-  if ($('vaPhp').validity.badInput || $('vaUsd').validity.badInput) {
+  if ($('vaPhp').validity.badInput || $('vaUsd').validity.badInput || $('vaPayUsd').validity.badInput) {
     alert('Type each rate as a plain number, like 400 or 1000.50, without commas or ₱/$ signs.');
     return;
   }
@@ -242,11 +245,19 @@ $('vaForm').onsubmit = async (e) => {
     clientName: $('vaClient').value.trim(),
     position: $('vaPosition').value.trim(),
     phpRate: round2(Number($('vaPhp').value) || 0),
+    payUsdRate: round3(Number($('vaPayUsd').value) || 0),
     usdRate: round3(Number($('vaUsd').value) || 0),
     startDate: $('vaStart').value,
   };
   try {
-    await setDoc(doc(db, 'allowed', editingVa.email), record);
+    try {
+      await setDoc(doc(db, 'allowed', editingVa.email), record);
+    } catch (err) {
+      if (err.code !== 'permission-denied' || !record.payUsdRate) throw err;
+      alert('Nothing was saved: the database rules do not accept the new "Hourly per VA (USD)" rate yet. '
+        + 'The Firestore rules for "allowed" need to allow a field called payUsdRate. Clear that box to save the other details.');
+      return;
+    }
     const fullName = $('vaFullName').value.trim();
     if (editingProfile && fullName && fullName !== editingProfile.fullName) {
       await updateDoc(doc(db, 'profiles', editingVa.email), { fullName });
@@ -597,7 +608,7 @@ $('payRateForm').onsubmit = async (e) => {
   } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
-// PHP rate from each VA's own USD rate: USD rate x exchange rate, for every pending payslip shown.
+// PHP rate from each VA's Hourly per VA (USD pay rate) x exchange rate, for every pending payslip shown.
 const FX_KEY = 'cloversva.payFx';
 try { const saved = localStorage.getItem(FX_KEY); if (saved) $('payFx').value = saved; } catch { /* private window: start empty */ }
 
@@ -609,15 +620,15 @@ $('payFxForm').onsubmit = async (e) => {
   const client = $('payClient').value;
   const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
   if (!pending.length) { alert('There are no pending payslips to update. Create payslips first, or pick another period.'); return; }
-  const withUsd = pending.filter((s) => vas.get(s.email)?.usdRate > 0);
-  const noUsd = pending.filter((s) => !(vas.get(s.email)?.usdRate > 0)).map((s) => s.name);
-  if (!withUsd.length) { alert('None of these VAs has a USD rate yet. Set them under Client invoices > VA rates first.'); return; }
+  const withUsd = pending.filter((s) => vas.get(s.email)?.payUsdRate > 0);
+  const noUsd = pending.filter((s) => !(vas.get(s.email)?.payUsdRate > 0)).map((s) => s.name);
+  if (!withUsd.length) { alert('None of these VAs has an Hourly per VA (USD) rate yet. Set it under Employee demographics > Edit first.'); return; }
   const lines = withUsd.map((s) => {
-    const usd = vas.get(s.email).usdRate;
+    const usd = vas.get(s.email).payUsdRate;
     return `${s.name}: ${formatUsd(usd)} × ${fx} = ${formatPhp(round2(usd * fx))}/hr`;
   });
-  if (!confirm(`Set each VA's PHP rate from their USD rate × ${fx}?\n\n${lines.join('\n')}`
-    + (noUsd.length ? `\n\nNot changed (no USD rate): ${noUsd.join(', ')}` : '')
+  if (!confirm(`Set each VA's PHP rate from their Hourly per VA (USD) × ${fx}?\n\n${lines.join('\n')}`
+    + (noUsd.length ? `\n\nNot changed (no Hourly per VA rate): ${noUsd.join(', ')}` : '')
     + '\n\nThose VAs\' PHP rates are updated too, so future payslips use them.')) return;
   const button = e.target.querySelector('button');
   button.disabled = true;
@@ -625,7 +636,7 @@ $('payFxForm').onsubmit = async (e) => {
     const b = writeBatch(db);
     for (const slip of withUsd) {
       const va = vas.get(slip.email);
-      const rate = round2(va.usdRate * fx);
+      const rate = round2(va.payUsdRate * fx);
       b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, phpRate: rate, amount: round2(slip.hours * rate), ...stamp() });
       b.set(doc(db, 'allowed', va.email), pick({ ...va, phpRate: rate }));
     }
@@ -674,9 +685,9 @@ function payrollRow(slip, bank) {
   const who = el('div', { className: 'pay-who' }, el('strong', { textContent: slip.name }),
     el('span', { className: 'muted', textContent: slip.clientName || 'No client' }));
   const buttons = el('div', { className: 'pay-buttons' }, paid, details, pdf, remove);
-  const usdRate = vas.get(slip.email)?.usdRate;
+  const payUsd = vas.get(slip.email)?.payUsdRate;
   const row = el('tr', { className: 'pay-main' }, cell(who), numCell(slip.hours.toFixed(2)),
-    numCell(usdRate ? formatUsd(usdRate) : '-'), numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status), cell(buttons));
+    numCell(payUsd ? formatUsd(payUsd) : '-'), numCell(formatPhp(slip.phpRate)), numCell(formatPhp(slip.amount)), cell(status), cell(buttons));
   return [row, detailsRow];
 }
 
