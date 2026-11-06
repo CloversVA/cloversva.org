@@ -2,9 +2,9 @@
 // Leave goes to the VA's client first: the admin sends the client a letter, records the client's answer,
 // and can only approve once the client has approved.
 import {
-  collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
+  collection, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { leaveLetterHtml } from './docs.js?v=14';
+import { leaveLetterHtml } from './docs.js?v=16';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, LEAVE_NOTICE_DAYS, MAX_SHIFT_HOURS, addDays, dayKey, formatHM, leaveNoticeOk,
@@ -12,6 +12,21 @@ import {
 import { $, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from './ui.js?v=13';
 
 const TYPE_LABEL = { leave: 'Leave (unpaid)', absence: 'Absence (unpaid)' };
+// Approved leave and absence days for one person inside a pay period, for tagging payslips.
+// Weekends inside a request are skipped. Returns [{ day: 'YYYY-MM-DD', label: 'Leave (unpaid)' }], oldest first.
+export async function leaveDaysFor(email, periodStart, periodEnd) {
+  const snap = await getDocs(query(collection(db, 'leaveRequests'), where('email', '==', email)));
+  const days = new Map();
+  for (const r of snap.docs.map((d) => d.data())) {
+    if (r.status !== 'approved' || r.endDay < periodStart || r.startDay > periodEnd) continue;
+    for (let day = r.startDay > periodStart ? r.startDay : periodStart; day <= r.endDay && day <= periodEnd; day = addDays(day, 1)) {
+      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+      if (weekday !== 0 && weekday !== 6) days.set(day, TYPE_LABEL[r.type] ?? 'Leave');
+    }
+  }
+  return [...days].sort(([a], [b]) => a.localeCompare(b)).map(([day, label]) => ({ day, label }));
+}
+
 const datesText = (r) => (r.startDay === r.endDay ? fmtDay(r.startDay) : `${fmtDay(r.startDay)} to ${fmtDay(r.endDay)}`);
 const pill = (status) => el('span', {
   className: `pill ${status === 'approved' ? 'paid' : 'pending'}`,

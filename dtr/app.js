@@ -5,11 +5,11 @@ import {
 import {
   Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=22';
+import { startAdmin } from './admin.js?v=25';
 import { setMyBirthday, startBoard } from './board.js?v=23';
 import { startVaFiles } from './files.js?v=13';
-import { myOvertime, overtimeCell, startVaRequests } from './requests.js?v=15';
-import { coeHtml, payslipHtml } from './docs.js?v=14';
+import { leaveDaysFor, myOvertime, overtimeCell, startVaRequests } from './requests.js?v=17';
+import { coeHtml, payslipHtml } from './docs.js?v=16';
 import { auth, db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatPhp, formatUsd, hmFromHours, payFor, periodRange, zonedToDate,
@@ -205,7 +205,11 @@ function renderPayslips() {
   const usd = me.usdRate ? formatUsd(me.usdRate) : '-';
   $('myPayslipRows').replaceChildren(...mySlips.map((s) => {
     const btn = el('button', { textContent: 'Payslip PDF' });
-    btn.onclick = () => openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank, signatureUrl));
+    btn.onclick = async () => {
+      const w = window.open('', '_blank'); // opened first so pop-up blockers allow it
+      const leaves = await leaveDaysFor(me.email, s.periodStart, s.periodEnd).catch((err) => { console.warn(err); return []; });
+      openDocument(payslipHtml({ ...s, paidAt: asDate(s.paidAt) }, myBank, signatureUrl, leaves), w);
+    };
     const status = s.status === 'paid'
       ? el('span', { className: 'pill paid', textContent: `Paid ${s.paidAt ? fmtDay(dayKey(s.paidAt.toDate(), BUSINESS_TZ)) : ''}` })
       : el('span', { className: 'pill pending', textContent: 'Pending' });

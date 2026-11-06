@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=14';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=16';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { db } from './firebase.js?v=2';
 import {
@@ -10,7 +10,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { refreshLeave, startAdminRequests } from './requests.js?v=15';
+import { leaveDaysFor, refreshLeave, startAdminRequests } from './requests.js?v=17';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -52,6 +52,7 @@ export function startAdmin(signedIn, track) {
     $('payClient').replaceChildren(el('option', { value: '', textContent: 'All clients' }), ...clients.map((c) => el('option', { value: c, textContent: c })));
     if (clients.includes(payClient)) $('payClient').value = payClient;
     fillAddShiftVas();
+    fillPayOne();
     renderInvoiceRates();
     refreshLeave();
   }, showError));
@@ -561,12 +562,6 @@ function payrollRow(slip, bank) {
   const pending = slip.status === 'pending';
   const btn = (textContent, props = {}) => el('button', { type: 'button', textContent, ...props });
 
-  const recalc = btn('Recount hours', { hidden: !pending, title: 'Use the latest clock-in records, for example after fixing or adding a shift' });
-  recalc.onclick = async () => {
-    const shifts = (await fetchShifts(slip.periodStart, slip.periodEnd)).filter((x) => x.email === slip.email);
-    const { hours, amount, days } = payFor(shifts, slip.phpRate || 0);
-    await saveSlip({ ...slip, hours, amount, days });
-  };
   const paid = btn(pending ? 'Mark paid' : 'Undo paid', { className: pending ? 'primary' : '' });
   paid.onclick = () => {
     if (!pending && !confirm(`Mark ${slip.name}'s payslip as not paid?`)) return;
@@ -577,13 +572,19 @@ function payrollRow(slip, bank) {
     if (!confirm(`Delete ${slip.name}'s pending payslip for ${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}?`)) return;
     try { await deleteDoc(doc(db, 'payslips', slipId(slip.periodStart, slip.email))); await loadPayroll(); } catch (err) { showError(err); }
   };
+  // Both PDFs tag the VA's approved leave and absence days. The tab is opened first so pop-up blockers allow it.
+  const withLeaves = async (make) => {
+    const w = window.open('', '_blank');
+    const leaves = await leaveDaysFor(slip.email, slip.periodStart, slip.periodEnd).catch((err) => { console.warn(err); return []; });
+    openDocument(make(leaves), w);
+  };
   const pdf = btn('VA payslip (PHP)', { title: "The VA's payslip at their PHP pay rate" });
-  pdf.onclick = () => openDocument(payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl));
+  pdf.onclick = () => withLeaves((leaves) => payslipHtml({ ...slip, paidAt: asDate(slip.paidAt) }, bank, signatureUrl, leaves));
   const clientPdf = btn('Client copy (USD)', { title: "Day-by-day hours at the VA's USD billing rate, for the client" });
   clientPdf.onclick = () => {
     const usdRate = vas.get(slip.email)?.usdRate;
     if (!usdRate) { alert(`Set ${slip.name}'s USD rate first (Client invoices > VA rates).`); return; }
-    openDocument(clientPayrollHtml(slip, usdRate, signatureUrl));
+    withLeaves((leaves) => clientPayrollHtml(slip, usdRate, signatureUrl, leaves));
   };
 
   const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
@@ -594,7 +595,7 @@ function payrollRow(slip, bank) {
     el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
     slip.days?.length
       ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
-      : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" to add it.' })));
+      : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" at the top to add it.' })));
   const details = btn('Details', { ariaExpanded: 'false' });
   details.onclick = () => { detailsRow.hidden = !detailsRow.hidden; details.ariaExpanded = String(!detailsRow.hidden); };
 
@@ -603,7 +604,7 @@ function payrollRow(slip, bank) {
   // The buttons sit on their own line under the payslip, in small groups, so the table fits without scrolling sideways.
   const group = (...kids) => el('div', { className: 'btn-group' }, ...kids);
   const actions = el('tr', { className: 'pay-actions' }, el('td', { colSpan: 6 }, el('div', { className: 'pay-buttons' },
-    group(paid), group(details, recalc), group(pdf, clientPdf), group(remove))));
+    group(paid), group(details), group(pdf, clientPdf), group(remove))));
   return [row, actions, detailsRow];
 }
 
@@ -668,6 +669,78 @@ $('payCreateBtn').onclick = async () => {
       + (skipped.length ? ` Skipped ${skipped.join(', ')}: they already have a payslip covering some of these days.` : '')
       + (openCount ? ` ${openCount} shift(s) in this period are still open and were not counted; close them, then use "Recount hours".` : ''));
   } catch (err) { showError(err); }
+};
+
+// Recounts every pending payslip shown (all clients, or the one picked) from the latest time clock records,
+// for example after fixing or adding a shift or approving overtime. Paid payslips are never changed.
+$('payRecountBtn').onclick = async () => {
+  const client = $('payClient').value;
+  const pending = paySlips.filter((s) => s.status === 'pending' && (!client || s.clientName === client));
+  if (!pending.length) { alert('There are no pending payslips to recount in this period.'); return; }
+  const noBreakdown = pending.filter((s) => s.hours > 0 && !s.days?.length);
+  const replaceTyped = noBreakdown.length > 0 && confirm(`${noBreakdown.map((s) => s.name).join(', ')}: hours have no daily breakdown `
+    + '(for example, they were typed in). Replace those with the time clock hours too?\n\nOK = replace them. Cancel = leave them as they are.');
+  const button = $('payRecountBtn');
+  button.disabled = true;
+  try {
+    const shifts = await fetchShifts($('payFrom').value, $('payTo').value);
+    const b = writeBatch(db);
+    let changed = 0;
+    for (const slip of pending) {
+      if (noBreakdown.includes(slip) && !replaceTyped) continue;
+      const { hours, amount, days } = payFor(shifts.filter((x) => x.email === slip.email), slip.phpRate || 0);
+      b.set(doc(db, 'payslips', slipId(slip.periodStart, slip.email)), { ...slip, hours, amount, days, ...stamp() });
+      changed += 1;
+    }
+    if (changed) await b.commit();
+    await loadPayroll();
+    const open = shifts.filter((x) => !x.clockOut).length;
+    alert(`Recounted ${changed} pending payslip${changed === 1 ? '' : 's'}.`
+      + (open ? ` ${open} shift(s) in this period are still open and were not counted.` : ''));
+  } catch (err) { showError(err); } finally { button.disabled = false; }
+};
+
+// One payslip for one person (VA or admin), from their time clock hours or from hours typed in.
+function fillPayOne() {
+  const current = $('payOnePerson').value;
+  const list = [...vas.values()].filter((v) => v.active).sort((a, b) => a.name.localeCompare(b.name));
+  $('payOnePerson').replaceChildren(el('option', { value: '', textContent: 'Choose a person' }),
+    ...list.map((v) => el('option', { value: v.email, textContent: `${v.name}${v.role === 'admin' ? ' (admin)' : ''}` })));
+  if (vas.has(current)) $('payOnePerson').value = current;
+}
+
+$('payOneForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const from = $('payFrom').value; const to = $('payTo').value;
+  const va = vas.get($('payOnePerson').value);
+  if (!va) { alert('Choose who the payslip is for.'); return; }
+  if ($('payOneHours').validity.badInput) { alert('Type the hours as a plain number, like 80 or 37.5.'); return; }
+  const typed = $('payOneHours').value.trim();
+  const button = e.target.querySelector('button');
+  button.disabled = true;
+  try {
+    const all = (await getDocs(query(collection(db, 'payslips'), where('email', '==', va.email)))).docs.map((d) => d.data());
+    if (all.some((x) => periodsOverlap({ start: from, end: to }, { start: x.periodStart, end: x.periodEnd }))) {
+      alert(`${va.name} already has a payslip covering some of these days.`);
+      return;
+    }
+    const rate = va.phpRate || 0;
+    let pay;
+    if (typed) {
+      const hours = round2(Number(typed));
+      pay = { hours, amount: round2(hours * rate), days: [] };
+    } else {
+      pay = payFor((await fetchShifts(from, to)).filter((x) => x.email === va.email), rate);
+      if (pay.hours === 0) { alert(`${va.name} has no clocked hours in this period. Type the hours in the Hours box instead.`); return; }
+    }
+    if (!rate && !confirm(`${va.name} has no PHP hourly rate, so the payslip will show ₱0.00. Set it under Employee demographics > Edit. Create it anyway?`)) return;
+    await setDoc(doc(db, 'payslips', slipId(from, va.email)), {
+      email: va.email, name: va.name, clientName: va.clientName || '', position: va.position || '',
+      periodStart: from, periodEnd: to, phpRate: rate, ...pay, status: 'pending', ...stamp(),
+    });
+    e.target.reset();
+    await loadPayroll();
+  } catch (err) { showError(err); } finally { button.disabled = false; }
 };
 
 // ---------- Client invoices ----------

@@ -58,6 +58,8 @@ function page(title, body, extraCss = '') {
   .sign { margin-top: 48px; }
   .sign .line { width: 240px; border-bottom: 1px solid #152318; height: 36px; }
   .sign .sig { display: block; height: 80px; margin: 0 0 -46px 10px; mix-blend-mode: multiply; position: relative; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #fde9c8; color: #7a4a00; font-size: 12px; font-weight: 600; }
+  tr.leave td { background: #fff8ec; }
   .toolbar { text-align: center; padding: 12px; background: #eef6e2; }
   .toolbar button { font: 600 14px Poppins, sans-serif; padding: 8px 18px; border-radius: 8px; border: 0; background: #0a5a2e; color: #fff; cursor: pointer; }
   @media print { .toolbar { display: none; } }
@@ -72,8 +74,26 @@ function page(title, body, extraCss = '') {
 const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
 <div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(COMPANY.email)}</div></div>`;
 
-// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null; signatureUrl: the founder's signature or null.
-export function payslipHtml(slip, bank, signatureUrl = null) {
+// The day-by-day table on payslips, with approved leave and absence days tagged.
+// leaves: [{ day, label }] from leaveDaysFor(); days with no hours and no leave are left out.
+function dailyTable(slip, leaves = []) {
+  const rows = new Map((slip.days ?? []).map((x) => [x.day, { hours: x.hours, tag: '' }]));
+  for (const l of leaves) rows.set(l.day, { hours: rows.get(l.day)?.hours ?? 0, tag: l.label });
+  if (!rows.size) return '';
+  const list = [...rows].sort(([a], [b]) => a.localeCompare(b));
+  const leaveCount = leaves.length;
+  return `<p class="label">Daily hours (Eastern Time)</p>
+<table class="grid">
+  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th>Note</th></tr></thead>
+  <tbody>${list.map(([day, r]) => `<tr${r.tag ? ' class="leave"' : ''}><td>${esc(longDate(fromDay(day)))}</td>
+    <td class="num">${r.hours ? esc(hmFromHours(r.hours)) : '-'}</td><td>${r.tag ? `<span class="tag">${esc(r.tag)}</span>` : ''}</td></tr>`).join('')}</tbody>
+</table>
+${leaveCount ? `<p>Leave and absence days in this period: <b>${leaveCount}</b> (unpaid, not counted in the hours above).</p>` : ''}`;
+}
+
+// slip: payslip doc data; bank: the VA's {bankName, accountName, accountNumber} or null; leaves: see dailyTable().
+// The VA's payslip is not signed (signatureUrl is ignored); the client copy and invoice still are.
+export function payslipHtml(slip, bank, signatureUrl = null, leaves = []) {
   const paid = slip.status === 'paid' && slip.paidAt;
   return page(`Payslip ${slip.periodStart} ${slip.name}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
@@ -89,24 +109,19 @@ export function payslipHtml(slip, bank, signatureUrl = null) {
     <td class="num">${slip.hours.toFixed(2)}</td><td class="num">${esc(formatPhp(slip.phpRate))}</td><td class="num">${esc(formatPhp(slip.amount))}</td></tr></tbody>
   <tfoot><tr><td>TOTAL</td><td class="num">${slip.hours.toFixed(2)}</td><td></td><td class="num">${esc(formatPhp(slip.amount))}</td></tr></tfoot>
 </table>
-${slip.days?.length ? `<p class="label">Daily hours (Eastern Time)</p>
-<table class="grid">
-  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th></tr></thead>
-  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td></tr>`).join('')}</tbody>
-</table>` : ''}
+${dailyTable(slip, leaves)}
 <p class="label">Paid to</p>
 ${bank ? `<table class="meta">
   <tr><td>Bank</td><td>: ${esc(bank.bankName)}</td></tr>
   <tr><td>Account name</td><td>: ${esc(bank.accountName)}</td></tr>
   <tr><td>Account number</td><td>: ${esc(masked(bank.accountNumber))}</td></tr>
 </table>` : '<p>No bank details on file yet.</p>'}
-${signBlock(signatureUrl)}
 ${footer}`);
 }
 
 // The client's copy of one payslip: the VA's hours day by day at their USD billing rate. Never shows PHP pay or bank details.
 // slip: payslip doc data; usdRate: the VA's current USD rate; signatureUrl: the founder's signature or null.
-export function clientPayrollHtml(slip, usdRate, signatureUrl = null) {
+export function clientPayrollHtml(slip, usdRate, signatureUrl = null, leaves = []) {
   const amount = round3(slip.hours * usdRate);
   return page(`Hours ${slip.periodStart} ${slip.name}`, `
 <img class="logo" src="${asset('logo-transparent.png')}" alt="Clovers Virtual Assistance">
@@ -121,11 +136,7 @@ export function clientPayrollHtml(slip, usdRate, signatureUrl = null) {
     <td class="num">${slip.hours.toFixed(2)}</td><td class="num">${esc(formatUsd(usdRate))}</td><td class="num">${esc(formatUsd(amount))}</td></tr></tbody>
   <tfoot><tr><td>TOTAL</td><td class="num">${slip.hours.toFixed(2)}</td><td></td><td class="num">${esc(formatUsd(amount))}</td></tr></tfoot>
 </table>
-${slip.days?.length ? `<p class="label">Daily hours (Eastern Time)</p>
-<table class="grid">
-  <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th></tr></thead>
-  <tbody>${slip.days.map((x) => `<tr><td>${esc(longDate(fromDay(x.day)))}</td><td class="num">${esc(hmFromHours(x.hours))}</td></tr>`).join('')}</tbody>
-</table>` : ''}
+${dailyTable(slip, leaves)}
 ${signBlock(signatureUrl)}
 ${footer}`);
 }
