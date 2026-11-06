@@ -108,7 +108,7 @@ function renderFeed() {
   const cards = posts.map((p) => {
     const remove = admin ? el('button', { className: 'link', textContent: 'Delete' }) : null;
     if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p).catch(showError);
-    return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, media: p.media, remove });
+    return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, media: p.media ?? vibeMedia(p.title), remove });
   });
   show('postsEmpty', cards.length === 0);
   $('posts').replaceChildren(...cards);
@@ -460,16 +460,21 @@ const VIBES = {
   },
 };
 
+// The animation for a good-vibes post, found by its title. Other posts get none.
+function vibeMedia(title) {
+  const v = Object.values(VIBES).find((x) => x.title === title);
+  return v ? { kind: 'video', name: v.video, src: v.video, poster: `../images/${v.poster}`, tall: true } : null;
+}
+
 for (const button of document.querySelectorAll('[data-vibe]')) {
   button.onclick = async () => {
     const v = VIBES[button.dataset.vibe];
     if (!confirm(`Post "${v.title}" with its animation to the Announcement Wall for everyone?`)) return;
     button.disabled = true;
     try {
-      await setDoc(doc(collection(db, 'announcements')), {
-        title: v.title, body: v.body, by: me.email, byName: me.name, at: serverTimestamp(),
-        media: { kind: 'video', mime: 'video/mp4', name: v.video, size: 0, chunks: 0, src: v.video, poster: `../images/${v.poster}`, tall: true },
-      });
+      // Saved like a plain text announcement (the database rules accept that shape); the animation is added on screen
+      // by matching the title, see vibeMedia().
+      await setDoc(doc(collection(db, 'announcements')), { title: v.title, body: v.body, by: me.email, byName: me.name, at: serverTimestamp() });
       $('postNote').textContent = 'Posted.';
     } catch (err) { $('postNote').textContent = ''; showError(err); } finally { button.disabled = false; }
   };
