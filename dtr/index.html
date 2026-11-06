@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=30">
-  <script type="module" src="app.js?v=44"></script>
+  <script type="module" src="app.js?v=45"></script>
 </head>
 <body>
   <header class="topbar">
@@ -349,9 +349,14 @@
               <button class="primary">Apply to all</button>
               <span class="muted">Updates every pending payslip shown below and each of those VAs' PHP rate. Paid payslips are not changed.</span>
             </form>
+            <form id="payFxForm" class="row rate-box">
+              <label>Exchange rate (PHP per 1 USD) <input id="payFx" type="number" min="1" max="1000" step="0.0001" required placeholder="e.g. 58.50"></label>
+              <button class="primary">Multiply by each VA's USD rate</button>
+              <span class="muted">Each pending payslip shown below gets PHP rate = that VA's USD rate &times; this number (for example $5.00 &times; 58.50 = &#8369;292.50/hr), and that VA's PHP rate is updated too. VAs without a USD rate and paid payslips are not changed.</span>
+            </form>
             <input type="hidden" id="payFrom"><input type="hidden" id="payTo">
             <div class="scroll"><table>
-              <thead><tr><th>VA / Client</th><th class="num">Hours</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>VA / Client</th><th class="num">Hours</th><th class="num">USD/hr</th><th class="num">Rate (PHP/hr)</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
               <tbody id="payRows"></tbody>
             </table></div>
             <p id="payEmpty" class="muted" hidden>No payslips for this period yet.</p>
