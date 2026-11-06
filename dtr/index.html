@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="/images/favicon/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=28">
-  <script type="module" src="app.js?v=41"></script>
+  <link rel="stylesheet" href="style.css?v=29">
+  <script type="module" src="app.js?v=42"></script>
 </head>
 <body>
   <header class="topbar">
@@ -165,13 +165,13 @@
 
         <section data-panel="board" hidden>
           <div class="card" data-admin hidden>
-            <h2>Post an announcement</h2>
-            <form id="postForm" class="stack narrow-form">
-              <label>Title <input id="postTitle" maxlength="120" required></label>
-              <label>Message <textarea id="postBody" maxlength="2000" rows="3"></textarea></label>
-              <label>Photo, video or file such as a PDF, Word or Excel document (optional, up to 15 MB) <input id="postMedia" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip"></label>
-              <div class="row"><button class="primary">Post</button><span id="postNote" class="muted" role="status"></span></div>
-            </form>
+            <h2>Post good vibes</h2>
+            <p class="muted">One click posts the video to the Announcement Wall for everyone, with reactions and messages like any announcement.</p>
+            <div class="row">
+              <button type="button" class="primary" data-vibe="soon">Team Trust: Payday is on the way</button>
+              <button type="button" class="primary" data-vibe="paid">Team Trust: Paid (May sahod na!)</button>
+              <span id="postNote" class="muted" role="status"></span>
+            </div>
           </div>
           <div id="celebrationsCard" class="card" hidden>
             <h2>Birthdays and holidays</h2>
