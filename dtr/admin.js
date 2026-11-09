@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipHtml, timesheetHtml } from './docs.js?v=18';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipDays, payslipHtml, timesheetHtml } from './docs.js?v=20';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { downloadPdfZip, safeFileName } from './pdfzip.js?v=1';
 import { db } from './firebase.js?v=2';
@@ -11,7 +11,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=19';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=21';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -676,15 +676,32 @@ function payrollRow(slip, bank) {
 
   const status = el('span', { className: `pill ${slip.status}`, textContent: pending ? 'Pending' : `Paid ${fmtDay(dayKey(slip.paidAt.toDate(), BUSINESS_TZ))}` });
 
-  // Daily hours and the VA's bank details, shown under the row on request.
+  // Daily hours and the VA's bank details, shown under the row on request. Absences, leave and holidays are
+  // tagged the same way as on the payslip PDF; they are looked up the first time Details is opened.
   const bankText = bank ? `${bank.bankName} · ${bank.accountName} · ${bank.accountNumber}` : 'No bank details yet';
+  const dayBox = el('div', {}, el('span', { className: 'muted', textContent: 'Loading...' }));
   const detailsRow = el('tr', { className: 'day-list', hidden: true }, el('td', { colSpan: 7 },
     el('p', { className: 'pay-bank' }, el('strong', { textContent: 'Bank: ' }), el('span', { className: bank ? '' : 'muted', textContent: bankText })),
-    slip.days?.length
-      ? el('ul', {}, ...slip.days.map((x) => el('li', { textContent: `${fmtWeekday(x.day)}: ${hmFromHours(x.hours)}` })))
-      : el('span', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" at the top to add it.' })));
+    dayBox));
+  let daysLoaded = false;
+  const loadDays = async () => {
+    daysLoaded = true;
+    const info = await payslipDayInfo(slip.email, slip.periodStart, slip.periodEnd);
+    const { list, absent } = payslipDays(slip, { ...info, startDate: vas.get(slip.email)?.startDate ?? '' });
+    const items = list.map((x) => el('li', { className: x.kind ?? '' },
+      `${fmtWeekday(x.day)}: ${x.hours ? hmFromHours(x.hours) : '-'}`,
+      ...(x.tag ? [' ', el('span', { className: 'day-tag', textContent: x.tag })] : [])));
+    dayBox.replaceChildren(
+      ...(slip.days?.length ? [] : [el('p', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" at the top to add it.' })]),
+      ...(items.length ? [el('ul', {}, ...items)] : []),
+      ...(absent ? [el('p', { className: 'muted', textContent: `No clock-in: ${absent} day${absent === 1 ? '' : 's'}. Not counted in the hours or amount.` })] : []));
+  };
   const details = btn('Details', { ariaExpanded: 'false' });
-  details.onclick = () => { detailsRow.hidden = !detailsRow.hidden; details.ariaExpanded = String(!detailsRow.hidden); };
+  details.onclick = () => {
+    detailsRow.hidden = !detailsRow.hidden;
+    details.ariaExpanded = String(!detailsRow.hidden);
+    if (!detailsRow.hidden && !daysLoaded) loadDays().catch((err) => { daysLoaded = false; showError(err); });
+  };
 
   // Everything for one payslip on one line: who, the numbers, the status, then the buttons.
   const who = el('div', { className: 'pay-who' }, el('strong', { textContent: slip.name }),
