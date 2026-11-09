@@ -83,9 +83,10 @@ const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSIN
 // - any other weekday with no clock-in is tagged "Absent (no clock-in)", or "Holiday" if it is on the holiday list.
 // Weekdays before the VA's start date are tagged "Before start date"; days after yesterday (Eastern Time) are not marked. Payslips with typed-in hours
 // (no daily breakdown) only show leave days, since there is nothing to compare against.
-function dailyTable(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
+// payslipDays returns the tagged day list (also used by the Details list in VA invoices); dailyTable prints it.
+export function payslipDays(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
   const rows = new Map((slip.days ?? []).map((x) => [x.day, { hours: x.hours, tag: '' }]));
-  for (const l of leaves) rows.set(l.day, { hours: rows.get(l.day)?.hours ?? 0, tag: l.label });
+  for (const l of leaves) rows.set(l.day, { hours: rows.get(l.day)?.hours ?? 0, tag: l.label, kind: 'leave' });
   let absent = 0;
   let holidayCount = 0;
   if (slip.days?.length || !slip.hours) {
@@ -95,21 +96,27 @@ function dailyTable(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
       const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
       if (weekday === 0 || weekday === 6 || rows.has(day)) continue;
       if (startDate && day < startDate) { rows.set(day, { hours: 0, tag: 'Before start date', kind: 'before' }); continue; }
-      if (holidayOn.has(day)) { rows.set(day, { hours: 0, tag: `Holiday: ${holidayOn.get(day)}` }); holidayCount += 1; }
+      if (holidayOn.has(day)) { rows.set(day, { hours: 0, tag: `Holiday: ${holidayOn.get(day)}`, kind: 'leave' }); holidayCount += 1; }
       else { rows.set(day, { hours: 0, tag: 'Absent (no clock-in)', kind: 'absent' }); absent += 1; }
     }
   }
-  if (!rows.size) return '';
-  const list = [...rows].sort(([x], [y]) => x.localeCompare(y));
+  const list = [...rows].sort(([x], [y]) => x.localeCompare(y)).map(([day, r]) => ({ day, ...r }));
+  return { list, absent, holidayCount, leaveCount: leaves.length };
+}
+
+function dailyTable(slip, info = {}) {
+  const { list, absent, holidayCount, leaveCount } = payslipDays(slip, info);
+  const startDate = info.startDate ?? '';
+  if (!list.length) return '';
   const notes = [
-    leaves.length ? `Approved leave and absence days: <b>${leaves.length}</b>` : '',
+    leaveCount ? `Approved leave and absence days: <b>${leaveCount}</b>` : '',
     absent ? `Absent with no clock-in: <b>${absent}</b>` : '',
     holidayCount ? `Holidays with no clock-in: <b>${holidayCount}</b>` : '',
   ].filter(Boolean);
   return `<p class="label">Daily hours (Eastern Time)</p>
 <table class="grid">
   <thead><tr><th>Date</th><th class="num">Hours (H:MM)</th><th>Note</th></tr></thead>
-  <tbody>${list.map(([day, r]) => `<tr${r.tag ? ` class="${r.kind ?? 'leave'}"` : ''}><td>${esc(longDate(fromDay(day)))}</td>
+  <tbody>${list.map((r) => `<tr${r.tag ? ` class="${r.kind}"` : ''}><td>${esc(longDate(fromDay(r.day)))}</td>
     <td class="num">${r.hours ? esc(hmFromHours(r.hours)) : '-'}</td><td>${r.tag ? `<span class="tag">${esc(r.tag)}</span>` : ''}</td></tr>`).join('')}</tbody>
 </table>
 ${startsLate(slip, startDate) ? `<p>Start date: <b>${esc(longDate(fromDay(startDate)))}</b>. Weekdays before it are marked "Before start date", not absent.</p>` : ''}

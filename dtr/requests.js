@@ -4,7 +4,7 @@
 import {
   collection, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { leaveLetterHtml } from './docs.js?v=18';
+import { leaveLetterHtml } from './docs.js?v=19';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, LEAVE_NOTICE_DAYS, MAX_SHIFT_HOURS, addDays, dayKey, formatHM, leaveNoticeOk,
