@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipDays, payslipHtml, timesheetHtml } from './docs.js?v=19';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipDays, payslipHtml, timesheetHtml } from './docs.js?v=20';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { downloadPdfZip, safeFileName } from './pdfzip.js?v=1';
 import { db } from './firebase.js?v=2';
@@ -11,7 +11,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=20';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=21';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -694,7 +694,7 @@ function payrollRow(slip, bank) {
     dayBox.replaceChildren(
       ...(slip.days?.length ? [] : [el('p', { className: 'muted', textContent: 'No daily breakdown saved for this payslip. Click "Recount hours" at the top to add it.' })]),
       ...(items.length ? [el('ul', {}, ...items)] : []),
-      ...(absent ? [el('p', { className: 'muted', textContent: `Absent with no clock-in: ${absent} day${absent === 1 ? '' : 's'}. Not counted in the hours or amount.` })] : []));
+      ...(absent ? [el('p', { className: 'muted', textContent: `No clock-in: ${absent} day${absent === 1 ? '' : 's'}. Not counted in the hours or amount.` })] : []));
   };
   const details = btn('Details', { ariaExpanded: 'false' });
   details.onclick = () => {
