@@ -5,10 +5,10 @@ import {
 import {
   Timestamp, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { startAdmin } from './admin.js?v=41';
+import { startAdmin } from './admin.js?v=42';
 import { setMyBirthday, startBoard } from './board.js?v=26';
 import { startVaFiles } from './files.js?v=13';
-import { myOvertime, overtimeCell, payslipDayInfo, startVaRequests } from './requests.js?v=21';
+import { myOvertime, overtimeCell, payslipDayInfo, startVaRequests } from './requests.js?v=22';
 import { coeHtml, payslipHtml } from './docs.js?v=20';
 import { auth, db } from './firebase.js?v=2';
 import {

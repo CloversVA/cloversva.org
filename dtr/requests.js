@@ -157,7 +157,8 @@ let redrawLeave = () => {};
 export const refreshLeave = () => redrawLeave();
 
 // vaLookup(email) gives the VA's allowed record; vaFullName(email) resolves to the name on their profile.
-export function startAdminRequests(admin, track, shiftLookup, vaLookup, vaFullName) {
+// onOvertimeApproved(entryId) runs after an overtime approval is saved (used to recount that shift's payslip).
+export function startAdminRequests(admin, track, shiftLookup, vaLookup, vaFullName, onOvertimeApproved = async () => {}) {
   track(onSnapshot(collection(db, 'leaveRequests'), (snap) => {
     redrawLeave = () => renderLeave(snap, admin, vaLookup, vaFullName);
     redrawLeave();
@@ -173,7 +174,8 @@ export function startAdminRequests(admin, track, shiftLookup, vaLookup, vaFullNa
     $('otRows').replaceChildren(...rows.map((r) => {
       const s = shifts.get(r.id);
       const actions = r.status !== 'pending' ? [] : [
-        el('button', { className: 'primary', textContent: 'Approve', onclick: () => decide('overtime', r.id, 'approved', admin.email) }),
+        el('button', { className: 'primary', textContent: 'Approve', onclick: () => updateDoc(doc(db, 'overtime', r.id), { status: 'approved', decidedBy: admin.email, decidedAt: serverTimestamp() })
+          .then(() => onOvertimeApproved(r.id)).catch(showError) }),
         ' ',
         el('button', { textContent: 'Deny', onclick: () => confirm(`Deny ${r.name}'s overtime?`) && decide('overtime', r.id, 'denied', admin.email) }),
       ];

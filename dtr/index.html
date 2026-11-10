@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=31">
-  <script type="module" src="app.js?v=53"></script>
+  <script type="module" src="app.js?v=54"></script>
 </head>
 <body>
   <header class="topbar">
@@ -308,6 +308,7 @@
               <th>Paid (H:MM)</th>
               <th></th></tr></thead><tbody id="shiftRows"></tbody></table></div>
             <p id="tsEmpty" class="muted" hidden>No shifts match.</p>
+            <p id="tsNote" class="muted" role="status"></p>
             <h3>Approved leave and absences in this period</h3>
             <div class="scroll"><table><thead><tr><th>VA</th><th>Dates</th><th>Type</th><th>Reason</th></tr></thead><tbody id="tsLeaveRows"></tbody></table></div>
             <p id="tsLeaveEmpty" class="muted">None.</p>
@@ -331,7 +332,7 @@
             <h2>VA invoices</h2>
             <ol class="steps muted">
               <li>Pick a pay period. The list starts with the one still running; the second is the one that just ended.</li>
-              <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate. Fixed or added a shift, or approved overtime, afterwards? Click <b>Recount hours</b> to update the pending payslips.</li>
+              <li>Click <b>Create payslips</b>. Each VA with hours gets one payslip: hours &times; their PHP rate. Fixing, adding or deleting a shift, or approving overtime, updates that VA's pending payslip automatically. <b>Recount hours</b> redoes every pending payslip shown, if ever needed.</li>
               <li>Set the PHP rate below if needed and click <b>Apply to all</b>. Check each row (<b>Details</b> shows the daily hours and the VA's bank), then pay the VA.</li>
               <li>Click <b>Mark paid</b> on each payslip, or <b>Mark all as paid</b> at the top. The payslip locks and the VA sees it as paid.</li>
               <li>PDFs: <b>VA payslip (PHP)</b> is for the VA. <b>Download Client Copy</b> saves the client copy of every payslip shown (the same hours day by day at each VA's USD rate) in one .zip. For one summary per client, use Client invoices.</li>
@@ -443,7 +444,7 @@
         <section data-panel="otAdmin" hidden>
           <div class="card">
             <h2>Overtime requests</h2>
-            <p class="muted">Approving pays the shift past 8 hours, at the VA's normal rate, up to the hours requested. Use "Recount hours" in VA invoices for payslips already made.</p>
+            <p class="muted">Approving pays the shift past 8 hours, at the VA's normal rate, up to the hours requested. A pending payslip for that shift is updated automatically.</p>
             <div class="scroll"><table><thead><tr><th>VA</th><th>Shift</th><th class="num">Worked</th><th class="num">Extra asked</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="otRows"></tbody></table></div>
             <p id="otEmpty" class="muted">No requests yet.</p>
           </div>

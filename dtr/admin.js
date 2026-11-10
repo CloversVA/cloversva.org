@@ -11,7 +11,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=13';
-import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=21';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=22';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
@@ -77,6 +77,10 @@ export function startAdmin(signedIn, track) {
   }))), (email) => vas.get(email), async (email) => {
     const profile = await getDoc(doc(db, 'profiles', email));
     return (profile.exists() && profile.data().fullName) || vas.get(email)?.name || email;
+  }, async (entryId) => {
+    // Approved overtime changes the shift's paid hours, so recount its payslip too.
+    const snap = await getDoc(doc(db, 'entries', entryId));
+    if (snap.exists()) await syncPayslipsAndTell(snap.data().email, [dayKey(asDate(snap.data().clockIn), BUSINESS_TZ)]);
   });
   startAdminFiles(me, track);
 
@@ -127,6 +131,46 @@ async function fetchShifts(fromDay, toDay) {
       clockIn: asDate(s.clockIn), clockOut: asDate(s.clockOut), edited: !!s.lastEditId, raw: s, otHours: approvedOt.get(d.id) ?? 0,
     };
   });
+}
+
+// After a shift is fixed, added or deleted (or its overtime approved), recount that VA's payslip for the pay period(s)
+// the shift falls in, so VA invoices, client copies and the VA's own payslip match the timesheet. Client invoices
+// are always added up fresh from the shifts, so they need nothing. Paid payslips are never changed, and payslips
+// whose hours were typed in by hand are left alone; both are reported back so the admin can decide.
+// days: the shift's start day(s) as YYYY-MM-DD in Eastern Time (before and after a fix, which may differ).
+async function syncPayslips(email, days) {
+  const snap = await getDocs(query(collection(db, 'payslips'), where('email', '==', email)));
+  const hit = snap.docs.map((d) => d.data()).filter((s) => days.some((d) => d && d >= s.periodStart && d <= s.periodEnd));
+  const notes = [];
+  for (const slip of hit) {
+    const when = `${fmtDay(slip.periodStart)} to ${fmtDay(slip.periodEnd)}`;
+    if (slip.status !== 'pending') {
+      notes.push(`${slip.name}'s payslip for ${when} is already marked paid, so it was not changed. To redo it, click "Undo paid" in VA invoices, then "Recount hours".`);
+      continue;
+    }
+    if (slip.hours > 0 && !slip.days?.length) {
+      notes.push(`${slip.name}'s payslip for ${when} has hours typed in by hand, so it was not changed. Use "Recount hours" in VA invoices to replace them.`);
+      continue;
+    }
+    const shifts = (await fetchShifts(slip.periodStart, slip.periodEnd)).filter((x) => x.email === email);
+    const { hours, amount, days: daily } = payFor(shifts, slip.phpRate || 0);
+    if (hours === slip.hours && amount === slip.amount && JSON.stringify(daily) === JSON.stringify(slip.days)) continue;
+    await setDoc(doc(db, 'payslips', slipId(slip.periodStart, email)), { ...slip, hours, amount, days: daily, ...stamp() });
+    notes.push(`${slip.name}'s payslip for ${when} was updated: ${slip.hours.toFixed(2)} → ${hours.toFixed(2)} hours, ${formatPhp(amount)}.`);
+  }
+  if (hit.length) loadPayroll().catch(showError);
+  return notes;
+}
+
+// Runs syncPayslips and shows what happened. A failure here never undoes the shift change itself.
+async function syncPayslipsAndTell(email, days, noteId) {
+  try {
+    const notes = await syncPayslips(email, days);
+    if (noteId) $(noteId).textContent = notes.join(' ');
+    else if (notes.length) alert(notes.join('\n\n'));
+  } catch (err) {
+    showError({ message: `The shift was saved, but the payslip could not be updated automatically (${err.message ?? err}). Click "Recount hours" in VA invoices.` });
+  }
 }
 
 // ---------- VAs and approvals ----------
@@ -423,10 +467,11 @@ async function deleteShift(shift) {
     await b.commit();
     tsShifts = tsShifts.filter((s) => s.id !== shift.id);
     renderTimesheet();
-  } catch (err) { showError(err); }
+  } catch (err) { showError(err); return; }
+  await syncPayslipsAndTell(shift.email, [dayKey(shift.clockIn, BUSINESS_TZ)], 'tsNote');
 }
 
-$('tsForm').onsubmit = (e) => { e.preventDefault(); runTimesheet().catch(showError); };
+$('tsForm').onsubmit = (e) => { e.preventDefault(); $('tsNote').textContent = ''; runTimesheet().catch(showError); };
 
 // Downloads cover exactly the filtered, sorted rows on screen (e.g. one VA when filtered by name).
 const exportName = (ext) => {
@@ -495,8 +540,10 @@ $('addShiftForm').onsubmit = async (e) => {
       after: { clockIn: Timestamp.fromDate(clockIn), clockOut: Timestamp.fromDate(clockOut) },
     });
     await b.commit();
-    $('addShiftNote').textContent = `Added ${va.name}: ${fmt(clockIn)} to ${fmt(clockOut)}. If a payslip for that period exists, click "Recount hours" in VA invoices.`;
     $('addShiftIn').value = ''; $('addShiftOut').value = ''; $('addShiftReason').value = '';
+    const notes = await syncPayslips(va.email, [dayKey(clockIn, BUSINESS_TZ)])
+      .catch(() => ['The payslip could not be updated automatically; click "Recount hours" in VA invoices.']);
+    $('addShiftNote').textContent = [`Added ${va.name}: ${fmt(clockIn)} to ${fmt(clockOut)}.`, ...notes].join(' ');
     await runTimesheet();
   } catch (err) {
     if (err?.code === 'permission-denied') {
@@ -551,8 +598,12 @@ $('editForm').onsubmit = async (e) => {
   try {
     await b.commit();
     $('editDialog').close();
-    await runTimesheet();
-  } catch (err) { showError(err); }
+  } catch (err) { showError(err); return; }
+  const shift = editingShift;
+  await Promise.all([
+    runTimesheet().catch(showError),
+    syncPayslipsAndTell(shift.email, [dayKey(shift.clockIn, BUSINESS_TZ), dayKey(clockIn, BUSINESS_TZ)], 'tsNote'),
+  ]);
 };
 
 // ---------- Payroll ----------
