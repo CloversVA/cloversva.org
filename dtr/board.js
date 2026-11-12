@@ -4,7 +4,7 @@ import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { db } from './firebase.js?v=2';
-import { addDays, dayKey, nextOccurrence } from './report.js?v=13';
+import { addDays, dayKey, nextOccurrence } from './report.js?v=14';
 import { $, cell, downloadBlob, el, fmt, fmtDay, show, showError } from './ui.js?v=13';
 
 const UPCOMING_DAYS = 45;
