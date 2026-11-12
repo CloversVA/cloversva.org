@@ -8,7 +8,7 @@ import { leaveLetterHtml } from './docs.js?v=20';
 import { db } from './firebase.js?v=2';
 import {
   BUSINESS_TZ, LEAVE_NOTICE_DAYS, MAX_SHIFT_HOURS, addDays, dayKey, formatHM, leaveNoticeOk,
-} from './report.js?v=13';
+} from './report.js?v=14';
 import { $, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from './ui.js?v=13';
 
 const TYPE_LABEL = { leave: 'Leave (unpaid)', absence: 'Absence (unpaid)' };
@@ -82,7 +82,7 @@ $('leaveForm').onsubmit = async (e) => {
   const today = dayKey(new Date(), BUSINESS_TZ);
   if (endDay < startDay) { $('leaveNote').textContent = 'The last day must be on or after the first day.'; return; }
   if (type === 'leave' && !leaveNoticeOk(startDay, today)) {
-    $('leaveNote').textContent = `Leave must be filed at least ${LEAVE_NOTICE_DAYS} days ahead (first day ${fmtDay(addDays(today, LEAVE_NOTICE_DAYS))} or later). For a sudden day off, file an absence.`;
+    $('leaveNote').textContent = `Leave must be filed before its first day (first day ${fmtDay(addDays(today, LEAVE_NOTICE_DAYS))} or later). For a day off today, file an absence.`;
     return;
   }
   try {

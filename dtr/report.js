@@ -227,8 +227,8 @@ export function addDays(day, n) {
   return dayKey(new Date(y, m - 1, d + n));
 }
 
-// Leave must be filed at least 14 days before its first day.
-export const LEAVE_NOTICE_DAYS = 14;
+// Leave can be filed any time before its first day (first day tomorrow or later).
+export const LEAVE_NOTICE_DAYS = 1;
 export const leaveNoticeOk = (startDay, today) => startDay >= addDays(today, LEAVE_NOTICE_DAYS);
 
 // The next date (today or later) a yearly MM-DD falls on. Feb 29 lands on Mar 1 in other years.

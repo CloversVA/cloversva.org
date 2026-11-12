@@ -10,8 +10,8 @@ import {
   BUSINESS_TZ, calendarToday, dayKey, formatDuration, formatHM, formatPhp, formatUsd, hmFromHours, invoiceLines, matchesName,
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
-} from './report.js?v=13';
-import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=21';
+} from './report.js?v=14';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=22';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
