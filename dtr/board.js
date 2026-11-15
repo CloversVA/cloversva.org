@@ -28,7 +28,7 @@ export function startBoard(signedIn, track, isAdmin) {
   admin = isAdmin;
   addPinnedThreads();
   track(onSnapshot(collection(db, 'announcements'), (snap) => {
-    posts = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })).sort((a, b) => b.at.toMillis() - a.at.toMillis());
+    posts = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })).sort((a, b) => (b.at?.toMillis() ?? 0) - (a.at?.toMillis() ?? 0));
     renderFeed();
   }, showError));
 
@@ -108,10 +108,16 @@ function renderFeed() {
   const cards = posts.map((p) => {
     const remove = admin ? el('button', { className: 'link', textContent: 'Delete' }) : null;
     if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p).catch(showError);
-    return postCard(p.id, { author: p.byName || 'CloversVA', when: fmt(p.at.toDate()), title: p.title, body: p.body, media: p.media ?? vibeMedia(p.title), remove });
+    const node = postCard(p.id, { author: p.byName || 'CloversVA', when: p.at ? fmt(p.at.toDate()) : '', title: p.title, body: p.body, media: p.media ?? vibeMedia(p.title), remove });
+    return { node, time: p.at?.toMillis() ?? 0 };
   });
+  // Hand-written announcements in the page (#pinnedPosts) join the list by their data-date, so everything is newest first.
+  for (const node of document.querySelectorAll('#pinnedPosts > article, #posts > article[data-date]')) {
+    cards.push({ node, time: Date.parse(`${node.dataset.date}T12:00:00`) || 0 });
+  }
+  cards.sort((a, b) => b.time - a.time);
   show('postsEmpty', cards.length === 0);
-  $('posts').replaceChildren(...cards);
+  $('posts').replaceChildren(...cards.map((c) => c.node));
   showGreeting(today);
 }
 
