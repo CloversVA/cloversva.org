@@ -47,17 +47,21 @@ function page(title, body, extraCss = '') {
   h1 { font-family: Poppins, sans-serif; letter-spacing: .3em; color: #81be39; text-align: center; margin: 24px 0; }
   .label { font-family: Poppins, sans-serif; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; color: #33453a; }
   table.grid { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  .grid th { background: #344f1f; color: #fff; font-family: Poppins, sans-serif; padding: 10px 8px; text-align: left; }
-  .grid td { border: 1px solid #d9e0d4; padding: 8px; }
+  .grid th { background: #344f1f; color: #fff; font-family: Poppins, sans-serif; padding: 10px 8px; text-align: center; }
+  .grid td { border: 1px solid #d9e0d4; padding: 8px; text-align: center; }
   .grid tfoot td { background: #344f1f; color: #fff; font-weight: 700; }
-  .num { text-align: right; white-space: nowrap; }
+  .num { text-align: center; white-space: nowrap; }
   .meta td { padding: 2px 16px 2px 0; vertical-align: top; }
   .footer { text-align: center; margin-top: 40px; font-family: Poppins, sans-serif; font-weight: 600; letter-spacing: .06em; }
   .footer .thanks { color: #81be39; }
   .footer .contact { color: #0a5a2e; }
   .sign { margin-top: 48px; }
-  .sign .line { width: 240px; border-bottom: 1px solid #152318; height: 36px; }
-  .sign .sig { display: block; height: 80px; margin: 0 0 -46px 10px; mix-blend-mode: multiply; position: relative; }
+  .sign .line { width: 240px; border-bottom: 1px solid #152318; height: 36px; position: relative; z-index: 1; }
+  .sign .line + div { margin-top: 10px; }
+  /* The signature sits on the line, dipping just below it; the line is drawn on top so it never gets covered,
+     and the name starts below the dip so the two never overlap. */
+  .sign .sig { display: block; height: 70px; max-width: 220px; object-fit: contain; object-position: left bottom;
+    margin: 0 0 -42px 10px; mix-blend-mode: multiply; position: relative; z-index: 0; }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #fde9c8; color: #7a4a00; font-size: 12px; font-weight: 600; }
   tr.leave td { background: #fff8ec; }
   tr.absent td { background: #fdeeee; }
