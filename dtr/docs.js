@@ -75,8 +75,9 @@ function page(title, body, extraCss = '') {
 </body></html>`;
 }
 
-const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
-<div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(COMPANY.email)}</div></div>`;
+const footerFor = (email) => `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
+<div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(email)}</div></div>`;
+const footer = footerFor(COMPANY.email);
 
 // The day-by-day table on payslips. info = { leaves, holidays, startDate } (see payslipDayInfo in requests.js):
 // - approved leave/absence days get their request's tag;
@@ -239,7 +240,8 @@ ${footer}`, `
 }
 
 // The leave request letter an admin sends to the VA's client for approval.
-// Signed as CloversVA Admin rather than by the individual admin who sends it.
+// It comes from Human Resources (not the individual admin who sends it) and has no sender signature block.
+const HR = { name: 'Human Resources', email: 'humanresources@cloverva.org' };
 // request: the leaveRequests doc with requestedAt as a Date and typeLabel; va: {fullName, position, clientName}.
 export function leaveLetterHtml({ request: r, va }) {
   const days = Math.round((Date.parse(r.endDay) - Date.parse(r.startDay)) / 86_400_000) + 1;
@@ -251,7 +253,7 @@ export function leaveLetterHtml({ request: r, va }) {
 <table class="meta">
   <tr><td class="label">Date</td><td>${esc(longDate(new Date()))}</td></tr>
   <tr><td class="label">To</td><td>${esc(va.clientName)}</td></tr>
-  <tr><td class="label">From</td><td>CloversVA Admin, ${esc(COMPANY.legalName)}</td></tr>
+  <tr><td class="label">From</td><td>${esc(HR.name)}, ${esc(COMPANY.legalName)}</td></tr>
   <tr><td class="label">Subject</td><td>Leave request of ${esc(va.fullName)}</td></tr>
 </table>
 <p style="margin-top:24px">Dear ${esc(va.clientName)},</p>
@@ -268,9 +270,7 @@ or reply with your decision.</p>
     <tr><td class="label">Filed on</td><td>${esc(longDate(r.requestedAt))}</td></tr>
   </tbody>
 </table>
-<p>Thank you for your time. Please contact us at ${esc(COMPANY.email)} if you have any questions.</p>
-<div class="sign" style="margin-top:24px"><div>Sincerely,</div><div class="line"></div>
-  <div>CloversVA Admin</div><div>${esc(COMPANY.legalName)}</div></div>
+<p>Thank you for your time. Please contact us at ${esc(HR.email)} if you have any questions.</p>
 <div class="decision">
   <p class="label">Client decision</p>
   <p>${box} Approved &nbsp;&nbsp;&nbsp; ${box} Not approved</p>
@@ -280,7 +280,7 @@ or reply with your decision.</p>
     <div><div class="line short"></div><div>Date</div></div>
   </div>
 </div>
-${footer}`, `
+${footerFor(HR.email)}`, `
   .decision { margin-top: 32px; border: 1px solid #d9e0d4; border-radius: 8px; padding: 12px 16px; }
   .decision .box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #152318; vertical-align: -2px; margin-right: 4px; }
   .decision .fill { display: inline-block; width: 75%; border-bottom: 1px solid #152318; }

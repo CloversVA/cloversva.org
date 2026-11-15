@@ -2,7 +2,7 @@ import {
   Timestamp, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
-import { clientPayrollHtml, coeHtml, invoiceHtml, payslipDays, payslipHtml, timesheetHtml } from './docs.js?v=20';
+import { clientPayrollHtml, coeHtml, invoiceHtml, payslipDays, payslipHtml, timesheetHtml } from './docs.js?v=21';
 import { setFileAudience, startAdminFiles } from './files.js?v=13';
 import { downloadPdfZip, safeFileName } from './pdfzip.js?v=1';
 import { db } from './firebase.js?v=2';
@@ -11,7 +11,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=14';
-import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=22';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=23';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
