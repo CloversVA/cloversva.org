@@ -97,6 +97,9 @@ function celebrations(today) {
   return items.sort((a, b) => b.day.localeCompare(a.day));
 }
 
+// Announcements show as posted by HR, not by the admin who posted them (their name is still saved with the post).
+const POSTED_AS = 'CloversVA Human Resources';
+
 function renderFeed() {
   const today = dayKey(new Date(), PH_TZ);
   // Birthdays and holidays get their own card at the top of the board; announcements stay below.
@@ -108,7 +111,7 @@ function renderFeed() {
   const cards = posts.map((p) => {
     const remove = admin ? el('button', { className: 'link', textContent: 'Delete' }) : null;
     if (remove) remove.onclick = () => confirm(`Delete "${p.title}"?`) && deletePost(p).catch(showError);
-    const node = postCard(p.id, { author: p.byName || 'CloversVA', when: p.at ? fmt(p.at.toDate()) : '', title: p.title, body: p.body, media: p.media ?? vibeMedia(p.title), remove });
+    const node = postCard(p.id, { author: POSTED_AS, when: p.at ? fmt(p.at.toDate()) : '', title: p.title, body: p.body, media: p.media ?? vibeMedia(p.title), remove });
     return { node, time: p.at?.toMillis() ?? 0 };
   });
   // Hand-written announcements in the page (#pinnedPosts) join the list by their data-date, so everything is newest first.
