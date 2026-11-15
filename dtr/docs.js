@@ -47,17 +47,21 @@ function page(title, body, extraCss = '') {
   h1 { font-family: Poppins, sans-serif; letter-spacing: .3em; color: #81be39; text-align: center; margin: 24px 0; }
   .label { font-family: Poppins, sans-serif; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; color: #33453a; }
   table.grid { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  .grid th { background: #344f1f; color: #fff; font-family: Poppins, sans-serif; padding: 10px 8px; text-align: left; }
-  .grid td { border: 1px solid #d9e0d4; padding: 8px; }
+  .grid th { background: #344f1f; color: #fff; font-family: Poppins, sans-serif; padding: 10px 8px; text-align: center; }
+  .grid td { border: 1px solid #d9e0d4; padding: 8px; text-align: center; }
   .grid tfoot td { background: #344f1f; color: #fff; font-weight: 700; }
-  .num { text-align: right; white-space: nowrap; }
+  .num { text-align: center; white-space: nowrap; }
   .meta td { padding: 2px 16px 2px 0; vertical-align: top; }
   .footer { text-align: center; margin-top: 40px; font-family: Poppins, sans-serif; font-weight: 600; letter-spacing: .06em; }
   .footer .thanks { color: #81be39; }
   .footer .contact { color: #0a5a2e; }
   .sign { margin-top: 48px; }
-  .sign .line { width: 240px; border-bottom: 1px solid #152318; height: 36px; }
-  .sign .sig { display: block; height: 80px; margin: 0 0 -46px 10px; mix-blend-mode: multiply; position: relative; }
+  .sign .line { width: 240px; border-bottom: 1px solid #152318; height: 36px; position: relative; z-index: 1; }
+  .sign .line + div { margin-top: 10px; }
+  /* The signature sits on the line, dipping just below it; the line is drawn on top so it never gets covered,
+     and the name starts below the dip so the two never overlap. */
+  .sign .sig { display: block; height: 70px; max-width: 220px; object-fit: contain; object-position: left bottom;
+    margin: 0 0 -42px 10px; mix-blend-mode: multiply; position: relative; z-index: 0; }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #fde9c8; color: #7a4a00; font-size: 12px; font-weight: 600; }
   tr.leave td { background: #fff8ec; }
   tr.absent td { background: #fdeeee; }
@@ -75,8 +79,9 @@ function page(title, body, extraCss = '') {
 </body></html>`;
 }
 
-const footer = `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
-<div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(COMPANY.email)}</div></div>`;
+const footerFor = (email) => `<div class="footer"><div class="thanks">THANK YOU FOR YOUR BUSINESS</div>
+<div class="contact">${esc(COMPANY.shortName)}, ${esc(COMPANY.phone)} - ${esc(email)}</div></div>`;
+const footer = footerFor(COMPANY.email);
 
 // The day-by-day table on payslips. info = { leaves, holidays, startDate } (see payslipDayInfo in requests.js):
 // - approved leave/absence days get their request's tag;
@@ -239,7 +244,8 @@ ${footer}`, `
 }
 
 // The leave request letter an admin sends to the VA's client for approval.
-// Signed as CloversVA Admin rather than by the individual admin who sends it.
+// It comes from Human Resources (not the individual admin who sends it) and has no sender signature block.
+const HR = { name: 'Human Resources', email: 'humanresources@cloverva.org' };
 // request: the leaveRequests doc with requestedAt as a Date and typeLabel; va: {fullName, position, clientName}.
 export function leaveLetterHtml({ request: r, va }) {
   const days = Math.round((Date.parse(r.endDay) - Date.parse(r.startDay)) / 86_400_000) + 1;
@@ -251,7 +257,7 @@ export function leaveLetterHtml({ request: r, va }) {
 <table class="meta">
   <tr><td class="label">Date</td><td>${esc(longDate(new Date()))}</td></tr>
   <tr><td class="label">To</td><td>${esc(va.clientName)}</td></tr>
-  <tr><td class="label">From</td><td>CloversVA Admin, ${esc(COMPANY.legalName)}</td></tr>
+  <tr><td class="label">From</td><td>${esc(HR.name)}, ${esc(COMPANY.legalName)}</td></tr>
   <tr><td class="label">Subject</td><td>Leave request of ${esc(va.fullName)}</td></tr>
 </table>
 <p style="margin-top:24px">Dear ${esc(va.clientName)},</p>
@@ -268,9 +274,7 @@ or reply with your decision.</p>
     <tr><td class="label">Filed on</td><td>${esc(longDate(r.requestedAt))}</td></tr>
   </tbody>
 </table>
-<p>Thank you for your time. Please contact us at ${esc(COMPANY.email)} if you have any questions.</p>
-<div class="sign" style="margin-top:24px"><div>Sincerely,</div><div class="line"></div>
-  <div>CloversVA Admin</div><div>${esc(COMPANY.legalName)}</div></div>
+<p>Thank you for your time. Please contact us at ${esc(HR.email)} if you have any questions.</p>
 <div class="decision">
   <p class="label">Client decision</p>
   <p>${box} Approved &nbsp;&nbsp;&nbsp; ${box} Not approved</p>
@@ -280,7 +284,7 @@ or reply with your decision.</p>
     <div><div class="line short"></div><div>Date</div></div>
   </div>
 </div>
-${footer}`, `
+${footerFor(HR.email)}`, `
   .decision { margin-top: 32px; border: 1px solid #d9e0d4; border-radius: 8px; padding: 12px 16px; }
   .decision .box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #152318; vertical-align: -2px; margin-right: 4px; }
   .decision .fill { display: inline-block; width: 75%; border-bottom: 1px solid #152318; }

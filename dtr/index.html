@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=31">
-  <script type="module" src="app.js?v=54"></script>
+  <script type="module" src="app.js?v=57"></script>
 </head>
 <body>
   <header class="topbar">
@@ -177,22 +177,6 @@
             <h2>Birthdays and holidays</h2>
             <div id="celebrations"></div>
           </div>
-          <!-- Pinned cards with data-notice show a "new announcement" alert at sign-in for NEW_DAYS days (see board.js). -->
-          <div class="card" data-notice="welcome-margarita" data-date="2026-11-02" data-title="Welcome to the team, Ms. Margarita Khassandra!">
-            <h2>Welcome to the team, Ms. Margarita Khassandra!</h2>
-            <img class="board-poster" src="../images/welcome-margarita.jpg" alt="Welcome to our team! Ms. Margarita Khassandra, Team Trust. So glad you're here!" loading="lazy">
-            <p>Good evening, team!</p>
-            <p>Please join me in welcoming <strong>Ms. Margarita Khassandra</strong> to Clovers Virtual Assistance Services! 🍀💚</p>
-            <p>As part of <strong>Team Trust</strong>, we look forward to your contributions, collaboration, and commitment to our shared goals.</p>
-            <p>Welcome aboard, Ms. Margarita! Here's to growing and achieving success together!</p>
-          </div>
-          <div class="card">
-            <h2>Daylight saving time reminder</h2>
-            <video class="board-video" controls playsinline preload="metadata" poster="../images/dst-reminder.jpg">
-              <source src="../images/dst-reminder.mp4" type="video/mp4">
-            </video>
-            <p class="muted">US daylight saving time ends on Sunday, November 1, 2026: US clocks go back one hour, so your shift may start an hour later on the Philippine clock. Check your schedule with your client.</p>
-          </div>
           <div class="card">
             <h2>Coming up (next 45 days)</h2>
             <ul id="upcoming" class="plain-list"></ul>
@@ -202,6 +186,25 @@
             <h2>Announcements</h2>
             <p id="commentsOff" class="error" hidden>Emoji reactions and comment boxes are turned on for every announcement, but they are hidden because the Firestore database rules do not allow the "comments" collection yet. Only admins see this note. Once the rule is added, reload this page.</p>
             <div id="posts"></div>
+            <div id="pinnedPosts" hidden>
+              <!-- Hand-written announcements. data-date (YYYY-MM-DD) places each one in the Announcements list by date, newest first (see board.js).
+                   Cards that also have data-notice show a "new announcement" alert at sign-in for NEW_DAYS days. -->
+              <article class="post" data-notice="welcome-margarita" data-date="2026-11-02" data-title="Welcome to the team, Ms. Margarita Khassandra!">
+                <h3>Welcome to the team, Ms. Margarita Khassandra!</h3>
+                <img class="board-poster" src="../images/welcome-margarita.jpg" alt="Welcome to our team! Ms. Margarita Khassandra, Team Trust. So glad you're here!" loading="lazy">
+                <p>Good evening, team!</p>
+                <p>Please join me in welcoming <strong>Ms. Margarita Khassandra</strong> to Clovers Virtual Assistance Services! 🍀💚</p>
+                <p>As part of <strong>Team Trust</strong>, we look forward to your contributions, collaboration, and commitment to our shared goals.</p>
+                <p>Welcome aboard, Ms. Margarita! Here's to growing and achieving success together!</p>
+              </article>
+              <article class="post" data-date="2026-10-27" data-title="Daylight saving time reminder">
+                <h3>Daylight saving time reminder</h3>
+                <video class="board-video" controls playsinline preload="metadata" poster="../images/dst-reminder.jpg">
+                  <source src="../images/dst-reminder.mp4" type="video/mp4">
+                </video>
+                <p class="muted">US daylight saving time ends on Sunday, November 1, 2026: US clocks go back one hour, so your shift may start an hour later on the Philippine clock. Check your schedule with your client.</p>
+              </article>
+            </div>
             <p id="postsEmpty" class="muted" hidden>No announcements yet.</p>
           </div>
           <div class="card" data-admin hidden>
