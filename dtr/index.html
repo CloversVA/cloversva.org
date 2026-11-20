@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="/images/favicon/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=31">
-  <script type="module" src="app.js?v=57"></script>
+  <link rel="stylesheet" href="style.css?v=32">
+  <script type="module" src="app.js?v=58"></script>
 </head>
 <body>
   <header class="topbar">
@@ -530,6 +530,7 @@
       <label>Hourly rate, USD <input id="vaUsd" type="number" min="0" max="1000" step="0.001"></label>
       <label>Start date <input id="vaStart" type="date"></label>
       <label>Role <select id="vaRole"><option value="va">VA</option><option value="admin">Admin</option></select></label>
+      <label class="check"><span><input type="checkbox" id="vaAuthApp"> Can use the Auth app (patient files, cloversva.org/reauth)</span></label>
       <h3>Personal information (entered by the VA)</h3>
       <label id="vaFullNameLabel" hidden>Full name (only admins can change it) <input id="vaFullName" maxlength="100"></label>
       <dl class="details" id="vaProfile"></dl>

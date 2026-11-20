@@ -23,7 +23,8 @@ const DEFAULT_PAY_ANCHOR = '2026-10-11'; // a Sunday; admins can change it under
 // phpRate: the VA's peso pay per hour, used on payslips.
 // What the client is billed is set separately in Client invoices > VA rates and kept in settings/clientRates, so changing
 // it there never changes Employee demographics. A VA with no client rate saved there yet uses their usdRate.
-const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'usdRate', 'startDate'];
+// authApp: true lets a VA use the Auth Checker at /reauth/ (admins always can).
+const VA_FIELDS = ['name', 'role', 'active', 'clientName', 'position', 'phpRate', 'usdRate', 'startDate', 'authApp'];
 const CLIENT_RATES_DOC = () => doc(db, 'settings', 'clientRates');
 let clientRates = {}; // email -> USD/hr billed to the client
 const clientRateOf = (email) => {
@@ -198,6 +199,7 @@ function openVaEditor(va) {
   $('vaUsd').value = va.usdRate ?? '';
   $('vaStart').value = va.startDate ?? '';
   $('vaRole').value = va.role;
+  $('vaAuthApp').checked = va.authApp === true;
   $('vaProfile').replaceChildren(el('dd', { className: 'muted', textContent: 'Loading...' }));
   editingProfile = null;
   show('vaFullNameLabel', false);
@@ -259,6 +261,7 @@ $('vaForm').onsubmit = async (e) => {
     phpRate: round2(Number($('vaPhp').value) || 0),
     usdRate: round3(Number($('vaUsd').value) || 0),
     startDate: $('vaStart').value,
+    authApp: $('vaAuthApp').checked,
   };
   try {
     await setDoc(doc(db, 'allowed', editingVa.email), record);

@@ -1,0 +1,14 @@
+{
+  "name": "cloversva-reauth-server",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "zip": "rm -f function.zip && npm install --omit=dev && zip -qr function.zip index.js prompt.js package.json node_modules"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.11.0"
+  }
+}

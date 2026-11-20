@@ -38,6 +38,22 @@ SDK from gstatic (Firebase Auth + Firestore, project `va-time-tracker-fabd7`).
   Any change to who can read or write what needs a matching rules change, so
   call that out.
 
+## Auth Checker (`reauth/`)
+
+Trust Home Care's Axxess Auth Checker, served at `cloversva.org/reauth/`. Handles
+patient files (PHI), so keep patient data out of Firebase and GitHub.
+
+- `reauth/index.html` is **built**: edit `_reauth-src/index.template.html`, then run
+  `python3 _reauth-src/build.py` (it embeds the Word template). `reauth/config.js` holds
+  the server URL.
+- Sign-in reuses the Time Tracker's Firebase project. Access: `allowed/{email}` with
+  `active: true` and either `role: 'admin'` or `authApp: true` (the "Can use the Auth app"
+  box in the Time Tracker's VA editor).
+- `_reauth-server/` is the AWS Lambda (under the AWS BAA) that verifies the Firebase ID
+  token, re-checks `allowed/{email}`, and calls Claude with the Anthropic key. Setup steps
+  are in its README. Folders starting with `_` are not published by GitHub Pages.
+- The pending list and the HIPAA agreement record stay in each browser (localStorage).
+
 ## Working conventions
 
 - Changes are usually uploaded straight to `main` through GitHub; GitHub Pages

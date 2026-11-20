@@ -129,6 +129,7 @@ button.danger { color: var(--danger); border-color: var(--danger); background: t
 .error { color: var(--danger); font-weight: 600; }
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); width: min(480px, calc(100vw - 32px)); }
 dialog label { display: flex; margin-bottom: 12px; }
+label.check span { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: .95rem; }
 
 /* Announcement board, greeting banner, leave form */
 .banner { display: flex; gap: 12px; align-items: center; background: var(--leaf-soft); border: 1px solid var(--leaf); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }
