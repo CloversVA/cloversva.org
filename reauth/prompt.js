@@ -1,6 +1,5 @@
-// Builds the instruction for Claude on the server, so users cannot change the rules.
+// Builds the instructions for Claude. Used by reauth/index.html.
 // Pure functions only: tested without Firebase or network.
-'use strict';
 
 const MAX_DOC_CHARS = 40000;
 const MAX_DOCS = 12;
@@ -116,4 +115,4 @@ Rules:
 ${docs}`;
 }
 
-module.exports = { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply, cleanDocuments };
+export { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply, cleanDocuments };

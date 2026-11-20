@@ -1,0 +1,14 @@
+{
+  "name": "reauth-claude-sdk-bundle",
+  "private": true,
+  "description": "Bundles the Claude SDK into reauth/anthropic-sdk.js so the page does not depend on a CDN. Run: npm run build",
+  "scripts": {
+    "build": "esbuild entry.js --bundle --format=esm --minify --platform=browser --outfile=../../reauth/anthropic-sdk.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.11.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}

@@ -44,15 +44,18 @@ Trust Home Care's Axxess Auth Checker, served at `cloversva.org/reauth/`. Handle
 patient files (PHI), so keep patient data out of Firebase and GitHub.
 
 - `reauth/index.html` is **built**: edit `_reauth-src/index.template.html`, then run
-  `python3 _reauth-src/build.py` (it embeds the Word template). `reauth/config.js` holds
-  the server URL.
+  `python3 _reauth-src/build.py` (it embeds the Word template). `reauth/prompt.js` holds
+  Claude's instructions; `reauth/anthropic-sdk.js` is the Claude SDK bundled by
+  `_reauth-src/sdk/` (no CDN).
+- No server: the browser calls Claude directly (Anthropic BAA). The API key is in Firestore
+  `reauthKey/current`, saved from the page's "Admin: Claude API key" box. A Firestore rule
+  (in `_reauth-src/SETUP.md`, managed in the Firebase console) lets admins and Auth-app VAs
+  read it and only admins write it.
 - Sign-in reuses the Time Tracker's Firebase project. Access: `allowed/{email}` with
   `active: true` and either `role: 'admin'` or `authApp: true` (the "Can use the Auth app"
   box in the Time Tracker's VA editor).
-- `_reauth-server/` is the AWS Lambda (under the AWS BAA) that verifies the Firebase ID
-  token, re-checks `allowed/{email}`, and calls Claude with the Anthropic key. Setup steps
-  are in its README. Folders starting with `_` are not published by GitHub Pages.
 - The pending list and the HIPAA agreement record stay in each browser (localStorage).
+- Folders starting with `_` are not published by GitHub Pages.
 
 ## Working conventions
 

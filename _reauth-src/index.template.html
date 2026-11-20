@@ -535,7 +535,19 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
     <div class="gate hidden" id="accessBox">
       <p id="accessMsg"></p>
     </div>
-    <p class="small muted">Files are read in your browser. When you click "Fill the form", their text is sent through the agency's secure server to Claude (Anthropic) to fill the fields. Nothing is stored.</p>
+    <p class="gate hidden" id="keyNote" role="status"></p>
+    <details class="panel hidden" id="keyAdmin">
+      <summary><strong>Admin: Claude API key</strong></summary>
+      <p class="small" id="keyStatus"></p>
+      <p class="small muted">Use a key from the Anthropic workspace covered by your BAA, with a monthly spend limit. Admins and VAs with the Auth app switched on can use it. To replace it, paste the new key and save, then delete the old key in the Claude Console.</p>
+      <label class="field" for="keyInput">New API key (leave empty to keep the saved key)
+        <input type="password" id="keyInput" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"></label>
+      <label class="field" for="modelInput">Model
+        <input type="text" id="modelInput" spellcheck="false" value="claude-sonnet-5-5"></label>
+      <div class="row"><button class="primary" id="keySave">Save</button></div>
+      <p class="small" id="keyMsg" role="status"></p>
+    </details>
+    <p class="small muted">Files are read in your browser. When you click "Fill the form", their text is sent directly to Claude (Anthropic) to fill the fields. Nothing is stored on this website.</p>
   </div>
 
   <section class="panel" aria-labelledby="s1">
@@ -1499,42 +1511,85 @@ $('copyBtn').addEventListener('click', async () => {
 initSources();
 initPending();
 </script>
-<script src="config.js"></script>
 <script type="module">
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
-import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
+import { getFirestore, doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { firebaseConfig } from '../dtr/firebase-config.js?v=2';
+import Anthropic from './anthropic-sdk.js?v=1';
+import { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply } from './prompt.js?v=1';
 
 // Sign-in is shared with the CloversVA Time Tracker (same site, same Firebase project).
 // Firebase only checks who is signed in. Patient data never goes to Firebase.
-const CFG = window.REAUTH_CONFIG || {};
 const fbApp = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const fbDb = getFirestore(fbApp);
 
-// Sends the files' text to the agency's own server (AWS, under a BAA), which checks access and asks Claude.
+// Claude is called straight from this browser, under the agency's BAA with Anthropic.
+// The API key is kept in Firestore (reauthKey/current). The Firestore rules let only admins
+// and VAs with the Auth app switched on read it, and only admins change it.
+const DEFAULT_MODEL = 'claude-sonnet-5-5';
+let claude = null, claudeModel = DEFAULT_MODEL, keyInfo = null, keyState = 'off'; // off | loading | ready | none | denied
+let keyUnsub = null;
+function watchKey(on) {
+  if (!on) { if (keyUnsub) { keyUnsub(); keyUnsub = null; } claude = null; keyInfo = null; keyState = 'off'; renderKeyUI(); return; }
+  if (keyUnsub) return;
+  keyState = 'loading'; renderKeyUI();
+  keyUnsub = onSnapshot(doc(fbDb, 'reauthKey', 'current'), snap => {
+    keyInfo = snap.exists() ? snap.data() : null;
+    const k = keyInfo && String(keyInfo.apiKey || '').trim();
+    claude = k ? new Anthropic({ apiKey: k, dangerouslyAllowBrowser: true, timeout: 300000 }) : null;
+    claudeModel = (keyInfo && String(keyInfo.model || '').trim()) || DEFAULT_MODEL;
+    keyState = claude ? 'ready' : 'none'; renderKeyUI();
+  }, () => { claude = null; keyInfo = null; keyState = 'denied'; renderKeyUI(); });
+}
+function renderKeyUI() {
+  const note = $('keyNote');
+  if (note) {
+    const msg = !approved ? '' : keyState === 'none' ? 'An admin needs to add the Claude API key before "Fill the form" works.'
+      : keyState === 'denied' ? 'The Claude API key could not be loaded. An admin should check the Firestore rules (see the setup guide).' : '';
+    note.textContent = msg; note.classList.toggle('hidden', !msg);
+  }
+  const box = $('keyAdmin');
+  if (!box) return;
+  box.classList.toggle('hidden', !isAdmin);
+  if (!isAdmin) return;
+  const when = keyInfo && keyInfo.updatedAt ? etStamp(keyInfo.updatedAt) : '';
+  $('keyStatus').textContent = keyState === 'ready'
+    ? `A key ending in …${String(keyInfo.apiKey).trim().slice(-4)} is saved${keyInfo.updatedBy ? ` by ${keyInfo.updatedBy}` : ''}${when ? ` on ${when}` : ''}. Model: ${claudeModel}.`
+    : keyState === 'denied' ? 'The key could not be read. Check the Firestore rules for reauthKey (setup guide, step 3).'
+    : keyState === 'loading' ? 'Checking for a saved key…' : 'No key saved yet.';
+  if (document.activeElement !== $('modelInput')) $('modelInput').value = claudeModel;
+}
+
 async function fillFormFn(payload) {
-  const u = fbAuth.currentUser;
-  if (!u) throw { code: 'unauthenticated' };
-  if (!CFG.serverUrl) throw { code: 'unavailable', message: 'The server address is not set yet (reauth/config.js).' };
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 300000);
-  let res;
+  if (!fbAuth.currentUser) throw { code: 'unauthenticated' };
+  if (!approved) throw { code: 'permission-denied' };
+  if (!claude) throw { code: keyState === 'denied' ? 'key-denied' : 'no-key' };
+  const { documents, extra, today, mode, discipline } = payload || {};
+  const prompt = mode === 'approval'
+    ? buildApprovalPrompt({ documents, today: String(today || '').slice(0, 10) })
+    : mode === 'va'
+    ? buildVaPrompt({ documents, discipline, extra, today: String(today || '').slice(0, 10) })
+    : buildPrompt({ documents, extra, today, mode: mode === 'newadmit' ? 'newadmit' : 'reauth' });
+  if (!/=== /.test(prompt)) throw { code: 'invalid-argument' };
+  let msg;
   try {
-    res = await fetch(CFG.serverUrl, {
-      method: 'POST', signal: ctrl.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await u.getIdToken() },
-      body: JSON.stringify(payload),
-    });
+    msg = await claude.messages.create({ model: claudeModel, max_tokens: 16000, messages: [{ role: 'user', content: prompt }] });
   } catch (e) {
-    throw { code: e && e.name === 'AbortError' ? 'deadline-exceeded' : 'unavailable' };
-  } finally { clearTimeout(timer); }
-  let body = null;
-  try { body = await res.json(); } catch (e) { /* not JSON */ }
-  if (!res.ok) { const err = (body && body.error) || {}; throw { code: err.code || 'unavailable', message: err.message }; }
-  return { data: body };
+    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw { code: 'bad-key' };
+    if (e instanceof Anthropic.RateLimitError) throw { code: 'resource-exhausted' };
+    if (e instanceof Anthropic.APIConnectionTimeoutError) throw { code: 'deadline-exceeded' };
+    if (e instanceof Anthropic.NotFoundError) throw { code: 'bad-model' };
+    if (e instanceof Anthropic.BadRequestError) throw { code: 'bad-request' };
+    throw { code: 'unavailable' };
+  }
+  if (msg.stop_reason === 'refusal') throw { code: 'refused' };
+  const text = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  const data = parseJsonReply(text);
+  if (!data) throw { code: 'invalid_json' };
+  return { data };
 }
 
 /*FILL-START*/
@@ -1909,6 +1964,12 @@ const ERR = {
   'invalid-argument': 'No readable files were sent. Check the uploads.',
   internal: 'Claude\'s answer could not be read. Click "Fill the form" to try again.',
   'resource-exhausted': 'Too many requests right now. Wait a minute, then try again.',
+  'no-key': 'An admin has not added the Claude API key yet (step 4, "Admin: Claude API key").',
+  'key-denied': 'The Claude API key could not be loaded. An admin should check the Firestore rules.',
+  'bad-key': 'The Claude API key was refused. An admin should replace it in step 4.',
+  'bad-model': 'The Claude model name is not recognized. An admin should check it in step 4.',
+  'bad-request': 'Claude could not take this request. If it keeps happening, an admin should check the spend limit in the Claude Console.',
+  refused: 'Claude declined to read these files. Check the uploads and try again.',
 };
 
 // New admit: initial request from the intake form; no auth number, no reauth/extension rules.
@@ -2564,7 +2625,7 @@ onAuthStateChanged(fbAuth, u => {
   isAdmin = false; approved = false; onList = false;
   setUserUI(signedIn ? u : null);
   if (signedIn) { window.ckUserReady = true; document.dispatchEvent(new Event('ck-user')); }
-  if (!signedIn) { updateAccessUI(); return; }
+  if (!signedIn) { updateAccessUI(); watchKey(false); return; }
   updateAccessUI('loading');
   const timer = setTimeout(() => { if (!approved) updateAccessUI('unavailable'); }, 10000);
   unsubs.push(onSnapshot(doc(fbDb, 'allowed', String(u.email || '').toLowerCase()), snap => {
@@ -2574,8 +2635,8 @@ onAuthStateChanged(fbAuth, u => {
     isAdmin = onList && v.role === 'admin';
     approved = isAdmin || (onList && v.authApp === true);
     if (v && v.name && !signedInName) signedInName = v.name;
-    setUserUI(u); updateAccessUI();
-  }, () => { clearTimeout(timer); onList = false; approved = false; updateAccessUI('unavailable'); }));
+    setUserUI(u); updateAccessUI(); watchKey(approved);
+  }, () => { clearTimeout(timer); onList = false; approved = false; isAdmin = false; updateAccessUI('unavailable'); watchKey(false); }));
 });
 
 $('signInBtn').addEventListener('click', async () => {
@@ -2587,6 +2648,18 @@ $('signOutBtn').addEventListener('click', () => signOut(fbAuth));
 
 function fmtWhen(iso) { return etStamp(iso); }
 
+$('keySave').addEventListener('click', async () => {
+  const k = $('keyInput').value.trim(), m = $('modelInput').value.trim() || DEFAULT_MODEL;
+  const keep = keyInfo && keyInfo.apiKey;
+  if (!k && !keep) { $('keyMsg').textContent = 'Paste the API key first.'; return; }
+  if (k && !/^sk-ant-/.test(k)) { $('keyMsg').textContent = 'That does not look like a Claude API key (it starts with sk-ant-).'; return; }
+  $('keySave').disabled = true; $('keyMsg').textContent = '';
+  try {
+    await setDoc(doc(fbDb, 'reauthKey', 'current'), { apiKey: k || keep, model: m, updatedAt: new Date().toISOString(), updatedBy: (fbAuth.currentUser && fbAuth.currentUser.email) || '' });
+    $('keyInput').value = ''; $('keyMsg').textContent = 'Saved. It works for everyone with access right away.';
+  } catch (e) { $('keyMsg').textContent = 'Could not save. Only admins can change the key, and the Firestore rules must allow it (setup guide, step 3).'; }
+  finally { $('keySave').disabled = false; }
+});
 $('typedName').addEventListener('input', renderFiles);
 document.querySelectorAll('input[name="reqMode"]').forEach(r => r.addEventListener('change', () => {
   uploaded.forEach(f => { if (f.kind !== 'error' && f.kind !== 'loading' && !f.fromChecker) [f.kind, f.label] = classify(f.name, f.text); });
