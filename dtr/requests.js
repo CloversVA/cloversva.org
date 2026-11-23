@@ -13,15 +13,17 @@ import { $, cell, el, fmt, fmtDay, numCell, openDocument, show, showError } from
 
 const TYPE_LABEL = { leave: 'Leave (unpaid)', absence: 'Absence (unpaid)' };
 // Approved leave and absence days for one person inside a pay period, for tagging payslips.
-// Weekends inside a request are skipped. Returns [{ day: 'YYYY-MM-DD', label: 'Leave (unpaid)' }], oldest first.
+// Weekends inside a request are skipped, unless the request itself starts or ends on a Saturday or Sunday
+// (the VA works weekends, so those days count). Returns [{ day: 'YYYY-MM-DD', label: 'Leave (unpaid)' }], oldest first.
+const isWeekend = (day) => [0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay());
 export async function leaveDaysFor(email, periodStart, periodEnd) {
   const snap = await getDocs(query(collection(db, 'leaveRequests'), where('email', '==', email)));
   const days = new Map();
   for (const r of snap.docs.map((d) => d.data())) {
     if (r.status !== 'approved' || r.endDay < periodStart || r.startDay > periodEnd) continue;
+    const keepWeekends = isWeekend(r.startDay) || isWeekend(r.endDay);
     for (let day = r.startDay > periodStart ? r.startDay : periodStart; day <= r.endDay && day <= periodEnd; day = addDays(day, 1)) {
-      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
-      if (weekday !== 0 && weekday !== 6) days.set(day, TYPE_LABEL[r.type] ?? 'Leave');
+      if (keepWeekends || !isWeekend(day)) days.set(day, TYPE_LABEL[r.type] ?? 'Leave');
     }
   }
   return [...days].sort(([a], [b]) => a.localeCompare(b)).map(([day, label]) => ({ day, label }));

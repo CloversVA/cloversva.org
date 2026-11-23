@@ -11,7 +11,7 @@ import {
   paidMs, payFor, payPeriods, periodRange, periodsOverlap, round2, round3, rowsToCsv, shiftRows, sortShifts, summarize, totalsRows,
   zonedToDate,
 } from './report.js?v=14';
-import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=24';
+import { payslipDayInfo, refreshLeave, startAdminRequests } from './requests.js?v=25';
 import {
   $, asDate, cell, downloadText, el, fmt, fmtDay, fmtWeekday, fromDateTimeInput, loadXlsx, numCell, openDocument, show, showError,
   toDateInput, toDateTimeInput,
