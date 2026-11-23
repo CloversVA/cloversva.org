@@ -68,6 +68,8 @@ function page(title, body, extraCss = '') {
   tr.absent .tag { background: #f8d4d4; color: #8a1c1c; }
   tr.before td { background: #f3f4f2; color: #5b6660; }
   tr.before .tag { background: #e2e5e0; color: #3d4741; }
+  tr.short td { background: #fdf3ee; }
+  tr.short .tag { background: #fbdcc8; color: #8a3a0c; }
   .toolbar { text-align: center; padding: 12px; background: #eef6e2; }
   .toolbar button { font: 600 14px Poppins, sans-serif; padding: 8px 18px; border-radius: 8px; border: 0; background: #0a5a2e; color: #fff; cursor: pointer; }
   @media print { .toolbar { display: none; } }
@@ -89,6 +91,8 @@ const footer = footerFor(COMPANY.email);
 // Weekdays before the VA's start date are tagged "Before start date"; days after yesterday (Eastern Time) are not marked. Payslips with typed-in hours
 // (no daily breakdown) only show leave days, since there is nothing to compare against.
 // payslipDays returns the tagged day list (also used by the Details list in VA invoices); dailyTable prints it.
+const FULL_DAY_HOURS = 8;
+
 export function payslipDays(slip, { leaves = [], holidays = [], startDate = '' } = {}) {
   const rows = new Map((slip.days ?? []).map((x) => [x.day, { hours: x.hours, tag: '' }]));
   for (const l of leaves) rows.set(l.day, { hours: rows.get(l.day)?.hours ?? 0, tag: l.label, kind: 'leave' });
@@ -105,12 +109,20 @@ export function payslipDays(slip, { leaves = [], holidays = [], startDate = '' }
       else { rows.set(day, { hours: 0, tag: 'No clock-in', kind: 'absent' }); absent += 1; }
     }
   }
+  // Weekdays with some clocked time but less than a full 8-hour day (and no leave tag) are marked as a late log-in deduction.
+  let short = 0;
+  for (const [day, r] of rows) {
+    const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+    if (r.tag || !r.hours || r.hours >= FULL_DAY_HOURS || weekday === 0 || weekday === 6) continue;
+    rows.set(day, { ...r, tag: 'Deduction due to late log in', kind: 'short' });
+    short += 1;
+  }
   const list = [...rows].sort(([x], [y]) => x.localeCompare(y)).map(([day, r]) => ({ day, ...r }));
-  return { list, absent, holidayCount, leaveCount: leaves.length };
+  return { list, absent, short, holidayCount, leaveCount: leaves.length };
 }
 
 function dailyTable(slip, info = {}) {
-  const { list, absent, holidayCount, leaveCount } = payslipDays(slip, info);
+  const { list, absent, short, holidayCount, leaveCount } = payslipDays(slip, info);
   const startDate = info.startDate ?? '';
   if (!list.length) return '';
   const notes = [
@@ -125,7 +137,8 @@ function dailyTable(slip, info = {}) {
     <td class="num">${r.hours ? esc(hmFromHours(r.hours)) : '-'}</td><td>${r.tag ? `<span class="tag">${esc(r.tag)}</span>` : ''}</td></tr>`).join('')}</tbody>
 </table>
 ${startsLate(slip, startDate) ? `<p>Start date: <b>${esc(longDate(fromDay(startDate)))}</b>. Weekdays before it are marked "Before start date", not "No clock-in".</p>` : ''}
-${notes.length ? `<p>${notes.join(' &middot; ')}. These days have no clocked hours, so they are not counted in the hours or amount above.</p>` : ''}`;
+${notes.length ? `<p>${notes.join(' &middot; ')}. These days have no clocked hours, so they are not counted in the hours or amount above.</p>` : ''}
+${short ? `<p>Days with less than ${FULL_DAY_HOURS} hours logged: <b>${short}</b>. These are marked "Deduction due to late log in"; only the hours actually logged are paid.</p>` : ''}`;
 }
 
 // True when the VA started (was hired) after the first day of this pay period.
