@@ -699,7 +699,7 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
           <tbody id="svcRows"></tbody>
         </table>
       </div>
-      <p class="small muted">Rule: more than 2 visits left = extension for the same authorized units; 2 or fewer = reauth for 12 visits. Extension dates: current auth start date to auth end + 30 days. Reauth dates: day after the auth ends to auth end + 30 days. Exhausted (no visits left): day after the last scheduled visit to 30 days later; the auth end date is not used. Leave units blank for a discipline you are not requesting. Codes: SN G0299, PT G0159, OT G0160, SLP G0161.</p>
+      <p class="small muted">Rule: more than 2 visits left = extension for the same authorized units; 2 or fewer = reauth for the visits still missing vs. the ordered frequency (from the calendar), or 12 when that can't be counted. Extension dates: current auth start date to auth end + 30 days. Reauth dates: day after the auth ends to auth end + 30 days. Exhausted (no visits left): day after the last scheduled visit to 30 days later; the auth end date is not used. Leave units blank for a discipline you are not requesting. Codes: SN G0299, PT G0159, OT G0160, SLP G0161.</p>
     </fieldset>
 
     <fieldset><legend>Clinical comments</legend>
@@ -1655,7 +1655,7 @@ function fillDocumentXml(xml, values) {
 }
 // Extension / reauth rules (set by the agency):
 // - more than 2 visits left on the active auth -> extension: units = the authorized units
-// - 2 or fewer left -> reauth: 12 visits
+// - 2 or fewer left -> reauth: the visits still missing vs. the ordered frequency (12 when not counted)
 // - extension dates: the current auth start date through auth end + 30 days
 // - reauth dates: day after the auth ends through auth end + 30 days
 // - exhausted (0 left): day after the last scheduled visit through that date + 30 days (auth end date not used)
@@ -1779,7 +1779,7 @@ function applyPlan(d, plan) {
       st: plan.some(p => p.discipline === 'SLP'), msw: plan.some(p => p.discipline === 'MSW') });
   if (plan[0].authNumber) d.authNumber = plan[0].authNumber;
   d.clinicalComments = planComment(plan);
-  const lines = plan.map(p => `${p.discipline === 'SLP' ? 'ST' : p.discipline}: ${p.left} of ${p.authUnits} visits left, so ${p.type === 'extension' ? `extension for ${p.units} visits` : 'reauth for 12 visits'}, ${p.start} to ${p.end} (${p.type === 'extension' ? `current auth ${p.authStart} to ${p.authEnd} + 30 days` : (p.startWhy ? `exhausted: ${p.startWhy}` : `auth ends ${p.authEnd} + 30 days`)}).`);
+  const lines = plan.map(p => `${p.discipline === 'SLP' ? 'ST' : p.discipline}: ${p.left} of ${p.authUnits} visits left, so ${p.type === 'extension' ? `extension for ${p.units} visits` : `reauth for ${p.units} visits${p.unitsWhy ? ` (${p.unitsWhy})` : ''}`}, ${p.start} to ${p.end} (${p.type === 'extension' ? `current auth ${p.authStart} to ${p.authEnd} + 30 days` : (p.startWhy ? `exhausted: ${p.startWhy}` : `auth ends ${p.authEnd} + 30 days`)}).`);
   d.reviewNotes = [...lines, ...(d.reviewNotes || [])];
   return d;
 }
@@ -2160,8 +2160,16 @@ function processReauth(data, files) {
   });
   const cg = String(data.caregiver || '').trim();
   if (cg && !/^(none|n\/a|no caregiver)/i.test(cg)) data.caregiverCompetency = 'Yes';
+  // Reauth units = the visits still missing vs. the ordered frequency (when the calendar was read); extensions keep the authorized units.
+  const fc = freqCheck(data);
+  plan.forEach(x => {
+    if (x.type !== 'reauth') return;
+    const r = fc.find(f => !f.error && f.disc === x.discipline);
+    if (r && r.short > 0) { x.units = String(r.short); x.unitsWhy = `visits still missing vs. frequency ${r.frequency}`; }
+    else if (r) x.unitsWhy = 'no visits missing vs. the frequency, so the default 12';
+  });
   const filled = applyPlan(data, plan);
-  filled.freqCheck = freqCheck(data);
+  filled.freqCheck = fc;
   const freqNotes = filled.freqCheck.filter(r => r.error || r.short).map(freqLine);
   if (!filled.freqCheck.length) freqNotes.push('Visits vs. frequency was not checked: no calendar with an ordered frequency was found in the files.');
   filled.reviewNotes = [...needNotes, ...exhaustNotes, ...freqNotes, ...(filled.reviewNotes || [])];
