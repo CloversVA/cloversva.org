@@ -147,7 +147,14 @@ table.svc input { min-width: 80px; }
 .freq h3, .freq h4 { margin: 0; }
 .freq .sum { font-weight: 600; }
 #freqBody { display: grid; gap: 14px; }
-#freqBody > div { overflow-x: auto; }
+#freqBody > div, #calcOut { overflow-x: auto; }
+.calc[open] { display: grid; gap: 10px; }
+#calcOut .sum { font-weight: 600; margin: 4px 0; }
+#calcOut .sum.bad { color: var(--warn); }
+#calcOut h4 { margin: 0; }
+#calcOut table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#calcOut th, #calcOut td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+#calcOut tr.short td { background: var(--warn-bg); }
 .freq .sum.bad { color: var(--warn); }
 .freq table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .freq th, .freq td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
@@ -427,6 +434,7 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
     <button type="button" class="side-tab" data-tab="map-h"><span>3. Column matching</span></button>
     <button type="button" class="side-tab" data-tab="reauth-h"><span>4. Prepare the reauth request</span></button>
     <button type="button" class="side-sub" data-tab="reauth-h" data-sub="s1">A. Upload the patient’s files</button>
+    <button type="button" class="side-sub" data-tab="reauth-h" data-sub="calcBox">Missing visits calculator</button>
     <button type="button" class="side-tab" data-tab="va-h"><span>5. VA authorization</span><span class="badge hidden" data-badge="va"></span></button>
     <button type="button" class="side-tab" data-tab="appr-h"><span>6. Check auth approval</span><span class="badge pend hidden" data-badge="pending"></span></button>
     <button type="button" class="side-tab" data-tab="report-h"><span>Weekly report</span></button>
@@ -546,6 +554,19 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
       <p id="accessMsg"></p>
     </div>
     <p class="gate hidden" id="keyNote" role="status"></p>
+    <details class="panel calc" id="calcBox">
+      <summary>Missing visits calculator</summary>
+      <p class="small muted">Counts how many visits are still missing against the ordered frequency. Every visit plotted on the calendar counts, whatever its status. Weeks are 7 days from the frequency start date.</p>
+      <div class="grid">
+        <label class="field" for="calc_disc">Discipline<select id="calc_disc"><option>SN</option><option>PT</option><option>OT</option><option value="SLP">ST</option><option value="MSW">MSW</option><option>HHA</option></select></label>
+        <label class="field" for="calc_freq">Frequency<input type="text" id="calc_freq" placeholder="e.g. 1W1, 2W4"></label>
+        <label class="field" for="calc_start">Frequency start date<input type="text" id="calc_start" placeholder="MM/DD/YYYY"></label>
+        <label class="field" for="calc_count">Or: how many visits are plotted<input type="text" id="calc_count" inputmode="numeric" placeholder="only if no dates below"></label>
+        <label class="field wide" for="calc_visits">Plotted visit dates (paste from the calendar; any status)<textarea id="calc_visits" rows="3" placeholder="11/03/2026 Completed&#10;11/05/2026 Not Yet Due&#10;11/11/2026 Missed Visit"></textarea></label>
+      </div>
+      <div class="row"><button class="primary" id="calcBtn">Calculate</button><button id="calcClear">Clear</button><button class="hidden" id="calcUse"></button><span class="small" id="calcMsg" role="status"></span></div>
+      <div class="freq-out" id="calcOut"></div>
+    </details>
     <details class="panel hidden" id="keyAdmin">
       <summary><strong>Admin: Claude API key</strong></summary>
       <p class="small" id="keyStatus"></p>
@@ -638,7 +659,7 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
     </div>
     <div class="freq hidden" id="freqBox">
       <h3>Visits vs. frequency</h3>
-      <p class="small">Ordered visits per week (7-day weeks from the frequency start) compared with the visits on the calendar, any status except missed.</p>
+      <p class="small">Ordered visits per week (7-day weeks from the frequency start) compared with the visits plotted on the calendar, whatever their status.</p>
       <div id="freqBody"></div>
     </div>
 
@@ -1685,7 +1706,7 @@ function latestDate(vals) {
 function fmt(d) { return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`; }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 
-// Visits vs. ordered frequency: 7-day weeks from the frequency start, ordered visits vs. visits on the calendar (any status except missed).
+// Visits vs. ordered frequency: 7-day weeks from the frequency start, ordered visits vs. visits plotted on the calendar (any status).
 function parseFreq(s) {
   const parts = [];
   for (const m of String(s || '').matchAll(/(\d+)\s*(?:-\s*(\d+))?\s*[xX]?\s*\/?\s*w(?:ee)?k?s?\s*[xX]?\s*(\d+)/gi)) {
@@ -1705,7 +1726,7 @@ function freqCheck(data) {
       continue;
     }
     const visits = (v.visits || []).map(x => ({ d: toDate(x.date), status: String(x.status || '').trim() })).filter(x => x.d);
-    const isMissed = x => /miss|cancel|delet|void/i.test(x.status);
+    const isMissed = () => false; // every plotted visit counts, whatever its status
     const weeks = []; let w = 0;
     for (const p of parts) for (let i = 0; i < p.weeks; i++, w++) {
       const ws = addDays(start, 7 * w), we = addDays(ws, 6);
@@ -2001,18 +2022,50 @@ function setForm(d) {
   $('review').classList.remove('hidden');
 }
 
+function freqHtml(list) {
+  return (Array.isArray(list) ? list : []).map(r => {
+    if (r.error) return `<p class="small err">${xmlEsc(r.error)}</p>`;
+    const k = r.disc === 'SLP' ? 'ST' : r.disc;
+    const rows = r.weeks.map(x => `<tr class="${x.short ? 'short' : ''}${x.current ? ' now' : ''}"><td>${x.n}${x.current ? ' (this week)' : ''}</td><td>${fd(x.ws)} – ${fd(x.we)}</td><td>${xmlEsc(x.freq)}</td><td>${x.ordered}${x.upTo !== x.ordered ? '-' + x.upTo : ''}</td><td>${x.onCal}</td><td>${x.short ? `<strong>${x.short}</strong>` : (x.extra ? `+${x.extra} over` : '✓')}</td></tr>`).join('');
+    return `<div><h4>${k ? k + ': ' : ''}${xmlEsc(r.frequency)} from ${fd(r.start)}</h4>
+      <p class="sum${r.short ? ' bad' : ''}">${r.ordered}${r.range ? ' (minimum)' : ''} ordered · ${r.onCal} plotted on the calendar · ${r.short ? `${r.short} still missing${r.shortSoFar ? ` (${r.shortSoFar} in weeks already started)` : ''}` : 'none missing'}${r.after ? ` · ${r.after} after the order ends` : ''}</p>
+      <table><thead><tr><th>Week</th><th>Dates</th><th>Freq</th><th>Ordered</th><th>Plotted</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join('');
+}
 function renderFreq(list) {
   list = Array.isArray(list) ? list : [];
   $('freqBox').classList.toggle('hidden', !list.length);
-  $('freqBody').innerHTML = list.map(r => {
-    if (r.error) return `<p class="small err">${xmlEsc(r.error)}</p>`;
-    const k = r.disc === 'SLP' ? 'ST' : r.disc;
-    const rows = r.weeks.map(x => `<tr class="${x.short ? 'short' : ''}${x.current ? ' now' : ''}"><td>${x.n}${x.current ? ' (this week)' : ''}</td><td>${fd(x.ws)} – ${fd(x.we)}</td><td>${xmlEsc(x.freq)}</td><td>${x.ordered}${x.upTo !== x.ordered ? '-' + x.upTo : ''}</td><td>${x.onCal}</td><td>${x.missed || ''}</td><td>${x.short ? `<strong>${x.short}</strong>` : (x.extra ? `+${x.extra} over` : '✓')}</td></tr>`).join('');
-    return `<div><h4>${k}: ${xmlEsc(r.frequency)} from ${fd(r.start)}</h4>
-      <p class="sum${r.short ? ' bad' : ''}">${r.ordered}${r.range ? ' (minimum)' : ''} ordered · ${r.onCal} on the calendar${r.missed ? ` · ${r.missed} missed` : ''} · ${r.short ? `${r.short} still missing${r.shortSoFar ? ` (${r.shortSoFar} in weeks already started)` : ''}` : 'none missing'}${r.after ? ` · ${r.after} after the order ends` : ''}</p>
-      <table><thead><tr><th>Week</th><th>Dates</th><th>Freq</th><th>Ordered</th><th>On calendar</th><th>Missed</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  }).join('');
+  $('freqBody').innerHTML = freqHtml(list);
 }
+
+// Missing visits calculator: type the frequency, its start date and the plotted visit dates (or just how many are plotted).
+function calcRun() {
+  const disc = $('calc_disc').value, freq = $('calc_freq').value.trim(), start = $('calc_start').value.trim();
+  const text = $('calc_visits').value, count = $('calc_count').value.trim();
+  const msg = $('calcMsg'); msg.classList.remove('err'); $('calcUse').classList.add('hidden');
+  if (!parseFreq(freq).length) { $('calcOut').innerHTML = ''; msg.textContent = 'Type the frequency like 2W4 or 1W1, 2W4 (visits a week, W, number of weeks).'; msg.classList.add('err'); return; }
+  if (!toDate(start)) { $('calcOut').innerHTML = ''; msg.textContent = 'Type the date the frequency starts, MM/DD/YYYY.'; msg.classList.add('err'); return; }
+  const dates = [...text.matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})|(\d{4})-(\d{2})-(\d{2})/g)].map(m => m[0]);
+  const r = freqCheck({ today: todayText(), visitCheck: [{ discipline: disc, frequency: freq, frequencyStart: start, visits: dates.map(d => ({ date: d, status: '' })) }] })[0];
+  if (!dates.length && /^\d+$/.test(count)) {
+    // Only a count: total missing = ordered - plotted, no week breakdown.
+    r.onCal = +count; r.short = Math.max(0, r.ordered - r.onCal);
+    $('calcOut').innerHTML = `<p class="sum${r.short ? ' bad' : ''}">${r.ordered}${r.range ? ' (minimum)' : ''} ordered (${xmlEsc(r.frequency)}, ${fd(r.start)} to ${fd(r.end)}) − ${r.onCal} plotted = <strong>${r.short} still missing</strong></p><p class="small muted">Paste the visit dates instead of a count to see it week by week.</p>`;
+  } else if (!dates.length) { $('calcOut').innerHTML = ''; msg.textContent = 'Paste the plotted visit dates, or type how many visits are plotted.'; msg.classList.add('err'); return; }
+  else $('calcOut').innerHTML = freqHtml([r]);
+  calcLast = { disc, short: r.short };
+  if (r.short > 0) { $('calcUse').textContent = `Put ${r.short} in the ${disc === 'SLP' ? 'ST' : disc} units requested`; $('calcUse').classList.remove('hidden'); }
+  msg.textContent = dates.length ? `Read ${dates.length} visit date${dates.length === 1 ? '' : 's'}.` : '';
+}
+let calcLast = null;
+$('calcBtn').addEventListener('click', calcRun);
+$('calcUse').addEventListener('click', () => {
+  const box = calcLast && $('s_' + calcLast.disc + '_units');
+  if (!box || $('review').classList.contains('hidden')) { $('calcMsg').textContent = 'Fill the form first (step B), then use this button to put the number in step C.'; $('calcMsg').classList.add('err'); return; }
+  box.value = String(calcLast.short); box.dispatchEvent(new Event('input', { bubbles: true }));
+  $('calcMsg').textContent = `Units requested for ${calcLast.disc === 'SLP' ? 'ST' : calcLast.disc} set to ${calcLast.short} in step C.`;
+});
+$('calcClear').addEventListener('click', () => { ['calc_freq', 'calc_start', 'calc_visits', 'calc_count'].forEach(id => { $(id).value = ''; }); $('calcOut').innerHTML = ''; $('calcMsg').textContent = ''; $('calcUse').classList.add('hidden'); });
 
 function readForm() {
   return {
