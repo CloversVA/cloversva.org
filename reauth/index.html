@@ -143,6 +143,23 @@ table.svc input { min-width: 80px; }
 .notes { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
 .notes ul { margin: 0; padding-left: 20px; }
 .notes li { color: var(--ink); }
+.freq { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 12px; display: grid; gap: 8px; }
+.freq h3, .freq h4 { margin: 0; }
+.freq .sum { font-weight: 600; }
+#freqBody { display: grid; gap: 14px; }
+#freqBody > div, #calcOut { overflow-x: auto; }
+.calc[open] { display: grid; gap: 10px; }
+#calcOut .sum { font-weight: 600; margin: 4px 0; }
+#calcOut .sum.bad { color: var(--warn); }
+#calcOut h4 { margin: 0; }
+#calcOut table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#calcOut th, #calcOut td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+#calcOut tr.short td { background: var(--warn-bg); }
+.freq .sum.bad { color: var(--warn); }
+.freq table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.freq th, .freq td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.freq tr.short td { background: var(--warn-bg); }
+.freq tr.now td:first-child { font-weight: 700; }
 .hidden { display: none !important; }
 .sent-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
 .sent-box label { display: flex; gap: 8px; align-items: center; font-weight: 600; }
@@ -417,6 +434,7 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
     <button type="button" class="side-tab" data-tab="map-h"><span>3. Column matching</span></button>
     <button type="button" class="side-tab" data-tab="reauth-h"><span>4. Prepare the reauth request</span></button>
     <button type="button" class="side-sub" data-tab="reauth-h" data-sub="s1">A. Upload the patient’s files</button>
+    <button type="button" class="side-sub" data-tab="reauth-h" data-sub="calcBox">Missing visits calculator</button>
     <button type="button" class="side-tab" data-tab="va-h"><span>5. VA authorization</span><span class="badge hidden" data-badge="va"></span></button>
     <button type="button" class="side-tab" data-tab="appr-h"><span>6. Check auth approval</span><span class="badge pend hidden" data-badge="pending"></span></button>
     <button type="button" class="side-tab" data-tab="report-h"><span>Weekly report</span></button>
@@ -536,6 +554,19 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
       <p id="accessMsg"></p>
     </div>
     <p class="gate hidden" id="keyNote" role="status"></p>
+    <details class="panel calc" id="calcBox">
+      <summary>Missing visits calculator</summary>
+      <p class="small muted">Counts how many visits are still missing against the ordered frequency. Every visit plotted on the calendar counts, whatever its status. Weeks are 7 days from the frequency start date.</p>
+      <div class="grid">
+        <label class="field" for="calc_disc">Discipline<select id="calc_disc"><option>SN</option><option>PT</option><option>OT</option><option value="SLP">ST</option><option value="MSW">MSW</option><option>HHA</option></select></label>
+        <label class="field" for="calc_freq">Frequency<input type="text" id="calc_freq" placeholder="e.g. 1W1, 2W4"></label>
+        <label class="field" for="calc_start">Frequency start date<input type="text" id="calc_start" placeholder="MM/DD/YYYY"></label>
+        <label class="field" for="calc_count">Or: how many visits are plotted<input type="text" id="calc_count" inputmode="numeric" placeholder="only if no dates below"></label>
+        <label class="field wide" for="calc_visits">Plotted visit dates (paste from the calendar; any status)<textarea id="calc_visits" rows="3" placeholder="11/03/2026 Completed&#10;11/05/2026 Not Yet Due&#10;11/11/2026 Missed Visit"></textarea></label>
+      </div>
+      <div class="row"><button class="primary" id="calcBtn">Calculate</button><button id="calcClear">Clear</button><button class="hidden" id="calcUse"></button><span class="small" id="calcMsg" role="status"></span></div>
+      <div class="freq-out" id="calcOut"></div>
+    </details>
     <details class="panel hidden" id="keyAdmin">
       <summary><strong>Admin: Claude API key</strong></summary>
       <p class="small" id="keyStatus"></p>
@@ -626,6 +657,11 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
       <h3>Check these before faxing</h3>
       <ul id="notes"></ul>
     </div>
+    <div class="freq hidden" id="freqBox">
+      <h3>Visits vs. frequency</h3>
+      <p class="small">Ordered visits per week (7-day weeks from the frequency start) compared with the visits plotted on the calendar, whatever their status.</p>
+      <div id="freqBody"></div>
+    </div>
 
     <fieldset><legend>Request</legend>
       <div class="grid">
@@ -684,7 +720,7 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
           <tbody id="svcRows"></tbody>
         </table>
       </div>
-      <p class="small muted">Rule: more than 2 visits left = extension for the same authorized units; 2 or fewer = reauth for 12 visits. Extension dates: current auth start date to auth end + 30 days. Reauth dates: day after the auth ends to auth end + 30 days. Exhausted (no visits left): day after the last scheduled visit to 30 days later; the auth end date is not used. Leave units blank for a discipline you are not requesting. Codes: SN G0299, PT G0159, OT G0160, SLP G0161.</p>
+      <p class="small muted">Rule: more than 2 visits left = extension for the same authorized units; 2 or fewer = reauth for the visits still missing vs. the ordered frequency (from the calendar), or 12 when that can't be counted. Extension dates: current auth start date to auth end + 30 days. Reauth dates: day after the auth ends to auth end + 30 days. Exhausted (no visits left): day after the last scheduled visit to 30 days later; the auth end date is not used. Leave units blank for a discipline you are not requesting. Codes: SN G0299, PT G0159, OT G0160, SLP G0161.</p>
     </fieldset>
 
     <fieldset><legend>Clinical comments</legend>
@@ -1518,7 +1554,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { firebaseConfig } from '../dtr/firebase-config.js?v=2';
 import Anthropic from './anthropic-sdk.js?v=1';
-import { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply } from './prompt.js?v=1';
+import { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply } from './prompt.js?v=2';
 
 // Sign-in is shared with the CloversVA Time Tracker (same site, same Firebase project).
 // Firebase only checks who is signed in. Patient data never goes to Firebase.
@@ -1640,7 +1676,7 @@ function fillDocumentXml(xml, values) {
 }
 // Extension / reauth rules (set by the agency):
 // - more than 2 visits left on the active auth -> extension: units = the authorized units
-// - 2 or fewer left -> reauth: 12 visits
+// - 2 or fewer left -> reauth: the visits still missing vs. the ordered frequency (12 when not counted)
 // - extension dates: the current auth start date through auth end + 30 days
 // - reauth dates: day after the auth ends through auth end + 30 days
 // - exhausted (0 left): day after the last scheduled visit through that date + 30 days (auth end date not used)
@@ -1669,6 +1705,53 @@ function latestDate(vals) {
 }
 function fmt(d) { return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`; }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+
+// Visits vs. ordered frequency: 7-day weeks from the frequency start, ordered visits vs. visits plotted on the calendar (any status).
+function parseFreq(s) {
+  const parts = [];
+  for (const m of String(s || '').matchAll(/(\d+)\s*(?:-\s*(\d+))?\s*[xX]?\s*\/?\s*w(?:ee)?k?s?\s*[xX]?\s*(\d+)/gi)) {
+    const lo = +m[1], hi = m[2] ? +m[2] : lo, weeks = +m[3];
+    if (weeks > 0 && weeks < 60 && lo < 15) parts.push({ lo, hi, weeks, text: `${lo}${hi !== lo ? '-' + hi : ''}W${weeks}` });
+  }
+  return parts;
+}
+function freqCheck(data) {
+  const today = toDate(data.today) || todayLocal();
+  const out = [];
+  for (const v of (Array.isArray(data.visitCheck) ? data.visitCheck : [])) {
+    const disc = String(v.discipline || '').toUpperCase().replace(/^ST$/, 'SLP').replace(/^SW$/, 'MSW');
+    const parts = parseFreq(v.frequency), start = toDate(v.frequencyStart);
+    if (!disc || !parts.length || !start) {
+      if (disc && (v.frequency || (v.visits || []).length)) out.push({ disc, error: `${disc === 'SLP' ? 'ST' : disc}: could not read the frequency${start ? '' : ' start date'} ("${v.frequency || ''}"), so missing visits were not counted.` });
+      continue;
+    }
+    const visits = (v.visits || []).map(x => ({ d: toDate(x.date), status: String(x.status || '').trim() })).filter(x => x.d);
+    const isMissed = () => false; // every plotted visit counts, whatever its status
+    const weeks = []; let w = 0;
+    for (const p of parts) for (let i = 0; i < p.weeks; i++, w++) {
+      const ws = addDays(start, 7 * w), we = addDays(ws, 6);
+      const inWk = visits.filter(x => x.d >= ws && x.d <= we);
+      const onCal = inWk.filter(x => !isMissed(x)).length, missed = inWk.filter(isMissed).length;
+      weeks.push({ n: w + 1, ws: fmt(ws), we: fmt(we), freq: p.text, ordered: p.lo, upTo: p.hi, onCal, missed, short: Math.max(0, p.lo - onCal), extra: Math.max(0, onCal - p.hi), past: we < today, current: ws <= today && today <= we });
+    }
+    const sum = k => weeks.reduce((a, x) => a + x[k], 0);
+    const pastWeeks = weeks.filter(x => x.past || x.current);
+    const lastDay = addDays(start, 7 * w - 1);
+    out.push({ disc, frequency: parts.map(p => p.text).join(', '), start: fmt(start), end: fmt(lastDay), weeks,
+      ordered: sum('ordered'), onCal: sum('onCal'), missed: sum('missed'), short: sum('short'),
+      shortSoFar: pastWeeks.reduce((a, x) => a + x.short, 0), range: parts.some(p => p.hi !== p.lo),
+      after: visits.filter(x => x.d > lastDay && !isMissed(x)).length });
+  }
+  return out;
+}
+function fd(v) { const d = v instanceof Date ? v : toDate(v); return d ? fmt(d) : String(v || ''); }
+function freqLine(r) {
+  if (r.error) return r.error;
+  const k = r.disc === 'SLP' ? 'ST' : r.disc;
+  const shortWeeks = r.weeks.filter(x => x.short).map(x => `wk ${x.n}: ${x.onCal} of ${x.ordered}`).join('; ');
+  return `${k} visits vs. frequency ${r.frequency} (${fd(r.start)} to ${fd(r.end)}): ${r.ordered}${r.range ? ' (minimum)' : ''} ordered, ${r.onCal} on the calendar` +
+    (r.missed ? `, ${r.missed} missed` : '') + `. ${r.short ? `${r.short} still missing${r.shortSoFar ? ` (${r.shortSoFar} in weeks already started)` : ''}: ${shortWeeks}.` : 'None missing.'}`;
+}
 
 // rows: the Authorization Due sheet as arrays. Returns one plan item per discipline on the patient's active auth.
 function authPlan(rows, mrn) {
@@ -1717,7 +1800,7 @@ function applyPlan(d, plan) {
       st: plan.some(p => p.discipline === 'SLP'), msw: plan.some(p => p.discipline === 'MSW') });
   if (plan[0].authNumber) d.authNumber = plan[0].authNumber;
   d.clinicalComments = planComment(plan);
-  const lines = plan.map(p => `${p.discipline === 'SLP' ? 'ST' : p.discipline}: ${p.left} of ${p.authUnits} visits left, so ${p.type === 'extension' ? `extension for ${p.units} visits` : 'reauth for 12 visits'}, ${p.start} to ${p.end} (${p.type === 'extension' ? `current auth ${p.authStart} to ${p.authEnd} + 30 days` : (p.startWhy ? `exhausted: ${p.startWhy}` : `auth ends ${p.authEnd} + 30 days`)}).`);
+  const lines = plan.map(p => `${p.discipline === 'SLP' ? 'ST' : p.discipline}: ${p.left} of ${p.authUnits} visits left, so ${p.type === 'extension' ? `extension for ${p.units} visits` : `reauth for ${p.units} visits${p.unitsWhy ? ` (${p.unitsWhy})` : ''}`}, ${p.start} to ${p.end} (${p.type === 'extension' ? `current auth ${p.authStart} to ${p.authEnd} + 30 days` : (p.startWhy ? `exhausted: ${p.startWhy}` : `auth ends ${p.authEnd} + 30 days`)}).`);
   d.reviewNotes = [...lines, ...(d.reviewNotes || [])];
   return d;
 }
@@ -1935,8 +2018,54 @@ function setForm(d) {
   const notes = (d.reviewNotes || []).filter(n => String(n).trim());
   $('notes').innerHTML = notes.map(n => `<li>${xmlEsc(n)}</li>`).join('');
   $('notesBox').classList.toggle('hidden', !notes.length);
+  renderFreq(d.freqCheck);
   $('review').classList.remove('hidden');
 }
+
+function freqHtml(list) {
+  return (Array.isArray(list) ? list : []).map(r => {
+    if (r.error) return `<p class="small err">${xmlEsc(r.error)}</p>`;
+    const k = r.disc === 'SLP' ? 'ST' : r.disc;
+    const rows = r.weeks.map(x => `<tr class="${x.short ? 'short' : ''}${x.current ? ' now' : ''}"><td>${x.n}${x.current ? ' (this week)' : ''}</td><td>${fd(x.ws)} – ${fd(x.we)}</td><td>${xmlEsc(x.freq)}</td><td>${x.ordered}${x.upTo !== x.ordered ? '-' + x.upTo : ''}</td><td>${x.onCal}</td><td>${x.short ? `<strong>${x.short}</strong>` : (x.extra ? `+${x.extra} over` : '✓')}</td></tr>`).join('');
+    return `<div><h4>${k ? k + ': ' : ''}${xmlEsc(r.frequency)} from ${fd(r.start)}</h4>
+      <p class="sum${r.short ? ' bad' : ''}">${r.ordered}${r.range ? ' (minimum)' : ''} ordered · ${r.onCal} plotted on the calendar · ${r.short ? `${r.short} still missing${r.shortSoFar ? ` (${r.shortSoFar} in weeks already started)` : ''}` : 'none missing'}${r.after ? ` · ${r.after} after the order ends` : ''}</p>
+      <table><thead><tr><th>Week</th><th>Dates</th><th>Freq</th><th>Ordered</th><th>Plotted</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join('');
+}
+function renderFreq(list) {
+  list = Array.isArray(list) ? list : [];
+  $('freqBox').classList.toggle('hidden', !list.length);
+  $('freqBody').innerHTML = freqHtml(list);
+}
+
+// Missing visits calculator: type the frequency, its start date and the plotted visit dates (or just how many are plotted).
+function calcRun() {
+  const disc = $('calc_disc').value, freq = $('calc_freq').value.trim(), start = $('calc_start').value.trim();
+  const text = $('calc_visits').value, count = $('calc_count').value.trim();
+  const msg = $('calcMsg'); msg.classList.remove('err'); $('calcUse').classList.add('hidden');
+  if (!parseFreq(freq).length) { $('calcOut').innerHTML = ''; msg.textContent = 'Type the frequency like 2W4 or 1W1, 2W4 (visits a week, W, number of weeks).'; msg.classList.add('err'); return; }
+  if (!toDate(start)) { $('calcOut').innerHTML = ''; msg.textContent = 'Type the date the frequency starts, MM/DD/YYYY.'; msg.classList.add('err'); return; }
+  const dates = [...text.matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})|(\d{4})-(\d{2})-(\d{2})/g)].map(m => m[0]);
+  const r = freqCheck({ today: todayText(), visitCheck: [{ discipline: disc, frequency: freq, frequencyStart: start, visits: dates.map(d => ({ date: d, status: '' })) }] })[0];
+  if (!dates.length && /^\d+$/.test(count)) {
+    // Only a count: total missing = ordered - plotted, no week breakdown.
+    r.onCal = +count; r.short = Math.max(0, r.ordered - r.onCal);
+    $('calcOut').innerHTML = `<p class="sum${r.short ? ' bad' : ''}">${r.ordered}${r.range ? ' (minimum)' : ''} ordered (${xmlEsc(r.frequency)}, ${fd(r.start)} to ${fd(r.end)}) − ${r.onCal} plotted = <strong>${r.short} still missing</strong></p><p class="small muted">Paste the visit dates instead of a count to see it week by week.</p>`;
+  } else if (!dates.length) { $('calcOut').innerHTML = ''; msg.textContent = 'Paste the plotted visit dates, or type how many visits are plotted.'; msg.classList.add('err'); return; }
+  else $('calcOut').innerHTML = freqHtml([r]);
+  calcLast = { disc, short: r.short };
+  if (r.short > 0) { $('calcUse').textContent = `Put ${r.short} in the ${disc === 'SLP' ? 'ST' : disc} units requested`; $('calcUse').classList.remove('hidden'); }
+  msg.textContent = dates.length ? `Read ${dates.length} visit date${dates.length === 1 ? '' : 's'}.` : '';
+}
+let calcLast = null;
+$('calcBtn').addEventListener('click', calcRun);
+$('calcUse').addEventListener('click', () => {
+  const box = calcLast && $('s_' + calcLast.disc + '_units');
+  if (!box || $('review').classList.contains('hidden')) { $('calcMsg').textContent = 'Fill the form first (step B), then use this button to put the number in step C.'; $('calcMsg').classList.add('err'); return; }
+  box.value = String(calcLast.short); box.dispatchEvent(new Event('input', { bubbles: true }));
+  $('calcMsg').textContent = `Units requested for ${calcLast.disc === 'SLP' ? 'ST' : calcLast.disc} set to ${calcLast.short} in step C.`;
+});
+$('calcClear').addEventListener('click', () => { ['calc_freq', 'calc_start', 'calc_visits', 'calc_count'].forEach(id => { $(id).value = ''; }); $('calcOut').innerHTML = ''; $('calcMsg').textContent = ''; $('calcUse').classList.add('hidden'); });
 
 function readForm() {
   return {
@@ -2084,8 +2213,19 @@ function processReauth(data, files) {
   });
   const cg = String(data.caregiver || '').trim();
   if (cg && !/^(none|n\/a|no caregiver)/i.test(cg)) data.caregiverCompetency = 'Yes';
+  // Reauth units = the visits still missing vs. the ordered frequency (when the calendar was read); extensions keep the authorized units.
+  const fc = freqCheck(data);
+  plan.forEach(x => {
+    if (x.type !== 'reauth') return;
+    const r = fc.find(f => !f.error && f.disc === x.discipline);
+    if (r && r.short > 0) { x.units = String(r.short); x.unitsWhy = `visits still missing vs. frequency ${r.frequency}`; }
+    else if (r) x.unitsWhy = 'no visits missing vs. the frequency, so the default 12';
+  });
   const filled = applyPlan(data, plan);
-  filled.reviewNotes = [...needNotes, ...exhaustNotes, ...(filled.reviewNotes || [])];
+  filled.freqCheck = fc;
+  const freqNotes = filled.freqCheck.filter(r => r.error || r.short).map(freqLine);
+  if (!filled.freqCheck.length) freqNotes.push('Visits vs. frequency was not checked: no calendar with an ordered frequency was found in the files.');
+  filled.reviewNotes = [...needNotes, ...exhaustNotes, ...freqNotes, ...(filled.reviewNotes || [])];
   return { filled, plan };
 }
 
