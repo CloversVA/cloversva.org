@@ -143,6 +143,16 @@ table.svc input { min-width: 80px; }
 .notes { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
 .notes ul { margin: 0; padding-left: 20px; }
 .notes li { color: var(--ink); }
+.freq { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 12px; display: grid; gap: 8px; }
+.freq h3, .freq h4 { margin: 0; }
+.freq .sum { font-weight: 600; }
+#freqBody { display: grid; gap: 14px; }
+#freqBody > div { overflow-x: auto; }
+.freq .sum.bad { color: var(--warn); }
+.freq table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.freq th, .freq td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.freq tr.short td { background: var(--warn-bg); }
+.freq tr.now td:first-child { font-weight: 700; }
 .hidden { display: none !important; }
 .sent-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
 .sent-box label { display: flex; gap: 8px; align-items: center; font-weight: 600; }
@@ -625,6 +635,11 @@ main > section > div > h2, main > section h2 { letter-spacing: -.01em; }
     <div class="notes" id="notesBox">
       <h3>Check these before faxing</h3>
       <ul id="notes"></ul>
+    </div>
+    <div class="freq hidden" id="freqBox">
+      <h3>Visits vs. frequency</h3>
+      <p class="small">Ordered visits per week (7-day weeks from the frequency start) compared with the visits on the calendar, any status except missed.</p>
+      <div id="freqBody"></div>
     </div>
 
     <fieldset><legend>Request</legend>
@@ -1518,7 +1533,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 import { firebaseConfig } from '../dtr/firebase-config.js?v=2';
 import Anthropic from './anthropic-sdk.js?v=1';
-import { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply } from './prompt.js?v=1';
+import { buildPrompt, buildVaPrompt, buildApprovalPrompt, parseJsonReply } from './prompt.js?v=2';
 
 // Sign-in is shared with the CloversVA Time Tracker (same site, same Firebase project).
 // Firebase only checks who is signed in. Patient data never goes to Firebase.
@@ -1669,6 +1684,53 @@ function latestDate(vals) {
 }
 function fmt(d) { return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`; }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+
+// Visits vs. ordered frequency: 7-day weeks from the frequency start, ordered visits vs. visits on the calendar (any status except missed).
+function parseFreq(s) {
+  const parts = [];
+  for (const m of String(s || '').matchAll(/(\d+)\s*(?:-\s*(\d+))?\s*[xX]?\s*\/?\s*w(?:ee)?k?s?\s*[xX]?\s*(\d+)/gi)) {
+    const lo = +m[1], hi = m[2] ? +m[2] : lo, weeks = +m[3];
+    if (weeks > 0 && weeks < 60 && lo < 15) parts.push({ lo, hi, weeks, text: `${lo}${hi !== lo ? '-' + hi : ''}W${weeks}` });
+  }
+  return parts;
+}
+function freqCheck(data) {
+  const today = toDate(data.today) || todayLocal();
+  const out = [];
+  for (const v of (Array.isArray(data.visitCheck) ? data.visitCheck : [])) {
+    const disc = String(v.discipline || '').toUpperCase().replace(/^ST$/, 'SLP').replace(/^SW$/, 'MSW');
+    const parts = parseFreq(v.frequency), start = toDate(v.frequencyStart);
+    if (!disc || !parts.length || !start) {
+      if (disc && (v.frequency || (v.visits || []).length)) out.push({ disc, error: `${disc === 'SLP' ? 'ST' : disc}: could not read the frequency${start ? '' : ' start date'} ("${v.frequency || ''}"), so missing visits were not counted.` });
+      continue;
+    }
+    const visits = (v.visits || []).map(x => ({ d: toDate(x.date), status: String(x.status || '').trim() })).filter(x => x.d);
+    const isMissed = x => /miss|cancel|delet|void/i.test(x.status);
+    const weeks = []; let w = 0;
+    for (const p of parts) for (let i = 0; i < p.weeks; i++, w++) {
+      const ws = addDays(start, 7 * w), we = addDays(ws, 6);
+      const inWk = visits.filter(x => x.d >= ws && x.d <= we);
+      const onCal = inWk.filter(x => !isMissed(x)).length, missed = inWk.filter(isMissed).length;
+      weeks.push({ n: w + 1, ws: fmt(ws), we: fmt(we), freq: p.text, ordered: p.lo, upTo: p.hi, onCal, missed, short: Math.max(0, p.lo - onCal), extra: Math.max(0, onCal - p.hi), past: we < today, current: ws <= today && today <= we });
+    }
+    const sum = k => weeks.reduce((a, x) => a + x[k], 0);
+    const pastWeeks = weeks.filter(x => x.past || x.current);
+    const lastDay = addDays(start, 7 * w - 1);
+    out.push({ disc, frequency: parts.map(p => p.text).join(', '), start: fmt(start), end: fmt(lastDay), weeks,
+      ordered: sum('ordered'), onCal: sum('onCal'), missed: sum('missed'), short: sum('short'),
+      shortSoFar: pastWeeks.reduce((a, x) => a + x.short, 0), range: parts.some(p => p.hi !== p.lo),
+      after: visits.filter(x => x.d > lastDay && !isMissed(x)).length });
+  }
+  return out;
+}
+function fd(v) { const d = v instanceof Date ? v : toDate(v); return d ? fmt(d) : String(v || ''); }
+function freqLine(r) {
+  if (r.error) return r.error;
+  const k = r.disc === 'SLP' ? 'ST' : r.disc;
+  const shortWeeks = r.weeks.filter(x => x.short).map(x => `wk ${x.n}: ${x.onCal} of ${x.ordered}`).join('; ');
+  return `${k} visits vs. frequency ${r.frequency} (${fd(r.start)} to ${fd(r.end)}): ${r.ordered}${r.range ? ' (minimum)' : ''} ordered, ${r.onCal} on the calendar` +
+    (r.missed ? `, ${r.missed} missed` : '') + `. ${r.short ? `${r.short} still missing${r.shortSoFar ? ` (${r.shortSoFar} in weeks already started)` : ''}: ${shortWeeks}.` : 'None missing.'}`;
+}
 
 // rows: the Authorization Due sheet as arrays. Returns one plan item per discipline on the patient's active auth.
 function authPlan(rows, mrn) {
@@ -1935,7 +1997,21 @@ function setForm(d) {
   const notes = (d.reviewNotes || []).filter(n => String(n).trim());
   $('notes').innerHTML = notes.map(n => `<li>${xmlEsc(n)}</li>`).join('');
   $('notesBox').classList.toggle('hidden', !notes.length);
+  renderFreq(d.freqCheck);
   $('review').classList.remove('hidden');
+}
+
+function renderFreq(list) {
+  list = Array.isArray(list) ? list : [];
+  $('freqBox').classList.toggle('hidden', !list.length);
+  $('freqBody').innerHTML = list.map(r => {
+    if (r.error) return `<p class="small err">${xmlEsc(r.error)}</p>`;
+    const k = r.disc === 'SLP' ? 'ST' : r.disc;
+    const rows = r.weeks.map(x => `<tr class="${x.short ? 'short' : ''}${x.current ? ' now' : ''}"><td>${x.n}${x.current ? ' (this week)' : ''}</td><td>${fd(x.ws)} – ${fd(x.we)}</td><td>${xmlEsc(x.freq)}</td><td>${x.ordered}${x.upTo !== x.ordered ? '-' + x.upTo : ''}</td><td>${x.onCal}</td><td>${x.missed || ''}</td><td>${x.short ? `<strong>${x.short}</strong>` : (x.extra ? `+${x.extra} over` : '✓')}</td></tr>`).join('');
+    return `<div><h4>${k}: ${xmlEsc(r.frequency)} from ${fd(r.start)}</h4>
+      <p class="sum${r.short ? ' bad' : ''}">${r.ordered}${r.range ? ' (minimum)' : ''} ordered · ${r.onCal} on the calendar${r.missed ? ` · ${r.missed} missed` : ''} · ${r.short ? `${r.short} still missing${r.shortSoFar ? ` (${r.shortSoFar} in weeks already started)` : ''}` : 'none missing'}${r.after ? ` · ${r.after} after the order ends` : ''}</p>
+      <table><thead><tr><th>Week</th><th>Dates</th><th>Freq</th><th>Ordered</th><th>On calendar</th><th>Missed</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join('');
 }
 
 function readForm() {
@@ -2085,7 +2161,10 @@ function processReauth(data, files) {
   const cg = String(data.caregiver || '').trim();
   if (cg && !/^(none|n\/a|no caregiver)/i.test(cg)) data.caregiverCompetency = 'Yes';
   const filled = applyPlan(data, plan);
-  filled.reviewNotes = [...needNotes, ...exhaustNotes, ...(filled.reviewNotes || [])];
+  filled.freqCheck = freqCheck(data);
+  const freqNotes = filled.freqCheck.filter(r => r.error || r.short).map(freqLine);
+  if (!filled.freqCheck.length) freqNotes.push('Visits vs. frequency was not checked: no calendar with an ordered frequency was found in the files.');
+  filled.reviewNotes = [...needNotes, ...exhaustNotes, ...freqNotes, ...(filled.reviewNotes || [])];
   return { filled, plan };
 }
 
